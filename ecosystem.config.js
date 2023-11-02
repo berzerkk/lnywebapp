@@ -1,7 +1,7 @@
 module.exports = {
     apps : [{
       name: "lns",
-      script: "node ./bin/www",
+      script: "sudo node ./bin/www",
       instances: "max",
       max_memory_restart: "256M",
       env: {
