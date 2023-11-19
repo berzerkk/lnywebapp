@@ -40,34 +40,41 @@
           <span class="rounded p-1 bg-white">contact@lny.com</span></li>
       </ul>
 </div>
+
 <div class="col-lg-6">
   <div class="form-floating mb-3">
-    <input type="email" class="form-control" id="floatingInput" placeholder="John">
+    <input type="text" class="form-control" id="firstname">
     <label for="floatingInput">Prenom</label>
   </div>
   <div class="form-floating mb-3">
-    <input type="email" class="form-control" id="floatingInput" placeholder="Doe">
+    <input type="text" class="form-control" id="lastname">
     <label for="floatingInput">Nom</label>
   </div>
   <div class="form-floating mb-3">
-    <input type="password" class="form-control" id="floatingPassword" placeholder="Password">
+    <input type="email" class="form-control" id="mail">
     <label for="floatingPassword">Adresse E-mail</label>
   </div>
   <div class="form-floating mb-3">
-    <input type="password" class="form-control" id="floatingPasswordretype" placeholder="Password Retype">
+    <input type="tel" class="form-control" id="phone">
     <label for="floatingPassword">Numero de telephone</label>
   </div>
-  <!-- <div class="form-floating mb-3">
-    <select class="dropdown-menu">
+  <div class="form-floating mb-3">
+    <select class="form-control" id="role">
+      <option></option>
+      <option value="entreprise">Une entreprise (service RH)</option>
+      <option value="salarie">Un salarié</option>
+      <option value="independant">Un indépendant (profession libérale, gérant non salarié, auto-entrepreneur)</option>
+      <option value="particulier">Un particulier</option>
     </select>
-  </div> -->
+    <label for="floatingPassword">Vous êtes</label>
+
+  </div>
   <div class="form-check mb-3">
     <input type="checkbox" class="form-check-input" id="confidentialite">
     <label class="form-check-label" for="exampleCheck1">J'ai lu et accepte la <strong>politique de confidentialite</strong> de ce site</label>
   </div>
-
-  <div class="d-grid">
-    <button class="btn btn-primary btn-lg mt-4 py-3 shadow fw-light" type="button">Envoyer</button>
+    <div class="d-grid">
+    <button class="contact-submit btn btn-primary btn-lg mt-4 py-3 shadow fw-light" type="button">Envoyer</button>
   </div>
 </div>
 </div>
@@ -77,5 +84,7 @@
     </main>
     <% include footer %>
   </body>
+  <script type="text/javascript" src="js/contact.js"></script>  
+
 </html>
 
