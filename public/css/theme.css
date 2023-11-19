@@ -5888,6 +5888,12 @@ textarea.form-control-lg {
 .min-vw-100 {
   min-width: 100vw !important; }
 
+.vw-200 {
+  width: 200vw !important; }
+  
+.min-vw-200 {
+  min-width: 200vw !important; }
+
 .h-25 {
   height: 25% !important; }
 
