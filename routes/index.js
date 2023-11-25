@@ -24,6 +24,14 @@ router.get("/contact", function (req, res, next) {
   res.render("contact");
 });
 
+router.get("/approach", function (req, res, next) {
+  res.render("approach");
+});
+
+router.get("/confidentiality", function (req, res, next) {
+  res.render("confidentiality");
+});
+
 router.get("/404", function (req, res, next) {
   res.render("404");
 });
@@ -66,11 +74,3 @@ router.post("/mail", async function (req, res, next) {
 });
 
 module.exports = router;
-
-// {
-//   "firstname": "antonin",
-//   "lastname": "hattabe",
-//   "phone": "0662816089",
-//   "mail": "antonin.hatt@gmail.com",
-//   "role": "entreprise"
-// }
