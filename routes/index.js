@@ -40,7 +40,7 @@ router.post("/mail", async function (req, res, next) {
   try {
     const info = await transporter.sendMail({
       from: "lny.contact@zohomail.eu",
-      to: "antonin.hatt@gmail.com", //lny.cambridge@gmail.com
+      to: "lny.cambridge@gmail.com",
       subject: "Nouveau contact du site languagesnsuccess.com",
       text:
         "Prenom: " +
