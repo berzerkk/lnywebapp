@@ -20,6 +20,10 @@ router.get("/terms", function (req, res, next) {
   res.render("terms");
 });
 
+router.get("/formations", function (req, res, next) {
+  res.render("formations");
+});
+
 router.get("/contact", function (req, res, next) {
   res.render("contact");
 });
@@ -30,6 +34,10 @@ router.get("/approach", function (req, res, next) {
 
 router.get("/confidentiality", function (req, res, next) {
   res.render("confidentiality");
+});
+
+router.get("/rules", function (req, res, next) {
+  res.render("interior");
 });
 
 router.get("/404", function (req, res, next) {

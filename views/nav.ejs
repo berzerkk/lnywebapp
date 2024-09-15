@@ -2,13 +2,44 @@
   id="navScroll"
   class="navbar navbar-expand-lg navbar-light fixed-top"
   tabindex="0"
+  style="width: 100%;"
 >
-  <div class="container">
-    <a class="navbar-brand pe-4 fs-4" href="/">
-      <img src="img/lns/logo.png" width="32" height="32" />
-      <span class="ms-1 fw-bolder">L&S</span>
+  <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+    <!-- Logo and Text -->
+    <a class="navbar-brand pe-4 fs-4" href="/" style="display: flex; align-items: center;">
+      <img src="img/lns/logo.png" width="128" height="128" alt="Logo" />
+
+      <div class="flex-lg-column text-center" style="display: flex; flex-direction: column; margin-left: 10px;">
+        <span class="ms-1 fw-bolder">LANGUAGES & SUCCESS</span>
+        <span class="ms-1 fw-bolder">L&S</span>
+      </div>
     </a>
 
+    <!-- Navbar Links -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent" style="justify-content: flex-end;">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0" style="display: flex; gap: 20px;">
+        <li class="nav-item">
+          <a class="nav-link" href="/#top" aria-label="Brings you to the frontpage">Accueil</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/formations">Nos formations</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/#team">Notre équipe</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/approach">Notre approche</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/#testimonials">Témoignages</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/contact">Contact</a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Mobile menu toggler -->
     <button
       class="navbar-toggler"
       type="button"
@@ -20,33 +51,5 @@
     >
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="collapse navbar-collapse" id="navbarSupportedContent">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a
-            class="nav-link"
-            href="/#top"
-            aria-label="Brings you to the frontpage"
-          >
-            Accueil
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/formations"> Nos formations </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/#team"> Notre équipe </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/approach"> Notre approche </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/#testimonials"> Témoignages </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/contact"> Contact </a>
-        </li>
-      </ul>
-    </div>
   </div>
 </nav>
