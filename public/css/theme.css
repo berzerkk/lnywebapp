@@ -9098,7 +9098,7 @@ main {
 .certification-img {
   max-width: 100%;
   height: auto;
-  max-height: 80px; /* Adjust this value as needed */
+  max-height: 90px; /* Adjust this value as needed */
 }
 
 .text-uppercase {
