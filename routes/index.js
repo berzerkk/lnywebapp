@@ -20,6 +20,15 @@ router.get("/terms", function (req, res, next) {
   res.render("terms");
 });
 
+router.get("/toeic", function (req, res, next) {
+  res.render("toeic");
+});
+
+
+router.get("/bright", function (req, res, next) {
+  res.render("bright");
+});
+
 router.get("/formations", function (req, res, next) {
   res.render("formations");
 });

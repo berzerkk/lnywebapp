@@ -9088,8 +9088,12 @@ main {
 }
 
 .custom-col-5 {
-  width: 20%; /* 5 items per row */
+  width: 20%;
+  padding: 0 5px; /* Tighten horizontal padding */
+  box-sizing: border-box; /* Include padding and border in the element's total width */
+  margin: 0; /* Remove any default margins */
 }
+
 
 .certification-img {
   max-width: 100%;
