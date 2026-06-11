@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Languages & Success · Formations en langues sur mesure, certifié Qualiopi</title>
+<meta name="description" content="Organisme de formation en langues certifié Qualiopi à Nice. 13 langues, formateurs natifs et diplômés, parcours sur mesure financés CPF & OPCO. Start today." />
+<link rel="icon" type="image/png" href="assets/ls-logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Work+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+</head>
+<body class="home">
+
+<div id="splash" aria-hidden="true">
+  <div class="splash-logo">
+    <img class="emblem" src="assets/ls-logo.png" alt="Languages & Success" />
+    <div class="splash-wm"><span class="l">Languages</span><i class="amp">&amp;</i><span class="l">Success</span></div>
+  </div>
+  <div class="splash-meta">Chargement</div>
+  <div class="splash-pct" id="splash-pct">0%</div>
+  <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+</div>
+<script>
+(function(){
+  var s=document.getElementById('splash');
+  if(!s) return;
+  try{ if(sessionStorage.getItem('ls-seen-splash')){ s.remove(); return; } sessionStorage.setItem('ls-seen-splash','1'); }catch(e){}
+  var DUR=2000, start=performance.now(), pct=document.getElementById('splash-pct'), loaded=false, gone=false;
+  (function count(){
+    var p=Math.min(100, Math.round((performance.now()-start)/DUR*100));
+    if(pct) pct.textContent=p+'%';
+    if(p<100 && !gone) requestAnimationFrame(count);
+  })();
+  var done=function(){
+    if(gone) return; gone=true;
+    if(pct) pct.textContent='100%';
+    s.classList.add('hide');
+    setTimeout(function(){ if(s&&s.parentNode) s.parentNode.removeChild(s); }, 800);
+  };
+  var tryDone=function(){ var el=performance.now()-start; if(loaded && el>=DUR) done(); };
+  window.addEventListener('load', function(){ loaded=true; setTimeout(tryDone, Math.max(0, DUR-(performance.now()-start))); });
+  setTimeout(tryDone, DUR);
+  setTimeout(done, 4500); // garde-fou
+})();
+</script>
+
+<div id="ls-nav"></div>
+
+<header class="hero">
+  <div class="medallion-stage" id="medallion-stage" aria-hidden="true"></div>
+  <div class="wrap hero-content">
+    <span class="eyebrow">Organisme certifié Qualiopi</span>
+    <h1 id="ls-slogan">Start <i>today.</i></h1>
+    <p class="lead">Des formations sur mesure, menées par des formateurs natifs et diplômés, pensées autour de vos objectifs, financées CPF &amp; OPCO.</p>
+    <div class="hero-cta">
+      <a href="contact.html" class="btn btn-primary">Nous contacter →</a>
+      <a href="test-de-niveau.html" class="btn btn-ghost">Faire le test de niveau</a>
+    </div>
+    <div class="hero-stats-row">
+      <div class="hs"><span class="n">504</span><span class="l">apprenants formés</span></div>
+      <div class="hs"><span class="n">11 396 h</span><span class="l">de formation dispensées</span></div>
+      <div class="hs"><span class="n">5/5</span><span class="l">satisfaction (avis CPF)</span></div>
+    </div>
+  </div>
+  <div class="scroll-indicator" id="scroll-indicator"><span>Lire</span><div class="arrow"></div></div>
+</header>
+
+
+<section class="sec" id="langues">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <span class="eyebrow">Treize langues</span>
+      <h2>La vôtre est forcément ici.</h2>
+    </div>
+    <div class="lang-wrap" data-reveal>
+      <a class="lang-item" href="formations.html"><span class="lw">Français</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">FLE</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Anglais</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Italien</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Espagnol</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Allemand</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Portugais</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Chinois</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Arabe</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Japonais</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Hongrois</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Serbe</span></a>
+      <a class="lang-item" href="formations.html"><span class="lw">Russe</span></a>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="formats" style="padding-top:0">
+  <div class="wrap two">
+    <div class="panel" data-reveal>
+      <h3>Tous les formats</h3>
+      <p class="sub">Le rythme et le canal qui s'adaptent à votre quotidien.</p>
+      <div class="chips">
+        <span class="chip">Présentiel</span><span class="chip">Visio</span><span class="chip">Téléphone</span><span class="chip">E-learning</span><span class="chip">Cours particuliers</span><span class="chip">Cours en groupe</span><span class="chip">Intra-entreprise</span>
+      </div>
+    </div>
+    <div class="panel" data-reveal>
+      <h3>Certifications</h3>
+      <p class="sub">Validez officiellement votre niveau.</p>
+      <div class="chips">
+        <span class="chip solid">TOEIC</span><span class="chip solid">TOEFL</span><span class="chip solid">Linguaskill</span><span class="chip solid">BRIGHT</span><span class="chip solid">Pipplet</span><span class="chip solid">DCL</span><span class="chip solid">Duolingo English Test</span><span class="chip solid">Cambridge A2–C2</span>
+      </div>
+    </div>
+  </div>
+  <div class="wrap center" style="margin-top:36px"><a href="formations.html" class="btn btn-primary">Voir nos formations →</a></div>
+</section>
+
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <span class="eyebrow">Pourquoi Languages &amp; Success</span>
+      <h2>Trois engagements tenus.</h2>
+    </div>
+    <div class="why-grid">
+      <div class="why" data-reveal><span class="num">01</span><h3>Formateurs natifs &amp; diplômés</h3><p>La justesse de l'accent comme de la pédagogie, à chaque séance.</p></div>
+      <div class="why" data-reveal><span class="num">02</span><h3>Sur mesure &amp; adaptatif</h3><p>Votre programme évolue avec vous, calibré sur votre niveau et votre métier.</p></div>
+      <div class="why" data-reveal><span class="num">03</span><h3>Financement simplifié</h3><p>CPF, OPCO, France Travail, nous montons le dossier avec vous.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="clients">
+  <div class="wrap">
+    <p>Ils forment leurs équipes avec Languages &amp; Success</p>
+  </div>
+  <div class="marquee" id="clients-marquee" aria-label="Logos des entreprises clientes">
+    <div class="marquee-track" id="marquee-track">
+      <span class="client-logo" style="--logo:url('/assets/clients/suez.png');--w:68px" role="img" aria-label="Suez" title="Suez"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/hitachi.png');--w:209px" role="img" aria-label="Hitachi" title="Hitachi"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/sbm.png');--w:240px" role="img" aria-label="Monte-Carlo Société des Bains de Mer" title="Monte-Carlo SBM"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/advans.png');--w:215px" role="img" aria-label="Advans Group" title="Advans Group"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/coty.png');--w:240px" role="img" aria-label="Coty Beauty Lancaster Group" title="Coty"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/allios.png');--w:194px" role="img" aria-label="Allios" title="Allios"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/genevrier.png');--w:234px" role="img" aria-label="Laboratoires Genevrier" title="Laboratoires Genevrier"></span>
+      <span class="client-logo coloris-combo" role="img" aria-label="Coloris Global Coloring Concept" title="Coloris Global Coloring Concept"><img class="cglobe" src="/assets/clients/coloris-globe.png" alt="" /><span class="ctext" style="--logo:url('/assets/clients/coloris-text.png')"></span></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/questel.png');--w:216px" role="img" aria-label="Questel" title="Questel"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/blh.png');--w:102px" role="img" aria-label="BLH matières premières aromatiques" title="BLH"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/properties.png');--w:141px" role="img" aria-label="Properties & Management, Keller Williams" title="Properties & Management"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/romessence.png');--w:104px" role="img" aria-label="Romessence" title="Romessence"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/integra.png');--w:182px" role="img" aria-label="Integra" title="Integra"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/parfex.png');--w:173px" role="img" aria-label="Parfex" title="Parfex"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/frb.png');--w:75px" role="img" aria-label="Fondation pour la Recherche sur la Biodiversité" title="FRB"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/sophia.png');--w:142px" role="img" aria-label="Sophia Engineering" title="Sophia Engineering"></span>
+      <span class="client-logo" style="--logo:url('/assets/clients/elsys.png');--w:151px" role="img" aria-label="Elsys Design" title="Elsys Design"></span>
+    </div>
+  </div>
+</section>
+
+<section class="sec fin" id="financement">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <span class="eyebrow">Financement</span>
+      <h2>Souvent pris en charge. Parfois à <span style="white-space:nowrap">100%.</span></h2>
+      <p>Nous vous guidons vers le bon dispositif pour alléger votre reste à charge.</p>
+    </div>
+    <div class="fin-grid" data-reveal>
+      <div class="fin-card"><div class="k">CPF</div><div class="v">Mobilisez votre Compte Personnel de Formation.</div></div>
+      <div class="fin-card"><div class="k">OPCO</div><div class="v">Prise en charge pour les salariés d'entreprise.</div></div>
+      <div class="fin-card"><div class="k">France Travail</div><div class="v">Dispositifs pour les demandeurs d'emploi.</div></div>
+      <div class="fin-card"><div class="k">Plan de développement</div><div class="v">Au plan de compétences de l'entreprise.</div></div>
+      <div class="fin-card"><div class="k">Fonds Social Européen</div><div class="v">Cofinancement FSE selon éligibilité.</div></div>
+      <div class="fin-card"><div class="k">Autofinancement</div><div class="v">Devis clair pour particuliers &amp; indépendants.</div></div>
+    </div>
+    <div style="margin-top:34px" data-reveal><a href="financement.html" class="btn btn-primary">Voir tous les financements →</a></div>
+  </div>
+</section>
+
+<section class="sec" id="entreprises">
+  <div class="wrap ent">
+    <div class="ent-art painting" data-reveal aria-label="Illustration animée : un coucher de soleil qui se peint">
+      <svg class="scene" viewBox="0 0 440 540" preserveAspectRatio="xMidYMid slice" role="img">
+        <defs>
+          <radialGradient id="paintSun" cx="50%" cy="45%" r="58%">
+            <stop offset="0%" stop-color="#ffe2bd"/><stop offset="52%" stop-color="#f3ad99"/><stop offset="100%" stop-color="#be6e54"/>
+          </radialGradient>
+          <linearGradient id="paintPpl" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#b5603f"/><stop offset="100%" stop-color="#8c4632"/>
+          </linearGradient>
+        </defs>
+        <circle class="soft" style="animation-delay:.1s" cx="220" cy="170" r="66" fill="url(#paintSun)"/>
+        <circle class="stroke" pathLength="1" style="animation-delay:0s" cx="220" cy="170" r="66" stroke="#c2734f" stroke-width="2.4"/>
+        <path class="stroke" pathLength="1" style="animation-delay:.25s" stroke="#cf855f" stroke-width="2.2"
+          d="M220,86 V66 M220,254 V274 M136,170 H116 M304,170 H324 M161,111 L147,97 M279,229 L293,243 M279,111 L293,97 M161,229 L147,243"/>
+        <path class="stroke" pathLength="1" style="animation-delay:.5s" stroke="#bb6a4d" stroke-width="2.6" d="M0,300 Q120,272 240,300 T440,300"/>
+        <path class="stroke" pathLength="1" style="animation-delay:.62s" stroke="#a8593c" stroke-width="2.6" d="M0,346 Q140,318 280,346 T440,352"/>
+        <g class="soft" style="animation-delay:.95s" fill="url(#paintPpl)"><g transform="translate(160,397) scale(1.08)"><circle cx="0" cy="-4" r="8"/><path d="M-11,58 C-13,28 -8,6 0,4 C8,6 13,28 11,58 Z"/></g></g>
+        <g class="soft" style="animation-delay:1.02s" fill="url(#paintPpl)"><g transform="translate(196,386) scale(1.28)"><circle cx="0" cy="-4" r="8.5"/><path d="M-12,60 C-14,28 -8,5 0,3 C8,5 14,28 12,60 Z"/></g></g>
+        <g class="soft" style="animation-delay:1.09s" fill="url(#paintPpl)"><g transform="translate(232,376) scale(1.45)"><circle cx="0" cy="-4" r="8.5"/><path d="M-12,60 C-14,28 -8,5 0,3 C8,5 14,28 12,60 Z"/></g></g>
+        <g class="soft" style="animation-delay:1.16s" fill="url(#paintPpl)"><g transform="translate(268,386) scale(1.28)"><circle cx="0" cy="-4" r="8.5"/><path d="M-12,60 C-14,28 -8,5 0,3 C8,5 14,28 12,60 Z"/></g></g>
+        <g class="soft" style="animation-delay:1.23s" fill="url(#paintPpl)"><g transform="translate(304,397) scale(1.08)"><circle cx="0" cy="-4" r="8"/><path d="M-11,58 C-13,28 -8,6 0,4 C8,6 13,28 11,58 Z"/></g></g>
+        <path class="stroke" pathLength="1" style="animation-delay:1.3s" stroke="#b5663f" stroke-width="2.4" d="M78,158 q12,-11 24,0 q12,-11 24,0 M308,126 q11,-10 22,0 q11,-10 22,0 M150,84 q10,-9 20,0 q10,-9 20,0"/>
+      </svg>
+    </div>
+    <div data-reveal>
+      <span class="eyebrow">Entreprises &amp; RH</span>
+      <h2>Vos équipes montent en compétences.</h2>
+      <ul>
+        <li><span class="tick">↳</span><span><b>Audit des besoins</b> et positionnement avant le démarrage.</span></li>
+        <li><span class="tick">↳</span><span><b>Intra-entreprise</b> ou individuel, sur site, visio ou téléphone.</span></li>
+        <li><span class="tick">↳</span><span><b>Gestion administrative</b> et suivi pédagogique de A à Z.</span></li>
+        <li><span class="tick">↳</span><span><b>Conformité Qualiopi</b>, attestations &amp; émargements fournis.</span></li>
+      </ul>
+      <a href="entreprises.html" class="btn btn-primary" style="margin-top:28px">Découvrir l'offre entreprises →</a>
+    </div>
+  </div>
+</section>
+
+<section class="sec tmoins" id="avis">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <span class="eyebrow">Ils ont réussi</span>
+      <h2>Ce qu'ils en disent.</h2>
+    </div>
+    <div class="reviews" id="reviews" data-reveal>
+      <div class="reviews-stage">
+        <article class="rev-card"><span class="mark">“</span><p>Mes équipes et moi-même travaillons depuis plus de 5 ans avec l'équipe de Languages &amp; Success et nous avons toujours autant de plaisir à démarrer de nouvelles sessions chaque année. La qualité de l'enseignement, le sérieux de l'organisation, le professionnalisme, la flexibilité, le dynamisme et la bonne humeur des enseignants (Tom notamment) permettent d'obtenir rapidement des résultats dans la maîtrise de l'anglais.</p><div class="rev-who"><b>Mylène L.</b><span>Vice-Présidente Product &amp; Cosmétovigilance</span></div></article>
+        <article class="rev-card"><span class="mark">“</span><p>Je recommande vivement Languages &amp; Success, c'est un très bon organisme : les professeurs sont très compétents, on progresse très vite et ils sont à notre écoute. La méthode d'apprentissage, inédite, a parfaitement correspondu à mes attentes et à mes besoins. Le formateur a assuré un suivi tout au long de la formation qui m'a grandement aidée à assimiler les notions.</p><div class="rev-who"><b>Carole B.</b><span>R&amp;D PIRS · Technical &amp; Administrative Agent</span></div></article>
+        <article class="rev-card"><span class="mark">“</span><p>Je tiens à remercier cet organisme qui m'a permis de m'améliorer en anglais grâce à des cours constructifs et interactifs, dispensés par un très bon professeur. Avant de démarrer, un test de niveau permet d'adapter les cours à nos attentes. En complément du distanciel, un extranet donne accès à des exercices supplémentaires. Tout est bien organisé et explicite. Je recommande à 100 %.</p><div class="rev-who"><b>Claire V.</b><span>Chargée de clientèle</span></div></article>
+        <article class="rev-card"><span class="mark">“</span><p>Le cours est très intéressant, avec beaucoup d'échanges, d'exercices et de vocabulaire. Le contenu répond à mes attentes et la professeure, très compétente, donne des conseils utiles. Je n'hésiterai pas, lors d'une prochaine formation, à faire appel à Languages &amp; Success.</p><div class="rev-who"><b>Ahmed A.</b><span>Ingénieur d'études et de recherche</span></div></article>
+        <article class="rev-card"><span class="mark">“</span><p>Je suis très reconnaissante envers mon professeur et l'organisme : mon niveau de français parlé s'est considérablement amélioré. Les leçons étaient très intéressantes et pertinentes. J'espère reprendre les cours ici dans la nouvelle année.</p><div class="rev-who"><b>Antonina S.</b><span>Ingénieure logiciel</span></div></article>
+        <article class="rev-card"><span class="mark">“</span><p>Le point fort de cette formation était la collaboration avec mon professeur, qui connaissait mes atouts et mes faiblesses. Nous avons ainsi pu travailler toutes les difficultés que je rencontrais, et cela m'a permis de progresser. Je souhaite poursuivre ma formation avec Languages &amp; Success.</p><div class="rev-who"><b>Angelos K.</b><span>Ingénieur développeur back-end</span></div></article>
+        <article class="rev-card"><span class="mark">“</span><p>J'ai suivi une formation d'anglais de 20 heures en visioconférence avec Languages &amp; Success et j'en suis ravie. Dès les premières séances, j'ai gagné en confiance et en aisance dans mes échanges professionnels. Régulièrement en contact avec une clientèle internationale, j'ai pu mieux communiquer au quotidien. La formatrice était très pédagogue, bienveillante et à l'écoute. Un grand merci à toute l'équipe pédagogique. Je recommande sans hésiter !</p><div class="rev-who"><b>Clara S.</b><span>Audioprothésiste</span></div></article>
+        <article class="rev-card"><span class="mark">“</span><p>J'ai été très contente de suivre cette formation avec Marie, car elle a su me redonner le goût de parler et d'échanger en anglais. La régularité des cours m'a permis de progresser et ses supports pédagogiques m'ont aidée à renforcer mes connaissances. Marie est une personne enthousiaste qui m'a fait apprendre l'anglais avec plaisir. Cette formation est un véritable tremplin.</p><div class="rev-who"><b>Corinne V.</b><span>Responsable RH</span></div></article>
+        <article class="rev-card"><span class="mark">“</span><p>Merci à ma formatrice pour sa pédagogie qui m'a permis d'atteindre un score de 930 au TOEIC ! Grâce à son aide, j'ai pu rapidement combler mes lacunes et obtenir la certification.</p><div class="rev-who"><b>Lucien T.</b><span>Consultant</span></div></article>
+      </div>
+      <div class="reviews-nav">
+        <button class="rev-arrow rev-prev" aria-label="Avis précédent">←</button>
+        <button class="rev-arrow rev-next" aria-label="Avis suivant">→</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec cta" id="test">
+  <div class="wrap">
+    <div class="box" data-reveal>
+      <div>
+        <h2>Quel est votre niveau, vraiment ?</h2>
+        <p>Quelques questions, vos coordonnées, et vous recevez votre résultat détaillé. Un conseiller vous rappelle pour construire votre parcours.</p>
+        <div class="cta-actions">
+          <a href="test-de-niveau.html" class="btn btn-primary">Commencer le test →</a>
+          <a href="contact.html" class="btn btn-ghost">Nous contacter</a>
+        </div>
+      </div>
+      <div class="testcard" id="teaser-card">
+        <div class="tc-step" id="tc-lang">
+          <div class="q">Choisissez la langue du test</div>
+          <div class="tc-langs" id="tc-langs"></div>
+        </div>
+        <div class="tc-step hidden" id="tc-quiz">
+          <div class="q"><button class="tc-back" id="tc-back" type="button" aria-label="Changer de langue">‹</button> <span id="tc-meta">1 / 10</span></div>
+          <h4 id="tc-qtext"></h4>
+          <div class="ans" id="tc-ans"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="ls-footer"></div>
+
+<div id="lang-modal" class="lang-modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="lm-backdrop"></div>
+  <div class="lm-inner">
+    <div class="lm-word" id="lm-word">Français</div>
+    <div class="lm-card">
+      <button class="lm-close" id="lm-close" aria-label="Fermer">&times;</button>
+      <div class="lm-eyebrow">Cours de langue</div>
+      <p class="lm-q">Intéressé(e) par les cours de <b id="lm-lang">français</b> ?</p>
+      <p class="lm-sub">Dites-nous votre objectif et votre niveau, un conseiller vous rappelle pour construire votre parcours sur mesure, financé CPF ou OPCO.</p>
+      <div class="lm-actions">
+        <a href="test-de-niveau.html" id="lm-test" class="btn btn-primary">Faire le test de niveau →</a>
+        <a href="contact.html" class="btn btn-ghost">Nous contacter →</a>
+        <a href="formations.html" class="btn btn-ghost">Voir toutes nos formations</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.LS_CONFIG = {
+  key: 'v2',
+  slogans: [
+    { label: 'Start today.',                 html: 'Start <i>today.</i>' },
+    { label: 'Apprendre, autrement.',         html: 'Apprendre une langue, <i>autrement.</i>' },
+    { label: 'La langue de votre réussite',   html: 'La langue de votre <i>réussite.</i>' },
+    { label: 'Parlez avec confiance',         html: 'Parlez avec <i>confiance.</i>' },
+    { label: 'Votre langue, sur mesure',      html: 'Votre langue, <i>sur mesure.</i>' },
+    { label: 'Commencez aujourd\'hui',        html: 'Commencez <i>aujourd\'hui.</i>' }
+  ],
+  fonts: [
+    { label: 'Newsreader',  head: "'Newsreader', Georgia, serif",   body: "'Work Sans', system-ui, sans-serif" },
+    { label: 'Crimson Pro', head: "'Crimson Pro', Georgia, serif",  body: "'Work Sans', system-ui, sans-serif" },
+    { label: 'Space Grotesk', head: "'Space Grotesk', system-ui, sans-serif", body: "'Work Sans', system-ui, sans-serif" }
+  ],
+  accents: [
+    { label: 'Rose gold', value: '#be6e54' },
+    { label: 'Cuivre',    value: '#97513f' },
+    { label: 'Rosé',      value: '#b95d4a' },
+    { label: 'Bronze',    value: '#a76a48' }
+  ]
+};
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script src="assets/partials.js"></script>
+<script src="morph.js"></script>
+<script src="ls-engine.js"></script>
+<script>
+/* Bandeau clients : 1er logo (Suez) centré à l'apparition, entrée animée au scroll, boucle infinie */
+(function(){
+  var marquee=document.getElementById('clients-marquee');
+  var track=document.getElementById('marquee-track');
+  if(!marquee||!track) return;
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce){ marquee.classList.add('in'); return; }
+
+  var DURATION=80; // secondes pour traverser un jeu (vitesse)
+  // 3 copies au total (1 + 2 clones) => du contenu de chaque côté du centre
+  var originals=Array.prototype.slice.call(track.children);
+  for(var c=0;c<2;c++){
+    originals.forEach(function(n){ var cl=n.cloneNode(true); cl.setAttribute('aria-hidden','true'); track.appendChild(cl); });
+  }
+
+  function layout(){
+    var W=track.scrollWidth/3;                          // largeur d'un jeu
+    var first=track.children[0];                        // Suez (jeu 1)
+    var suezCenter=first.offsetLeft+first.offsetWidth/2;
+    var C=marquee.clientWidth/2;
+    var startX=Math.round(C-(W+suezCenter));            // centre le Suez du jeu 2
+    var endX=Math.round(startX-W);
+    var st=document.getElementById('clients-kf');
+    if(!st){ st=document.createElement('style'); st.id='clients-kf'; document.head.appendChild(st); }
+    st.textContent='@keyframes clients-run{from{transform:translateX('+startX+'px)}to{transform:translateX('+endX+'px)}}';
+    var running=marquee.classList.contains('in');
+    track.style.transform='translateX('+startX+'px)';
+    track.style.animation='clients-run '+DURATION+'s linear infinite';
+    track.style.animationPlayState=running?'running':'paused';
+  }
+
+  layout();
+  window.addEventListener('load',layout);
+  var rt; window.addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(layout,150); });
+
+  function appear(){ marquee.classList.add('in'); track.style.animationPlayState='running'; }
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ appear(); io.unobserve(marquee); } }); },{threshold:0.3});
+    io.observe(marquee);
+  } else { appear(); }
+})();
+</script>
+<script>
+/* Tableau : léger basculement 3D au survol de la souris */
+(function(){
+  var p=document.querySelector('.ent-art.painting'); if(!p) return;
+  var scene=p.querySelector('.scene');
+  if(!scene) return;
+  p.addEventListener('pointermove',function(e){
+    var r=p.getBoundingClientRect();
+    var x=(e.clientX-r.left)/r.width-0.5, y=(e.clientY-r.top)/r.height-0.5;
+    scene.style.transform='rotateY('+(x*11)+'deg) rotateX('+(-y*11)+'deg) scale(1.03)';
+  });
+  p.addEventListener('pointerleave',function(){ scene.style.transform=''; });
+})();
+</script>
+<script>
+/* Langues : clic -> mot à gauche + carte à droite + fond flou */
+(function(){
+  var modal=document.getElementById('lang-modal'); if(!modal) return;
+  var wordEl=document.getElementById('lm-word'), langEl=document.getElementById('lm-lang'), closeBtn=document.getElementById('lm-close');
+  var testEl=document.getElementById('lm-test');
+  var LABELS={ 'FLE':'français langue étrangère' };
+  function testLangFor(name){ return name==='FLE' ? 'Français' : name; }
+  function open(name){
+    var disp=LABELS[name]||name.toLowerCase();
+    wordEl.textContent=name; langEl.textContent=disp;
+    if(testEl) testEl.href='test-de-niveau.html?lang='+encodeURIComponent(testLangFor(name));
+    modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+    document.body.style.overflow='hidden';
+  }
+  function close(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
+  document.querySelectorAll('#langues .lang-item').forEach(function(a){
+    a.addEventListener('click',function(e){ e.preventDefault(); open(a.textContent.trim()); });
+  });
+  closeBtn.addEventListener('click',close);
+  modal.addEventListener('click',function(e){ if(!e.target.closest('.lm-card')) close(); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape' && modal.classList.contains('open')) close(); });
+})();
+</script>
+<script>
+/* Carrousel d'avis */
+(function(){
+  var root=document.getElementById('reviews'); if(!root) return;
+  var stage=root.querySelector('.reviews-stage');
+  var cards=Array.prototype.slice.call(stage.querySelectorAll('.rev-card'));
+  var n=cards.length; if(!n) return;
+  var count=root.querySelector('.rev-count'), idx=0;
+  function sizeStage(){ var max=0; cards.forEach(function(c){ if(c.offsetHeight>max) max=c.offsetHeight; }); if(max) stage.style.minHeight=max+'px'; }
+  function render(){
+    cards.forEach(function(c,i){
+      c.classList.remove('is-active','is-prev','is-next','is-hidden');
+      if(i===idx) c.classList.add('is-active');
+      else if(i===(idx-1+n)%n) c.classList.add('is-prev');
+      else if(i===(idx+1)%n) c.classList.add('is-next');
+      else c.classList.add('is-hidden');
+    });
+    if(count) count.textContent=(idx+1)+' / '+n;
+  }
+  root.querySelector('.rev-prev').addEventListener('click',function(){ idx=(idx-1+n)%n; render(); });
+  root.querySelector('.rev-next').addEventListener('click',function(){ idx=(idx+1)%n; render(); });
+  sizeStage(); render();
+  window.addEventListener('load', sizeStage);
+  var rt; window.addEventListener('resize', function(){ clearTimeout(rt); rt=setTimeout(sizeStage,160); });
+})();
+</script>
+<script>
+/* Teaser test de niveau : choix de la langue -> 1re question dans cette langue -> page de test */
+(function(){
+  var card=document.getElementById('teaser-card'); if(!card) return;
+  var stepLang=document.getElementById('tc-lang'), stepQuiz=document.getElementById('tc-quiz');
+  var langsBox=document.getElementById('tc-langs'), ansBox=document.getElementById('tc-ans');
+  var qText=document.getElementById('tc-qtext'), meta=document.getElementById('tc-meta');
+
+  // [libellé bouton, valeur transmise au test]
+  var LANGS=[
+    ['Anglais','Anglais'],['Français','Français'],
+    ['Italien','Italien'],['Espagnol','Espagnol'],['Allemand','Allemand'],
+    ['Portugais','Portugais'],['Chinois','Chinois'],['Arabe','Arabe'],
+    ['Japonais','Japonais'],['Hongrois','Hongrois'],['Serbe','Serbe'],['Russe','Russe']
+  ];
+  // 1re question (niveau A1) par langue
+  var TQ={
+    'Anglais':{q:'“She ___ to work every day.”', a:['go','goes','going','gone']},
+    'Français':{q:'« Elle ___ au travail tous les jours. »', a:['va','vas','allez','vont']},
+    'Français langue étrangère':{q:'« Elle ___ au travail tous les jours. »', a:['va','vas','allez','vont']},
+    'Italien':{q:'« Lei ___ al lavoro ogni giorno. »', a:['va','vai','andare','vanno']},
+    'Espagnol':{q:'« Ella ___ al trabajo todos los días. »', a:['va','vas','ir','van']},
+    'Allemand':{q:'„Sie ___ jeden Tag zur Arbeit.“', a:['geht','gehen','gehst','gegangen']},
+    'Portugais':{q:'« Ela ___ ao trabalho todos os dias. »', a:['vai','vais','ir','vão']},
+    'Chinois':{q:'我 ___ 学生。', a:['是','有','在','很']},
+    'Arabe':{q:'هي ___ إلى العمل كل يوم.', a:['تذهب','يذهب','ذهب','نذهب']},
+    'Japonais':{q:'彼女は毎日仕事に ___ 。', a:['行きます','行く','来ます','食べます']},
+    'Hongrois':{q:'Ő minden nap ___ dolgozni.', a:['megy','mész','megyek','mennek']},
+    'Serbe':{q:'Она ___ на посао сваког дана.', a:['иде','идем','идеш','иду']},
+    'Russe':{q:'Она ___ на работу каждый день.', a:['идёт','иду','идёшь','идут']}
+  };
+
+  LANGS.forEach(function(L){
+    var b=document.createElement('button'); b.type='button'; b.textContent=L[0];
+    b.onclick=function(){ choose(L[0], L[1]); };
+    langsBox.appendChild(b);
+  });
+
+  function fade(from,to,build){
+    from.classList.add('out');
+    setTimeout(function(){
+      from.classList.add('hidden'); from.classList.remove('out');
+      if(build) build();
+      to.classList.remove('hidden'); to.classList.add('out');
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){ to.classList.remove('out'); }); });
+    }, 300);
+  }
+
+  function choose(label, value){
+    fade(stepLang, stepQuiz, function(){
+      var data=TQ[value]||TQ['Anglais'];
+      meta.textContent=label+' · 1 / 10';
+      qText.textContent=data.q;
+      qText.setAttribute('dir', (value==='Arabe')?'rtl':'ltr');
+      ansBox.innerHTML='';
+      data.a.forEach(function(opt){
+        var btn=document.createElement('button'); btn.type='button'; btn.textContent=opt;
+        btn.onclick=function(){ location.href='test-de-niveau.html?lang='+encodeURIComponent(value); };
+        ansBox.appendChild(btn);
+      });
+    });
+  }
+
+  document.getElementById('tc-back').onclick=function(){ fade(stepQuiz, stepLang); };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Test de niveau gratuit · Languages & Success</title>
+<meta name="description" content="Évaluez votre niveau d'anglais en 10 questions. Recevez votre résultat CECRL détaillé et un conseiller vous rappelle pour construire votre parcours sur mesure." />
+<link rel="icon" type="image/png" href="assets/ls-logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+</head>
+<body>
+<div id="ls-nav"></div>
+
+<header class="page-hero" style="padding-bottom:30px">
+  <div class="wrap">
+    <div class="crumbs"><a href="index.html">Accueil</a> · Test de niveau</div>
+    <span class="eyebrow">Gratuit · 3 minutes · 10 questions</span>
+    <h1>Quel est votre niveau, <i>vraiment ?</i></h1>
+    <p class="lead">Répondez à 10 questions. À la fin, laissez vos coordonnées pour recevoir votre niveau estimé.</p>
+  </div>
+</header>
+
+<section class="sec" style="padding-top:20px">
+  <div class="wrap">
+    <div class="quiz">
+
+      <!-- Intro -->
+      <div class="quiz-card" id="screen-intro" data-reveal>
+        <span class="eyebrow">Test de niveau</span>
+        <h2 style="font-family:var(--ff-head);font-size:clamp(24px,3vw,34px);margin:10px 0 14px">Prêt à commencer ?</h2>
+        <p class="lead-soft">10 questions à choix multiple, de plus en plus exigeantes. Pas de piège : répondez spontanément. Vous pourrez revenir en arrière à tout moment.</p>
+        <div class="field" style="max-width:340px;margin-top:20px">
+          <label for="t-langue">Langue du test</label>
+          <select id="t-langue" name="langue">
+            <option>Anglais</option><option>Français</option><option>Italien</option><option>Espagnol</option><option>Allemand</option><option>Portugais</option><option>Chinois</option><option>Arabe</option><option>Japonais</option><option>Hongrois</option><option>Serbe</option><option>Russe</option>
+          </select>
+        </div>
+        <button class="btn btn-primary mt-m" id="btn-start">Démarrer le test →</button>
+      </div>
+
+      <!-- Questions -->
+      <div class="quiz-card hidden" id="screen-quiz">
+        <div class="quiz-progress"><i id="bar"></i></div>
+        <div class="q-meta" id="q-meta">Question 1 / 10</div>
+        <div class="q-text" id="q-text"></div>
+        <div class="opts" id="opts"></div>
+        <div class="quiz-foot">
+          <button class="back" id="btn-back">← Précédent</button>
+          <button class="btn btn-primary" id="btn-next" disabled>Suivant →</button>
+        </div>
+      </div>
+
+      <!-- Gate (lead capture) -->
+      <div class="quiz-card hidden" id="screen-gate">
+        <span class="eyebrow">Dernière étape</span>
+        <h2 style="font-family:var(--ff-head);font-size:clamp(24px,3vw,32px);margin:10px 0 6px">Votre résultat est prêt 🎉</h2>
+        <p class="lead-soft" style="margin-bottom:24px">Indiquez vos coordonnées pour découvrir votre niveau estimé et recevoir votre bilan détaillé par e-mail.</p>
+        <form class="form" id="lead-form" style="max-width:none">
+          <div class="row2">
+            <div class="field"><label for="g-prenom">Prénom</label><input id="g-prenom" name="prenom" required /></div>
+            <div class="field"><label for="g-nom">Nom</label><input id="g-nom" name="nom" required /></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label for="g-email">E-mail</label><input id="g-email" name="email" type="email" required /></div>
+            <div class="field"><label for="g-tel">Téléphone</label><input id="g-tel" name="tel" type="tel" required /></div>
+          </div>
+          <div class="field">
+            <label for="g-langue">Langue qui vous intéresse</label>
+            <select id="g-langue" name="langue">
+              <option>Anglais</option><option>Italien</option><option>Espagnol</option><option>Allemand</option><option>Portugais</option><option>Chinois</option><option>Arabe</option><option>Japonais</option><option>Russe</option><option>Hongrois</option><option>Serbe</option><option>Français</option>
+            </select>
+          </div>
+          <label class="consent"><input type="checkbox" required /> <span>J'accepte d'être recontacté(e) par Languages &amp; Success et que mes données soient traitées conformément à la <a href="confidentialite.html" target="_blank" style="color:var(--accent)">politique de confidentialité</a>.</span></label>
+          <button class="btn btn-primary" type="submit" style="justify-self:center">Voir mon résultat →</button>
+        </form>
+      </div>
+
+      <!-- Result -->
+      <div class="quiz-card hidden center" id="screen-result">
+        <span class="eyebrow">Votre niveau estimé</span>
+        <div class="result-level mt-s" id="res-level">B1</div>
+        <h2 style="font-family:var(--ff-head);font-size:clamp(22px,2.6vw,30px);margin:10px 0 6px" id="res-title">Niveau Seuil</h2>
+        <p class="lead-soft" id="res-desc" style="margin:0 auto"></p>
+        <p class="form-note" id="res-score" style="margin-top:14px"></p>
+        <div class="res-skills" id="res-skills"></div>
+        <div class="res-correction" id="res-correction"></div>
+        <div class="cta-actions" style="justify-content:center;margin-top:28px">
+          <a href="contact.html" class="btn btn-primary">Nous contacter →</a>
+          <a href="formations.html" class="btn btn-ghost">Voir les formations</a>
+        </div>
+        <p class="form-note mt-m">Ce test est indicatif. Un test de positionnement complet est réalisé avant chaque formation pour ajuster votre parcours.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div id="ls-footer"></div>
+<script>window.LS_CONFIG={key:'sub'};</script>
+<script src="assets/partials.js"></script>
+<script src="ls-engine.js"></script>
+<script src="test-data.js"></script>
+<script>
+(function(){
+  // Jeu par défaut (anglais, depuis la banque partagée) ; remplacé par la langue choisie au démarrage.
+  var Q = (window.LS_TESTS && window.LS_TESTS['Anglais']) ? window.LS_TESTS['Anglais'].slice() : [];
+  var LEVELS = [
+    { min:0, code:'A1', name:'Niveau Découverte', desc:'Vous posez les bases : énoncés simples et besoins concrets. Un parcours débutant vous fera décoller rapidement.',
+      can:['Vous présenter et présenter quelqu\'un','Comprendre et utiliser des expressions familières du quotidien','Poser et répondre à des questions simples (lieu, heure, besoins)'] },
+    { min:2, code:'A2', name:'Niveau Intermédiaire', desc:'Vous communiquez dans des situations simples et habituelles. Objectif : gagner en autonomie au quotidien.',
+      can:['Comprendre des phrases isolées sur des sujets familiers (travail, achats)','Échanger des informations simples et habituelles','Décrire votre environnement et vos besoins immédiats'] },
+    { min:4, code:'B1', name:'Niveau Seuil', desc:'Vous échangez clairement sur des sujets familiers. Un cap idéal pour viser l’aisance professionnelle.',
+      can:['Vous débrouiller dans la plupart des situations en voyage','Raconter un événement, une expérience ou un projet','Donner et justifier votre avis sur des sujets familiers'] },
+    { min:6, code:'B2', name:'Niveau Avancé', desc:'Vous interagissez aisément avec des natifs. Parfait pour préparer une certification (TOEIC, Cambridge B2).',
+      can:['Communiquer avec spontanéité et aisance avec un locuteur natif','Reformuler une phrase et argumenter dans la langue','Comprendre des textes et des discussions complexes'] },
+    { min:8, code:'C1', name:'Niveau Autonome', desc:'Vous maniez la nuance sur des sujets complexes. On vise le perfectionnement et la précision.',
+      can:['Vous exprimer couramment, sans chercher vos mots','Utiliser la langue avec souplesse dans la vie sociale et professionnelle','Comprendre des textes longs et exigeants, et leurs sous-entendus'] },
+    { min:10, code:'C2', name:'Niveau Maîtrise', desc:'Vous vous exprimez avec fluidité et finesse. Place au raffinement et aux contextes les plus exigeants.',
+      can:['Comprendre sans effort presque tout ce que vous lisez ou entendez','Restituer faits et arguments de façon cohérente','Vous exprimer avec précision et nuance, même sur des sujets complexes'] }
+  ];
+
+  var answers = new Array(Q.length).fill(null);
+  var idx = 0;
+  var $ = function(id){ return document.getElementById(id); };
+  var escx = function(s){ var d=document.createElement('div'); d.textContent=(s==null?'':s); return d.innerHTML; };
+
+  // langue choisie (pré-remplie depuis l'URL ?lang=… venant de la landing)
+  (function(){
+    var p=new URLSearchParams(location.search), L=p.get('lang'), sel=$('t-langue');
+    if(L && sel){ Array.prototype.forEach.call(sel.options,function(o){ if(o.value===L) sel.value=L; }); }
+  })();
+  function setGateLang(){
+    var sel=$('t-langue'), g=$('g-langue'); if(!sel||!g) return;
+    Array.prototype.forEach.call(g.options,function(o){ if(o.value===sel.value) g.value=sel.value; });
+  }
+
+  function show(id){ ['screen-intro','screen-quiz','screen-gate','screen-result'].forEach(function(s){ $(s).classList.toggle('hidden', s!==id); }); window.scrollTo({top:0,behavior:'smooth'}); }
+
+  function render(){
+    var q = Q[idx];
+    $('q-meta').textContent = 'Question ' + (idx+1) + ' / ' + Q.length;
+    $('q-text').textContent = q.t;
+    $('bar').style.width = ((idx)/Q.length*100) + '%';
+    var box = $('opts'); box.innerHTML='';
+    q.o.forEach(function(opt,i){
+      var b=document.createElement('button');
+      b.textContent=opt;
+      if(answers[idx]===i) b.classList.add('pick');
+      b.onclick=function(){
+        answers[idx]=i;
+        Array.prototype.forEach.call(box.children,function(c){c.classList.remove('pick');});
+        b.classList.add('pick');
+        $('btn-next').disabled=false;
+      };
+      box.appendChild(b);
+    });
+    $('btn-next').disabled = answers[idx]===null;
+    $('btn-next').textContent = (idx===Q.length-1) ? 'Terminer →' : 'Suivant →';
+    $('btn-back').style.visibility = idx===0 ? 'hidden' : 'visible';
+  }
+
+  $('btn-start').onclick=function(){
+    var lang = $('t-langue') ? $('t-langue').value : 'Anglais';
+    if(window.LS_TESTS && window.LS_TESTS[lang]) Q = window.LS_TESTS[lang];
+    answers = new Array(Q.length).fill(null);
+    idx = 0;
+    show('screen-quiz'); render();
+  };
+  $('btn-back').onclick=function(){ if(idx>0){ idx--; render(); } };
+  $('btn-next').onclick=function(){
+    if(answers[idx]===null) return;
+    if(idx<Q.length-1){ idx++; render(); }
+    else { $('bar').style.width='100%'; setGateLang(); show('screen-gate'); }
+  };
+
+  $('lead-form').onsubmit=function(e){
+    e.preventDefault();
+    var score=0; answers.forEach(function(a,i){ if(a===Q[i].a) score++; });
+    var lvl=LEVELS[0];
+    LEVELS.forEach(function(L){ if(score>=L.min) lvl=L; });
+    $('res-level').textContent=lvl.code;
+    $('res-title').textContent=lvl.name;
+    $('res-desc').textContent=lvl.desc;
+    $('res-score').textContent='Score : ' + score + ' / ' + Q.length + ' · Résultat envoyé à ' + ($('g-email').value || 'votre e-mail') + '.';
+    // compétences associées au niveau
+    $('res-skills').innerHTML = '<h3 class="res-h">Ce que vous savez faire à ce niveau</h3><ul class="skill-list">' +
+      (lvl.can||[]).map(function(c){ return '<li><span class="tick">↳</span><span>'+escx(c)+'</span></li>'; }).join('') + '</ul>';
+    // correction détaillée, question par question
+    $('res-correction').innerHTML = '<h3 class="res-h">Correction détaillée</h3>' +
+      Q.map(function(q,i){
+        var ua=answers[i], ok=(ua===q.a);
+        return '<div class="corr-item '+(ok?'ok':'ko')+'">' +
+          '<div class="corr-q"><span class="corr-ic">'+(ok?'✓':'✗')+'</span><span>'+escx(q.t)+'</span></div>' +
+          '<div class="corr-ans">' + (ok
+            ? '<span class="corr-good">Bonne réponse : '+escx(q.o[q.a])+'</span>'
+            : '<span class="corr-bad">Votre réponse : '+(ua!=null?escx(q.o[ua]):'—')+'</span> &nbsp;·&nbsp; <span class="corr-good">Bonne réponse : '+escx(q.o[q.a])+'</span>') +
+          '</div>' + (q.e ? '<p class="corr-exp">'+escx(q.e)+'</p>' : '') +
+        '</div>';
+      }).join('');
+    // NOTE: ici on enverra les coordonnées + le score au backend / CRM (à brancher).
+    show('screen-result');
+  };
+})();
+</script>
+</body>
+</html>
