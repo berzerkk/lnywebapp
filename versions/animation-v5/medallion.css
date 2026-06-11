@@ -1,0 +1,23 @@
+/* ============================================================================
+   ANIMATION V5 — snapshot des règles CSS du médaillon (extrait de assets/site.css)
+   Logo plat rose-gold : rotation 360° pilotée en JS (eased) + reflet synchronisé
+   (pilotés par morph.js), scintillement couleurs, lueur pulsée. Autour : nuage de
+   particules + bloom + twinkles (dosés) + pause hors-écran. Parallaxe souris RETIRÉE.
+   Pour restaurer : recopier ce bloc dans assets/site.css (lignes ~73-99).
+   ============================================================================ */
+.medallion-stage{position:relative;width:100%;height:460px;perspective:1100px}
+.medallion-stage::before{content:'';position:absolute;left:50%;top:50%;width:80%;height:80%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(190,110,84,.22),rgba(190,110,84,.06) 55%,transparent 72%);filter:blur(8px);pointer-events:none}
+.medallion-stage .morph-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+.medallion-stage .morph-logo{position:absolute;left:50%;top:50%;width:46%;aspect-ratio:1/1;transform:translate(-50%,-50%);transform-style:preserve-3d;z-index:2;animation:morphglow 4s ease-in-out infinite}
+.medallion-stage .morph-logo .logo-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;backface-visibility:visible;animation:morphshimmer 3.2s ease-in-out infinite}
+.medallion-stage .morph-logo .logo-sheen{position:absolute;inset:0;-webkit-mask:url(/assets/ls-logo.png) center/contain no-repeat;mask:url(/assets/ls-logo.png) center/contain no-repeat;background:linear-gradient(115deg,transparent 32%,rgba(255,243,222,.95) 46%,rgba(255,214,170,.75) 52%,transparent 66%);background-size:260% 100%;mix-blend-mode:screen;pointer-events:none;opacity:0}
+@keyframes morphglow{
+  0%,100%{filter:drop-shadow(0 0 16px rgba(255,226,189,.85)) drop-shadow(0 0 38px rgba(255,200,150,.6)) drop-shadow(0 8px 26px rgba(190,110,84,.45))}
+  50%{filter:drop-shadow(0 0 28px rgba(255,238,210,1)) drop-shadow(0 0 66px rgba(255,205,155,.95)) drop-shadow(0 10px 30px rgba(190,110,84,.55))}
+}
+@keyframes morphshimmer{
+  0%,100%{filter:saturate(1) brightness(1)}
+  50%{filter:saturate(1.5) brightness(1.22) hue-rotate(-6deg)}
+}
+@media(prefers-reduced-motion:reduce){.medallion-stage .morph-logo,.medallion-stage .morph-logo .logo-img,.medallion-stage .morph-logo .logo-sheen{animation:none}}
+.hero .medallion-stage{position:absolute;z-index:1;top:50%;transform:translateY(-50%);right:max(20px,calc((100% - 1116px)/2));width:min(540px,46vw);height:min(540px,46vw);pointer-events:none}

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contact & rappel · Languages & Success</title>
+<meta name="description" content="Contactez Languages & Success à Nice : être rappelé, demander un devis, poser une question. Téléphone, e-mail et formulaire de contact." />
+<link rel="icon" type="image/png" href="assets/ls-logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+</head>
+<body>
+<div id="ls-nav"></div>
+
+<header class="page-hero" style="padding-bottom:24px">
+  <div class="wrap">
+    <div class="crumbs"><a href="index.html">Accueil</a> · Contact</div>
+    <span class="eyebrow">On vous répond vite</span>
+    <h1>Parlons de <i>votre projet.</i></h1>
+    <p class="lead">Être rappelé, demander un devis ou simplement poser une question : laissez-nous un message, un conseiller revient vers vous rapidement.</p>
+  </div>
+</header>
+
+<section class="sec" style="padding-top:24px" id="rappel">
+  <div class="wrap split">
+    <div data-reveal>
+      <form class="form" id="contact-form" style="max-width:none">
+        <div class="row2">
+          <div class="field"><label for="c-prenom">Prénom</label><input id="c-prenom" name="prenom" required /></div>
+          <div class="field"><label for="c-nom">Nom</label><input id="c-nom" name="nom" required /></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="c-email">E-mail</label><input id="c-email" name="email" type="email" required /></div>
+          <div class="field"><label for="c-tel">Téléphone</label><input id="c-tel" name="tel" type="tel" /></div>
+        </div>
+        <div class="field"><label for="c-msg">Votre message</label><textarea id="c-msg" name="message" placeholder="Dites-nous votre objectif, votre disponibilité, votre statut (salarié, entreprise, indépendant…)"></textarea></div>
+        <label class="consent"><input type="checkbox" required /> <span>J'accepte que mes données soient traitées pour répondre à ma demande, conformément à la <a href="confidentialite.html" style="color:var(--accent)">politique de confidentialité</a>.</span></label>
+        <button class="btn btn-primary" type="submit" style="justify-self:center">Envoyer ma demande →</button>
+        <p class="form-note" id="c-status"></p>
+      </form>
+    </div>
+
+    <div class="aside-card" data-reveal>
+      <h4>Coordonnées</h4>
+      <div class="line"><span class="tick">↳</span><span><b>Languages &amp; Success</b><br/>57, route de Grenoble, BP1052<br/>06201 Nice Cédex 3, France</span></div>
+      <div class="line"><span class="tick">↳</span><span><a href="tel:+33778873201" style="color:var(--accent)">+33 7 78 87 32 01</a></span></div>
+      <div class="line"><span class="tick">↳</span><span><a href="mailto:lny.cambridge@gmail.com" style="color:var(--accent)">lny.cambridge@gmail.com</a></span></div>
+      <div class="line"><span class="tick">↳</span><span><a href="https://www.linkedin.com/company/languages-n-success-lns/" target="_blank" rel="noopener" style="color:var(--accent)">LinkedIn</a></span></div>
+    </div>
+  </div>
+</section>
+
+<div id="ls-footer"></div>
+<script>window.LS_CONFIG={key:'sub'};</script>
+<script src="assets/partials.js"></script>
+<script src="ls-engine.js"></script>
+<script>
+(function(){
+  var f=document.getElementById('contact-form');
+  if(!f) return;
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    // NOTE: à brancher sur l'envoi e-mail / CRM côté backend.
+    document.getElementById('c-status').textContent='Merci ! Votre demande a bien été prise en compte, nous vous recontactons rapidement.';
+    document.getElementById('c-status').style.color='var(--accent)';
+    f.reset();
+  });
+})();
+</script>
+</body>
+</html>
