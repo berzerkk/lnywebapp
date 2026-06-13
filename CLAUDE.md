@@ -8,7 +8,7 @@ Site marketing + **espace documents** pour un organisme de formation en langues 
 - Anim héros : `morph.js` (canvas 2D, nuage de particules + logo). `medallion.js`/`sphere.js`/`worldmap.js`/`painting.js` = en réserve, non chargés.
 
 ## Lancer / arrêter
-- Démarrer : `node server.js` (port **8000**) → http://localhost:8000. (Sert site + API.)
+- Démarrer : `node server.js` (port **3000**) → http://localhost:3000. (Sert site + API.)
 - Le port peut être passé en argument : `node server.js 8011`.
 - Données sensibles bloquées par le serveur (`/data`, `node_modules`, `server.js`).
 - ⚠️ Toujours **un seul** serveur Node sur un port donné (sinon il écrase `db.json`). Tuer le port avant de relancer.
@@ -45,10 +45,10 @@ Données : `db.json` = `{users, groups, docs, messages, notifs, secret}`.
 - Résultat : niveau CECRL + **compétences du niveau** + **correction détaillée** (réponse, bonne réponse, explication).
 
 ## Conventions / préférences utilisateur
-- Réponses en **français**. L'utilisateur teste sur **localhost:8000** (Ctrl+Shift+R).
+- Réponses en **français**. L'utilisateur teste sur **localhost:3000** (Ctrl+Shift+R).
 - Accent orange-rosé : `--accent:#be6e54`. Jamais le mot « promesse ». « apprenant » (pas « stagiaire »).
 - Boutons orange-rosé scintillent ; liens « politique de confidentialité » inline (pas rejetés à droite) ; boutons d'envoi centrés.
-- Après une modif, **vérifier** (eval/screenshot via preview MCP `site` sur 8011, ou tests `node -e` contre l'API), puis **réinitialiser `data/` et relancer le serveur 8000 propre**.
+- Après une modif, **vérifier** (eval/screenshot via preview MCP `site` sur 8011, ou tests `node -e` contre l'API), puis **réinitialiser `data/` et relancer le serveur 3000 propre**.
 - Animations sauvegardées dans `versions/animation-v3` et `v5`.
 
 ## Espace documents — génération de documents (Phase 2, FAITE)

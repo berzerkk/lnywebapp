@@ -7,7 +7,7 @@
      - "prive"   : formateur + admin (l'apprenant n'y a PAS accès)
    Chaque canal = messagerie (chat) + documents. Notifications à chaque envoi.
    Vue admin centralisée : tous les comptes admin voient la même chose.
-   Lancer : node server.js   (http://localhost:8000)
+   Lancer : node server.js   (http://localhost:3000)
    ============================================================================ */
 'use strict';
 const express = require('express');
@@ -107,7 +107,7 @@ const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
-const PORT = process.env.PORT || process.argv[2] || 8000;
+const PORT = process.env.PORT || process.argv[2] || 3000;
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
