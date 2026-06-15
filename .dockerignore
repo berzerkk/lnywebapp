@@ -1,0 +1,16 @@
+# Dépendances (réinstallées proprement dans l'image via npm install)
+node_modules
+
+# Données locales (comptes, mots de passe hachés, fichiers uploadés) — JAMAIS dans l'image
+data
+
+# Historique git + outils locaux
+.git
+.gitignore
+.claude
+
+# Fichiers temporaires / scratch
+*.log
+_t.js
+_sample.pdf
+_struct.ps1
