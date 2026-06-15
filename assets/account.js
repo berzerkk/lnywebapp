@@ -197,7 +197,7 @@
     if (role === 'prof') return { langue: val('su-p-langue'), siret: val('su-siret'), nda: val('su-nda'), adresse: val('su-adresse'), tel: val('su-p-tel'), dateNaissance: val('su-naissance'), nationalite: val('su-nationalite') };
     return {};
   }
-  function afterAuth() { api('/api/notifications').then(function (n) { NOTIFS = (n.ok && n.data.notifs) || []; renderHeader(); renderDashboard(); startNotifPoll(); }); }
+  function afterAuth() { api('/api/notifications').then(function (n) { NOTIFS = (n.ok && n.data.notifs) || []; renderHeader(); renderDashboard(); startNotifPoll(); window.scrollTo({ top: 0, behavior: 'smooth' }); }); }
   function demoBoxHTML() {
     if (!DEMO || !DEMO.length) return '';
     return '<div class="demo-box"><div class="demo-box-h">⚡ Connexion rapide — comptes de démonstration</div>' +
@@ -271,10 +271,21 @@
       '<div class="qs-card-msg"><span class="qs-ic">📋</span><div class="qs-card-body"><b>' + esc(q.title || 'Questionnaire') + '</b>' +
       '<div class="qs-status' + (q.status === 'done' ? ' done' : '') + '">' + (q.status === 'done' ? 'Rempli ✓' : 'À remplir') + '</div>' + actions + '</div></div><time>' + fmtTime(m.date) + '</time></div>';
   }
+  function presenceMsgHTML(m) {
+    var p = m.presence || {}, mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
+    var actions;
+    if (p.status === 'done' && p.docId) actions = '<a class="btn-mini" href="/api/documents/' + p.docId + '/download?token=' + encodeURIComponent(token()) + '">Télécharger la feuille signée</a>';
+    else if (ME.role === 'eleve') actions = '<button class="btn-mini pr-sign-btn" data-pr="' + p.id + '">Signer →</button>';
+    else actions = '<span class="qs-wait">En attente de la signature de l\'apprenant…</span>';
+    return '<div class="msg ' + (mine ? 'me' : 'them') + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') +
+      '<div class="qs-card-msg"><span class="qs-ic">🖊️</span><div class="qs-card-body"><b>' + esc(p.title || 'Feuille de présence') + '</b>' +
+      '<div class="qs-status' + (p.status === 'done' ? ' done' : '') + '">' + (p.status === 'done' ? 'Signée ✓' : 'À signer') + '</div>' + actions + '</div></div><time>' + fmtTime(m.date) + '</time></div>';
+  }
   function chatHTML(messages) {
     return '<div class="chat"><div class="chat-msgs" id="chat-msgs">' +
       ((messages && messages.length) ? messages.map(function (m) {
         if (m.kind === 'qs') return qsMsgHTML(m);
+        if (m.kind === 'presence') return presenceMsgHTML(m);
         var mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
         return '<div class="msg ' + (mine ? 'me' : 'them') + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') + '<span class="bubble">' + esc(m.text) + '</span><time>' + fmtTime(m.date) + '</time></div>';
       }).join('') : '<p class="ds-empty" style="text-align:center;padding:24px 0">Aucun message. Démarrez la conversation.</p>') +
@@ -392,7 +403,7 @@
           .then(function (r) { if (!r.ok) return r.json().then(function (j) { throw new Error(j.error || 'Erreur'); }); return r.blob(); })
           .then(function (blob) {
             var ext = fmt === 'word' ? 'docx' : 'pdf';
-            var nm = 'Interactive Worksheet - ' + ((genState.header && genState.header.nomApprenant) || 'apprenant') + ' - ' + new Date().toLocaleDateString('fr-FR') + '.' + ext;
+            var nm = '1 - Interactive Worksheet - ' + ((genState.header && genState.header.nomApprenant) || 'apprenant') + ' - ' + new Date().toLocaleDateString('fr-FR') + '.' + ext;
             var url = URL.createObjectURL(blob);
             var a = document.createElement('a'); a.href = url; a.download = nm; document.body.appendChild(a); a.click(); a.remove();
             setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
@@ -476,27 +487,44 @@
     var body = document.getElementById('tpl-body');
     if (pane === 'new') {
       body.innerHTML = '<p class="ds-empty" style="margin:0 0 12px">Choisissez le document à générer :</p><ul class="tpl-list">' +
-        '<li class="tpl-item" data-tpl="interactive"><span class="tpl-ic">📄</span><span class="c-name">Interactive Worksheet<small>Résumé de cours à télécharger / partager à l\'apprenant</small></span><span class="tpl-go">→</span></li>' +
-        '<li class="tpl-item" data-tpl="qs_mid"><span class="tpl-ic">📋</span><span class="c-name">QS — en cours de formation<small>Questionnaire de satisfaction (rempli par l\'apprenant)</small></span><span class="tpl-go">→</span></li>' +
-        '<li class="tpl-item" data-tpl="qs_end"><span class="tpl-ic">📋</span><span class="c-name">QS — fin de formation<small>Questionnaire de fin de formation (rempli par l\'apprenant)</small></span><span class="tpl-go">→</span></li>' +
-        '<li class="tpl-item" data-tpl="test_mid"><span class="tpl-ic">📝</span><span class="c-name">Test de mi-parcours de formation<small>Résultat &amp; appréciation (rempli par le formateur)</small></span><span class="tpl-go">→</span></li>' +
-        '<li class="tpl-item" data-tpl="test_end"><span class="tpl-ic">📝</span><span class="c-name">Test de fin de formation<small>Résultat &amp; appréciation (rempli par le formateur)</small></span><span class="tpl-go">→</span></li>' +
-        '<li class="tpl-item" data-tpl="qs_formateur"><span class="tpl-ic">🗒️</span><span class="c-name">Fiche satisfaction formateur<small>Bilan rempli par le formateur (à transmettre à l\'administration)</small></span><span class="tpl-go">→</span></li>' +
-        '<li class="tpl-item" data-tpl="attestation"><span class="tpl-ic">📜</span><span class="c-name">Attestation de fin de stage<small>Début prérempli depuis les fiches ; à compléter et faire signer</small></span><span class="tpl-go">→</span></li>' +
-        (ME.role === 'admin' ? '<li class="tpl-item" data-tpl="contrat"><span class="tpl-ic">📑</span><span class="c-name">Contrat de sous-traitance<small>Réservé à l\'administration · intro &amp; article 1 préremplis</small></span><span class="tpl-go">→</span></li>' : '') + '</ul>';
-      body.querySelectorAll('.tpl-item').forEach(function (li) { li.onclick = function () { var t = li.getAttribute('data-tpl'); closeTplModal(); if (t === 'interactive') openGenModal(); else if (t === 'qs_mid' || t === 'qs_end') openQsHeaderModal(t); else if (t === 'test_mid' || t === 'test_end') openTestDocModal(t); else if (t === 'attestation') openAttestationModal(); else if (t === 'contrat') openContratModal(); else openFormModal(t); }; });
+        '<li class="tpl-item" data-tpl="interactive"><span class="tpl-ic">📄</span><span class="c-name">1 - Interactive Worksheet<small>Résumé de cours à télécharger / partager à l\'apprenant</small></span><span class="tpl-go">→</span></li>' +
+        '<li class="tpl-item" data-tpl="qs_mid"><span class="tpl-ic">📋</span><span class="c-name">2 - QS mi-parcours<small>Questionnaire de satisfaction (rempli par l\'apprenant)</small></span><span class="tpl-go">→</span></li>' +
+        '<li class="tpl-item" data-tpl="qs_end"><span class="tpl-ic">📋</span><span class="c-name">3 - QS fin de formation<small>Questionnaire de fin de formation (rempli par l\'apprenant)</small></span><span class="tpl-go">→</span></li>' +
+        '<li class="tpl-item" data-tpl="attestation"><span class="tpl-ic">📜</span><span class="c-name">4 - Attestation de fin de formation<small>Début prérempli depuis les fiches ; à compléter et faire signer</small></span><span class="tpl-go">→</span></li>' +
+        '<li class="tpl-item" data-tpl="test_mid"><span class="tpl-ic">📝</span><span class="c-name">5 - Test mi-parcours<small>Résultat &amp; appréciation (rempli par le formateur)</small></span><span class="tpl-go">→</span></li>' +
+        '<li class="tpl-item" data-tpl="test_end"><span class="tpl-ic">📝</span><span class="c-name">6 - Test fin de formation<small>Résultat &amp; appréciation (rempli par le formateur)</small></span><span class="tpl-go">→</span></li>' +
+        (ME.role === 'admin' ? '<li class="tpl-item" data-tpl="contrat"><span class="tpl-ic">📑</span><span class="c-name">7 - Contrat de sous-traitance<small>Réservé à l\'administration · intro &amp; article 1 préremplis</small></span><span class="tpl-go">→</span></li>' : '') +
+        '<li class="tpl-item" data-tpl="qs_formateur"><span class="tpl-ic">🗒️</span><span class="c-name">' + (ME.role === 'admin' ? '8' : '7') + ' - QS Formateur<small>Bilan rempli par le formateur (à transmettre à l\'administration)</small></span><span class="tpl-go">→</span></li>' +
+        '<li class="tpl-item" data-tpl="leveltest"><span class="tpl-ic">📊</span><span class="c-name">' + (ME.role === 'admin' ? '9' : '8') + ' - Level Test<small>Évaluation orale / questionnaire d\'objectifs (rempli par le formateur)</small></span><span class="tpl-go">→</span></li>' +
+        '<li class="tpl-item" data-tpl="presence"><span class="tpl-ic">🗓️</span><span class="c-name">' + (ME.role === 'admin' ? '10' : '9') + ' - Feuille de présence<small>E-learning, présentiel/distanciel ou test (au choix)</small></span><span class="tpl-go">→</span></li>' + '</ul>';
+      body.querySelectorAll('.tpl-item').forEach(function (li) { li.onclick = function () { var t = li.getAttribute('data-tpl'); closeTplModal(); if (t === 'interactive') openGenModal(); else if (t === 'qs_mid' || t === 'qs_end') openQsHeaderModal(t); else if (t === 'test_mid' || t === 'test_end') openTestDocModal(t); else if (t === 'attestation') openAttestationModal(); else if (t === 'contrat') openContratModal(); else if (t === 'leveltest') openLevelTestModal(); else if (t === 'presence') openPresenceModal(); else openFormModal(t); }; });
     } else {
       body.innerHTML = '<p class="ds-empty">Chargement…</p>';
+      var HIST_IC = { interactive: '📄', test: '📝', attestation: '📜', contrat: '📑', form: '🗒️', leveltest: '📊', presence: '🗓️', qs: '📋' };
       api('/api/worksheet/history?group=' + encodeURIComponent(selected)).then(function (r) {
         var hist = (r.ok && r.data.history) || [];
         body.innerHTML = hist.length ? '<ul class="tpl-list">' + hist.map(function (x, i) {
-          return '<li class="tpl-item hist-item" data-i="' + i + '"><span class="tpl-ic">🕘</span><span class="c-name">Interactive Worksheet · ' + esc(x.apprenant) + '<small>' + fmtDate(x.date) + ' · ' + x.sessionCount + ' séance(s) · ' + (x.format === 'word' ? 'Word' : 'PDF') + ' · ' + esc(x.byName) + '</small></span><span class="tpl-go">Dupliquer →</span></li>';
+          var meta = fmtDate(x.date) + ' · ' + (x.format === 'word' ? 'Word' : 'PDF') + (x.kind === 'interactive' && x.sessionCount != null ? ' · ' + x.sessionCount + ' séance(s)' : '') + ' · ' + esc(x.byName);
+          var action = x.kind === 'interactive' ? 'Dupliquer →' : 'Ouvrir →';
+          return '<li class="tpl-item hist-item" data-i="' + i + '"><span class="tpl-ic">' + (HIST_IC[x.kind] || '🕘') + '</span><span class="c-name">' + esc(x.title) + ' · ' + esc(x.apprenant) + '<small>' + meta + '</small></span><span class="tpl-go">' + action + '</span></li>';
         }).join('') + '</ul>' : '<p class="ds-empty">Aucun document généré pour ce dossier.</p>';
-        body.querySelectorAll('.hist-item').forEach(function (li) { li.onclick = function () { var snap = hist[parseInt(li.getAttribute('data-i'), 10)].snapshot; closeTplModal(); openGenModal(snap); }; });
+        body.querySelectorAll('.hist-item').forEach(function (li) { li.onclick = function () { var x = hist[parseInt(li.getAttribute('data-i'), 10)]; closeTplModal(); reopenFromHistory(x); }; });
       });
     }
   }
   function closeTplModal() { var m = document.getElementById('tpl-modal'); if (m) { m.classList.remove('open'); document.body.style.overflow = ''; } }
+  // ré-ouvre le bon générateur depuis l'historique (worksheet = duplique depuis snapshot, autres = nouveau formulaire prérempli)
+  function reopenFromHistory(x) {
+    var t = x.tpl || x.kind;
+    if (x.kind === 'interactive') openGenModal(x.snapshot);
+    else if (t === 'qs_mid' || t === 'qs_end') openQsHeaderModal(t);
+    else if (t === 'test_mid' || t === 'test_end') openTestDocModal(t);
+    else if (t === 'attestation') openAttestationModal();
+    else if (t === 'contrat') openContratModal();
+    else if (t === 'leveltest') openLevelTestModal();
+    else if (t === 'presence') openPresenceModal();
+    else openFormModal(t);
+  }
 
   // ---- recherche + ajout de contact (loupe) -----------------------------
   function openAddModal() {
@@ -537,6 +565,7 @@
   function wireChat() {
     var box = document.getElementById('chat-msgs'); if (box) box.scrollTop = box.scrollHeight;
     document.querySelectorAll('.qs-fill-btn').forEach(function (b) { b.onclick = function () { openQsFillModal(b.getAttribute('data-qs')); }; });
+    document.querySelectorAll('.pr-sign-btn').forEach(function (b) { b.onclick = function () { openPresenceSignModal(b.getAttribute('data-pr')); }; });
     var f = document.getElementById('chat-form'); if (!f) return;
     f.onsubmit = function (e) {
       e.preventDefault();
@@ -930,7 +959,7 @@
         .then(function (r) { if (!r.ok) return r.json().then(function (j) { throw new Error(j.error || 'Erreur'); }); return r.blob(); })
         .then(function (blob) {
           var ext = fmt === 'word' ? 'docx' : 'pdf';
-          var nm = (titles[type] || 'Test') + ' - ' + (header.nomApprenant || 'apprenant') + ' - ' + new Date().toLocaleDateString('fr-FR') + '.' + ext;
+          var nm = (type === 'test_mid' ? '5' : '6') + ' - ' + (titles[type] || 'Test') + ' - ' + (header.nomApprenant || 'apprenant') + ' - ' + new Date().toLocaleDateString('fr-FR') + '.' + ext;
           var url = URL.createObjectURL(blob);
           var a = document.createElement('a'); a.href = url; a.download = nm; document.body.appendChild(a); a.click(); a.remove();
           setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
@@ -966,7 +995,7 @@
       var competences = [];
       for (var i = 0; i < 6; i++) { var lbl = val('att-comp-l-' + i); if (lbl && lbl.trim()) competences.push({ label: lbl, niveau: val('att-comp-n-' + i) }); }
       var fields = { representant: val('att-rep'), apprenant: val('att-apprenant'), societe: val('att-societe'), intitule: val('att-intitule'), formateur: val('att-formateur'), dateDebut: val('att-debut'), dateFin: val('att-fin'), dureeTotale: val('att-duree'), dureeDetail: val('att-detail'), lieu: val('att-lieu'), objectifs: val('att-objectifs'), competences: competences, niveauAtteint: val('att-niveau'), certification: val('att-certif'), dateEval: val('att-dateeval'), resultat: val('att-resultat'), commentaires: val('att-comments'), lieuFait: val('att-lieufait'), dateFait: val('att-datefait') };
-      downloadDoc(m, '.att-gen', '/api/attestation/generate', { group: selected, fields: fields, format: document.getElementById('att-format').value }, 'Attestation de fin de stage - ' + (fields.apprenant || 'apprenant'));
+      downloadDoc(m, '.att-gen', '/api/attestation/generate', { group: selected, fields: fields, format: document.getElementById('att-format').value }, '4 - Attestation de fin de formation - ' + (fields.apprenant || 'apprenant'));
     };
   }
 
@@ -992,8 +1021,154 @@
     var m = buildFsModal('ct-modal', 'Contrat de sous-traitance', intro + art1 + art5, footer);
     m.querySelector('.ct-gen').onclick = function () {
       var fields = { stnom: val('ct-stnom'), stNaissance: val('ct-naissance'), stNationalite: val('ct-nationalite'), stAdresse: val('ct-adresse'), stSiret: val('ct-siret'), stNda: val('ct-nda'), intitule: val('ct-intitule'), langue: val('ct-langue'), stagiaire: val('ct-stagiaire'), duree: val('ct-duree'), lieu: val('ct-lieu'), dateDebut: val('ct-debut'), dateFin: val('ct-fin'), tauxHoraire: val('ct-taux'), montantTotal: val('ct-montant'), lieuFait: val('ct-lieufait'), dateFait: val('ct-datefait') };
-      downloadDoc(m, '.ct-gen', '/api/contrat/generate', { group: selected, fields: fields, format: document.getElementById('ct-format').value }, 'Contrat de sous-traitance - ' + (fields.stnom || 'formateur'));
+      downloadDoc(m, '.ct-gen', '/api/contrat/generate', { group: selected, fields: fields, format: document.getElementById('ct-format').value }, '7 - Contrat de sous-traitance - ' + (fields.stnom || 'formateur'));
     };
+  }
+
+  // ---- Level Test : évaluation orale / questionnaire d'objectifs -----------
+  function openLevelTestModal() {
+    if (!selected || !CUR_GROUP) return;
+    api('/api/leveltest').then(function (r) {
+      if (!r.ok) { alert((r.data && r.data.error) || 'Erreur'); return; }
+      var tpl = r.data.tpl || {};
+      var fc = clientFiche();
+      var pre = { dateEval: new Date().toLocaleDateString('fr-FR'), societe: fc.societe || '', langue: fc.langue || '', nom: (CUR_GROUP.eleve.nom || ''), prenom: (CUR_GROUP.eleve.prenom || ''), tel: fc.tel || '', mail: (CUR_GROUP.eleve.email || '') };
+      var head = '<p class="ds-empty" style="margin:0 0 14px">En-tête prérempli depuis la fiche. Complétez l\'évaluation et les besoins, puis générez le document.</p><h4 class="gen-h">En-tête</h4><div class="gf-grid">';
+      (tpl.headerRows || []).forEach(function (row) { row.forEach(function (pair) { if (pair) head += gi('lt-' + pair[0], pair[1], pre[pair[0]] || ''); }); });
+      head += '</div><div id="lt-extra-wrap"></div><button type="button" class="btn-mini lt-add-field" style="margin-top:4px">+ Ajouter un champ</button>';
+      var tf = '<h4 class="gen-h">Objectifs &amp; profil</h4><div class="gf-grid">' + (tpl.textFields || []).map(function (f) { return ga('lt-' + f.id, f.label, ''); }).join('') + '</div>';
+      var bes = '<h4 class="gen-h">Besoins</h4>' + (tpl.besoins || []).map(function (b) {
+        return '<h5 class="lt-cat">' + esc(b.cat) + '</h5><div class="gf-grid">' + b.items.map(function (it) { return gi('lt-' + it.id, it.label || b.cat, ''); }).join('') + '</div>';
+      }).join('');
+      var ev = [tpl.evalEcrite, tpl.evalOrale].map(function (e) {
+        return '<h4 class="gen-h">' + esc(e.titre) + '</h4><div class="gf-grid">' + e.fields.map(function (f) { return gi('lt-' + f[0], f[1], f[2] || ''); }).join('') + '</div>';
+      }).join('');
+      var footer = '<label class="gen-chan">Format <select id="lt-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label><button class="btn btn-primary lt-gen" type="button" style="padding:11px 22px">Générer le document →</button>';
+      var m = buildFsModal('lt-modal', tpl.title || 'Level Test', head + tf + bes + ev, footer);
+      var addField = function (label, value) {
+        var wrap = m.querySelector('#lt-extra-wrap');
+        var row = document.createElement('div'); row.className = 'lt-xf';
+        row.innerHTML = '<input class="lt-xf-label" placeholder="Nom du champ" /><input class="lt-xf-value" placeholder="Valeur" /><button type="button" class="lt-xf-rm" title="Supprimer ce champ">✕</button>';
+        if (label) row.querySelector('.lt-xf-label').value = label;
+        if (value) row.querySelector('.lt-xf-value').value = value;
+        row.querySelector('.lt-xf-rm').onclick = function () { row.remove(); };
+        wrap.appendChild(row); row.querySelector('.lt-xf-label').focus();
+      };
+      m.querySelector('.lt-add-field').onclick = function () { addField(); };
+      m.querySelector('.lt-gen').onclick = function () {
+        var fields = {};
+        (tpl.headerRows || []).forEach(function (row) { row.forEach(function (pair) { if (pair) fields[pair[0]] = val('lt-' + pair[0]); }); });
+        (tpl.textFields || []).forEach(function (f) { fields[f.id] = val('lt-' + f.id); });
+        (tpl.besoins || []).forEach(function (b) { b.items.forEach(function (it) { fields[it.id] = val('lt-' + it.id); }); });
+        [tpl.evalEcrite, tpl.evalOrale].forEach(function (e) { e.fields.forEach(function (f) { fields[f[0]] = val('lt-' + f[0]); }); });
+        var extra = [];
+        m.querySelectorAll('.lt-xf').forEach(function (row) { var l = row.querySelector('.lt-xf-label').value.trim(), v = row.querySelector('.lt-xf-value').value.trim(); if (l || v) extra.push({ label: l, value: v }); });
+        fields.extraHeader = extra;
+        downloadDoc(m, '.lt-gen', '/api/leveltest/generate', { group: selected, fields: fields, format: document.getElementById('lt-format').value }, (ME.role === 'admin' ? '9' : '8') + ' - Level Test - ' + (fields.prenom || fields.nom || 'apprenant'));
+      };
+    });
+  }
+
+  // ---- Feuilles de présence (3 types : e-learning / présentiel-distanciel / test) ----
+  function openPresenceModal() {
+    if (!selected || !CUR_GROUP) return;
+    api('/api/presence').then(function (r) {
+      if (!r.ok) { alert((r.data && r.data.error) || 'Erreur'); return; }
+      var T = r.data.templates || {};
+      var fc = clientFiche();
+      var moisNow = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); moisNow = moisNow.charAt(0).toUpperCase() + moisNow.slice(1);
+      var lieuTxt = (function () { var l = (fc.lieu || '').toLowerCase(); if (l === 'presentiel' || l === 'présentiel') return 'Présentiel'; if (l === 'distanciel') return 'Distanciel'; return ''; })();
+      var pre = {
+        mois: moisNow, formateur: fullName(CUR_GROUP.prof), apprenant: fullName(CUR_GROUP.eleve), compte: fc.societe || '', ref: '',
+        langue: fc.langue || '', debut: fc.dateDebut || '', fin: fc.dateFin || '', lieu: lieuTxt, ville: '',
+        dureePrevue: fc.heuresTotal ? (fc.heuresTotal + (/h/i.test(fc.heuresTotal) ? '' : 'H00')) : '', dateRapport: new Date().toLocaleDateString('fr-FR'),
+        heuresPrevues: fc.heuresTotal || '', formation: { elearning: 'Elearning', presentiel: '', test: '' }
+      };
+      var curType = 'presentiel', sessions = [];
+      var PR_TIMES = ['0:30', '1:00', '1:30', '2:00', '2:30', '3:00', '3:30', '4:00', '4:30', '5:00', '5:30', '6:00', '6:30', '7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00'];
+      function nextSlot() { var used = sessions.map(function (s) { return s.slot; }); for (var i = 0; i < PR_TIMES.length; i++) { if (used.indexOf(PR_TIMES[i]) < 0) return PR_TIMES[i]; } return PR_TIMES[0]; }
+      var dyn = '<label class="gen-chan" style="margin-bottom:14px">Type de feuille <select id="pr-type"><option value="elearning">E-learning</option><option value="presentiel">Présentiel / Distanciel</option><option value="test">Test</option></select></label><div id="pr-dyn"></div>' +
+        '<h4 class="gen-h">Votre signature (formateur)</h4><p class="ds-empty" style="margin:0 0 8px">Signez ci-dessous à la souris (ou au doigt), ou téléversez une image de votre signature. L\'apprenant la recevra dans le dossier pour signer à son tour.</p>' + sigPadHTML();
+      var footer = '<button class="btn btn-primary pr-gen" type="button" style="padding:11px 22px">Envoyer à l\'apprenant pour signature →</button>';
+      var m = buildFsModal('pr-modal', 'Feuille de présence', dyn, footer);
+      document.getElementById('pr-type').value = curType;
+      var sigPad = mountSignaturePad(m.querySelector('.sigpad'));
+      function lieuSelect(id, v) { return '<label class="gf">Lieu<select id="' + id + '"><option value="">—</option><option value="Présentiel"' + (v === 'Présentiel' ? ' selected' : '') + '>Présentiel</option><option value="Distanciel"' + (v === 'Distanciel' ? ' selected' : '') + '>Distanciel</option></select></label>'; }
+      function headerHTML(tpl) {
+        return '<h4 class="gen-h">En-tête</h4><div class="gf-grid">' + tpl.headerRows.map(function (row) {
+          return row.map(function (pair) { if (!pair) return ''; if (pair[0] === 'lieu') return lieuSelect('pr-' + pair[0], pre.lieu); var dv = pair[0] === 'formation' ? (pre.formation[curType] || '') : (pre[pair[0]] || ''); return gi('pr-' + pair[0], pair[1], dv); }).join('');
+        }).join('') + '</div>';
+      }
+      function sessionRowHTML(s) {
+        s = s || {};
+        var opts = PR_TIMES.map(function (t) { return '<option value="' + t + '"' + (s.slot === t ? ' selected' : '') + '>' + t + '</option>'; }).join('');
+        return '<div class="pr-sess"><select class="pr-s-slot" title="Créneau (coche la case et place la séance sur cette ligne)">' + opts + '</select><input class="pr-s-date" placeholder="Date" value="' + esc(s.date || '') + '" /><input class="pr-s-jour" placeholder="Jour" value="' + esc(s.jour || '') + '" /><input class="pr-s-hd" placeholder="H début" value="' + esc(s.hDebut || '') + '" /><input class="pr-s-hf" placeholder="H fin" value="' + esc(s.hFin || '') + '" /><input class="pr-s-dur" placeholder="Durée" value="' + esc(s.duree || '') + '" /><button type="button" class="pr-s-rm" title="Supprimer cette séance">✕</button></div>';
+      }
+      function collectSessions() { sessions = []; m.querySelectorAll('.pr-sess').forEach(function (row) { sessions.push({ slot: row.querySelector('.pr-s-slot').value, date: row.querySelector('.pr-s-date').value, jour: row.querySelector('.pr-s-jour').value, hDebut: row.querySelector('.pr-s-hd').value, hFin: row.querySelector('.pr-s-hf').value, duree: row.querySelector('.pr-s-dur').value }); }); }
+      function redrawSessions() { var wrap = document.getElementById('pr-sess-wrap'); wrap.innerHTML = sessions.map(function (s) { return sessionRowHTML(s); }).join(''); wireSessRows(); }
+      function wireSessRows() { m.querySelectorAll('.pr-sess .pr-s-rm').forEach(function (b) { b.onclick = function () { var row = b.closest('.pr-sess'); var idx = Array.prototype.slice.call(m.querySelectorAll('.pr-sess')).indexOf(row); collectSessions(); sessions.splice(idx, 1); if (!sessions.length) sessions.push({ slot: nextSlot() }); redrawSessions(); }; }); }
+      function render() {
+        var tpl = T[curType], html = headerHTML(tpl);
+        if (tpl.kind === 'summary') {
+          html += '<h4 class="gen-h">Heures &amp; rapport</h4><div class="gf-grid">' + gi('pr-heuresPrevues', "Nombre d'heures prévues", pre.heuresPrevues) + gi('pr-heuresRealisees', "Nombre d'heures connexion réalisées", '') + gi('pr-dateRapport', 'Date du rapport', pre.dateRapport) + '</div>';
+        } else {
+          html += '<h4 class="gen-h">Séances</h4><div class="pr-sess-head"><span>Créneau</span><span>Date</span><span>Jour</span><span>H début</span><span>H fin</span><span>Durée</span><span></span></div><div id="pr-sess-wrap"></div><button type="button" class="btn-mini pr-add-sess" style="margin-top:8px">+ Ajouter une séance</button><p class="ds-empty" style="margin:10px 0 0">Le <b>créneau</b> coche automatiquement la case correspondante et place la séance sur la bonne ligne de la grille.</p>';
+        }
+        document.getElementById('pr-dyn').innerHTML = html;
+        if (tpl.kind === 'grid') { if (!sessions.length) sessions.push({ slot: nextSlot() }); redrawSessions(); m.querySelector('.pr-add-sess').onclick = function () { collectSessions(); sessions.push({ slot: nextSlot() }); redrawSessions(); }; }
+      }
+      document.getElementById('pr-type').onchange = function () { curType = this.value; sessions = []; render(); };
+      render();
+      m.querySelector('.pr-gen').onclick = function () {
+        if (sigPad.isEmpty()) { alert('Veuillez signer (ou téléverser votre signature) avant d\'envoyer à l\'apprenant.'); return; }
+        var tpl = T[curType], fields = {};
+        tpl.headerRows.forEach(function (row) { row.forEach(function (pair) { if (pair) fields[pair[0]] = val('pr-' + pair[0]); }); });
+        if (tpl.kind === 'summary') { fields.heuresPrevues = val('pr-heuresPrevues'); fields.heuresRealisees = val('pr-heuresRealisees'); fields.dateRapport = val('pr-dateRapport'); }
+        else { collectSessions(); fields.sessions = sessions.filter(function (s) { return s.date || s.jour || s.hDebut || s.hFin || s.duree; }); }
+        var btn = m.querySelector('.pr-gen'); btn.disabled = true; btn.textContent = 'Envoi…';
+        apiJSON('/api/presence/send', 'POST', { group: selected, type: curType, fields: fields, formateurSig: sigPad.dataURL() }).then(function (rr) {
+          if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant pour signature →'; alert((rr.data && rr.data.error) || 'Erreur'); return; }
+          closeFsModal('pr-modal'); channel = 'commun'; renderDashboard();
+        });
+      };
+    });
+  }
+  // ---- pad de signature réutilisable (dessin souris/tactile + téléversement d'image) ----
+  function sigPadHTML() {
+    return '<div class="sigpad"><canvas class="sigpad-canvas" width="500" height="160"></canvas><div class="sigpad-tools"><button type="button" class="btn-mini sigpad-clear">Effacer</button><label class="btn-mini sigpad-up">Téléverser une image<input type="file" accept="image/*" class="sigpad-file" hidden /></label></div></div>';
+  }
+  function mountSignaturePad(container) {
+    var canvas = container.querySelector('.sigpad-canvas'), ctx = canvas.getContext('2d');
+    ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = '#1d2b4a';
+    var drawing = false, dirty = false, last = null;
+    function pos(e) { var r = canvas.getBoundingClientRect(); var t = (e.touches && e.touches[0]) || e; return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) }; }
+    function down(e) { drawing = true; last = pos(e); e.preventDefault(); }
+    function move(e) { if (!drawing) return; var p = pos(e); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p; dirty = true; e.preventDefault(); }
+    function up() { drawing = false; }
+    canvas.addEventListener('mousedown', down); canvas.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+    canvas.addEventListener('touchstart', down, { passive: false }); canvas.addEventListener('touchmove', move, { passive: false }); canvas.addEventListener('touchend', up);
+    var clearBtn = container.querySelector('.sigpad-clear'); if (clearBtn) clearBtn.onclick = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); dirty = false; };
+    var file = container.querySelector('.sigpad-file'); if (file) file.onchange = function () { var f = file.files && file.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = function () { var img = new Image(); img.onload = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); var s = Math.min(canvas.width / img.width, canvas.height / img.height); var w = img.width * s, h = img.height * s; ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h); dirty = true; }; img.src = rd.result; }; rd.readAsDataURL(f); };
+    return { isEmpty: function () { return !dirty; }, dataURL: function () { return dirty ? canvas.toDataURL('image/png') : ''; } };
+  }
+  // ---- l'apprenant signe la feuille de présence reçue ----------------------
+  function openPresenceSignModal(presenceId) {
+    api('/api/presence/' + encodeURIComponent(presenceId)).then(function (r) {
+      if (!r.ok) { alert((r.data && r.data.error) || 'Erreur'); return; }
+      var p = r.data.presence || {};
+      if (p.status === 'done') { alert('Cette feuille est déjà signée.'); renderDashboard(); return; }
+      var body = '<p class="ds-empty" style="margin:0 0 12px">Signez la feuille de présence « ' + esc(p.title || '') + ' » ci-dessous à la souris (ou au doigt), ou téléversez une image de votre signature.</p>' + sigPadHTML();
+      var m = buildFsModal('prsign-modal', 'Signer la feuille de présence', body, '<button class="btn btn-primary prs-send" type="button" style="padding:11px 22px">Envoyer ma signature →</button>');
+      var pad = mountSignaturePad(m.querySelector('.sigpad'));
+      m.querySelector('.prs-send').onclick = function () {
+        if (pad.isEmpty()) { alert('Veuillez signer (ou téléverser votre signature).'); return; }
+        var btn = m.querySelector('.prs-send'); btn.disabled = true; btn.textContent = 'Envoi…';
+        apiJSON('/api/presence/' + encodeURIComponent(presenceId) + '/sign', 'POST', { sig: pad.dataURL() }).then(function (rr) {
+          if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer ma signature →'; alert((rr.data && rr.data.error) || 'Erreur'); return; }
+          closeFsModal('prsign-modal'); renderDashboard();
+        });
+      };
+    });
   }
 
   // ---- Formulaire auto-rempli par le formateur (téléchargé direct) ---------
@@ -1025,7 +1200,7 @@
           .then(function (rr) { if (!rr.ok) return rr.json().then(function (j) { throw new Error(j.error || 'Erreur'); }); return rr.blob(); })
           .then(function (blob) {
             var ext = fmt === 'word' ? 'docx' : 'pdf';
-            var nm = (tpl.title || 'Document') + ' - ' + (header.nomApprenant || 'apprenant') + ' - ' + new Date().toLocaleDateString('fr-FR') + '.' + ext;
+            var nm = (ME.role === 'admin' ? '8' : '7') + ' - ' + (tpl.title || 'Document') + ' - ' + (header.nomApprenant || 'apprenant') + ' - ' + new Date().toLocaleDateString('fr-FR').replace(/\//g, '-') + '.' + ext;
             var url = URL.createObjectURL(blob);
             var a = document.createElement('a'); a.href = url; a.download = nm; document.body.appendChild(a); a.click(); a.remove();
             setTimeout(function () { URL.revokeObjectURL(url); }, 2000);

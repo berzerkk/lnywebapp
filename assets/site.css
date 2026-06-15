@@ -577,6 +577,31 @@ footer a:hover{color:#fff8ef}
 .mcq-form input,.mcq-form textarea{font:inherit;font-size:14.5px;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--ink)}
 .mcq-form input:focus,.mcq-form textarea:focus{outline:none;border-color:var(--accent)}
 .mcq-hint{font-size:12.5px;color:var(--ink-soft);margin:0}
+/* Level Test : sous-catégorie de besoins */
+.lt-cat{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);margin:14px 0 8px}
+/* Level Test : champs personnalisés ajoutables dans l'en-tête */
+#lt-extra-wrap{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.lt-xf{display:flex;gap:8px;align-items:center}
+.lt-xf input{font:inherit;font-size:14px;padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--ink);box-sizing:border-box}
+.lt-xf input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
+.lt-xf-label{flex:1;min-width:0}
+.lt-xf-value{flex:1.6;min-width:0}
+.lt-xf-rm{flex:none;width:34px;height:34px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--accent);font-size:14px;cursor:pointer;line-height:1}
+.lt-xf-rm:hover{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 10%,transparent)}
+/* Feuille de présence : séances répétables */
+.pr-sess-head,.pr-sess{display:grid;grid-template-columns:.8fr 1.1fr 1fr .9fr .9fr .9fr 34px;gap:8px;align-items:center}
+.pr-sess-head{margin:8px 0 6px;font-size:11.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em}
+.pr-sess{margin-bottom:8px}
+.pr-sess input,.pr-sess select{font:inherit;font-size:14px;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--ink);box-sizing:border-box;min-width:0;width:100%}
+.pr-sess select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:26px;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23be6e54' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+.pr-sess input:focus,.pr-sess select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
+.pr-s-rm{width:34px;height:34px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--accent);font-size:13px;cursor:pointer;line-height:1}
+.pr-s-rm:hover{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 10%,transparent)}
+/* pad de signature (dessin souris/tactile + téléversement) */
+.sigpad{margin:4px 0 6px}
+.sigpad-canvas{width:100%;max-width:500px;height:160px;border:1.5px dashed var(--line);border-radius:10px;background:#fff;touch-action:none;cursor:crosshair;display:block}
+.sigpad-tools{display:flex;gap:8px;margin-top:8px;align-items:center}
+.sigpad-up{cursor:pointer}
 /* attestation : lignes de compétences */
 .att-comps{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .att-comp-row{display:grid;grid-template-columns:1fr 200px;gap:10px}
@@ -656,8 +681,9 @@ footer a:hover{color:#fff8ef}
 @media(max-width:560px){.gf-grid{grid-template-columns:1fr}}
 .gf{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:var(--ink);min-width:0}
 .gf-full{grid-column:1 / -1}
-.gf input,.gf textarea{font:inherit;font-size:14px;font-weight:400;padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--ink);width:100%;box-sizing:border-box;resize:vertical}
-.gf input:focus,.gf textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
+.gf input,.gf textarea,.gf select{font:inherit;font-size:14px;font-weight:400;padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--ink);width:100%;box-sizing:border-box;resize:vertical}
+.gf select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:34px;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23be6e54' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.gf input:focus,.gf textarea:focus,.gf select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
 .gen-sess{position:relative;border:1px solid var(--line);border-radius:10px;padding:10px 58px 10px 12px;margin-bottom:8px;font-size:13.5px;background:var(--bg)}
 .gen-sess.editing{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in oklab,var(--accent) 18%,transparent)}
 .gen-sess-sum{color:var(--ink-soft);font-size:12.5px;margin-top:3px}

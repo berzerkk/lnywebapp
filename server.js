@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, HeightRule } = require('docx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule } = require('docx');
 const LOGO_PATH = path.join(__dirname, 'assets', 'ls-logo.png');
 const LEGAL_LINES = [
   'ASSOCIATION Loi 1901 LANGUAGES & SUCCESS - L&S',
@@ -109,21 +109,58 @@ const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const PORT = process.env.PORT || process.argv[2] || 8000;
 
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+const MAX_BACKUPS = 60; // ~deux semaines de snapshots (démarrage + toutes les 6 h)
+
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], contratRefs: [], secret: crypto.randomBytes(32).toString('hex') });
+function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys(def)) { if (d[k] == null) d[k] = def[k]; } return d; }
 
 function loadDB() {
-  if (!fs.existsSync(DB_FILE)) {
-    const init = { users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], contratRefs: [], secret: crypto.randomBytes(32).toString('hex') };
-    fs.writeFileSync(DB_FILE, JSON.stringify(init, null, 2));
-    return init;
+  // 1) fichier principal
+  if (fs.existsSync(DB_FILE)) {
+    try { return normalizeDB(JSON.parse(fs.readFileSync(DB_FILE, 'utf8'))); }
+    catch (e) { console.error('⚠ db.json illisible/corrompu :', e.message); }
   }
-  const d = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-  d.groups = d.groups || []; d.docs = d.docs || []; d.messages = d.messages || []; d.notifs = d.notifs || []; d.worksheets = d.worksheets || []; d.docgens = d.docgens || []; d.qs = d.qs || []; d.contratRefs = d.contratRefs || [];
-  return d;
+  // 2) restauration depuis le backup le plus récent valide
+  try {
+    const backups = fs.existsSync(BACKUP_DIR) ? fs.readdirSync(BACKUP_DIR).filter(f => /^db-.*\.json$/.test(f)).sort().reverse() : [];
+    for (const b of backups) {
+      try { const d = normalizeDB(JSON.parse(fs.readFileSync(path.join(BACKUP_DIR, b), 'utf8'))); console.warn('↻ Base restaurée depuis le backup ' + b); fs.writeFileSync(DB_FILE, JSON.stringify(d, null, 2)); return d; }
+      catch (e) { /* backup suivant */ }
+    }
+  } catch (e) { }
+  // 3) base neuve
+  const init = DB_DEFAULTS();
+  try { fs.writeFileSync(DB_FILE, JSON.stringify(init, null, 2)); } catch (e) { }
+  return init;
 }
+
+// écriture ATOMIQUE : on écrit un .tmp puis on renomme (le rename est atomique → jamais de fichier à moitié écrit)
+function save() {
+  const json = JSON.stringify(db, null, 2);
+  const tmp = DB_FILE + '.tmp';
+  fs.writeFileSync(tmp, json);
+  fs.renameSync(tmp, DB_FILE);
+}
+
+// snapshots horodatés rotatifs (récupération en cas de fausse manip ou de corruption)
+function backupDB() {
+  try {
+    if (!fs.existsSync(DB_FILE)) return;
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    fs.copyFileSync(DB_FILE, path.join(BACKUP_DIR, 'db-' + stamp + '.json'));
+    const files = fs.readdirSync(BACKUP_DIR).filter(f => /^db-.*\.json$/.test(f)).sort();
+    while (files.length > MAX_BACKUPS) { try { fs.unlinkSync(path.join(BACKUP_DIR, files.shift())); } catch (e) { } }
+  } catch (e) { console.error('backup:', e.message); }
+}
+
 let db = loadDB();
-function save() { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); }
+backupDB();                                   // snapshot au démarrage
+setInterval(backupDB, 6 * 60 * 60 * 1000);    // + toutes les 6 h
 
 const ROLES = ['admin', 'eleve', 'prof'];
 const ROLE_LABEL = { admin: 'Administrateur', eleve: 'Apprenant', prof: 'Formateur' };
@@ -175,7 +212,7 @@ function notifyChannel(g, ch, sender, text) { channelRecipients(g, ch, sender.id
 
 // ---- app -------------------------------------------------------------------
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '2mb' })); // marge pour les signatures (data URL PNG)
 app.use((req, res, next) => {
   if (/^\/(data|node_modules|server\.js|package(-lock)?\.json)(\/|$)/.test(req.path)) return res.status(404).end();
   next();
@@ -298,6 +335,7 @@ app.get('/api/messages', auth, (req, res) => {
     .map(m => {
       const o = { id: m.id, from: m.from, fromAdmin: !!m.fromAdmin, fromName: m.fromAdmin ? 'Administration L&S' : fullName(m.from), text: m.text, date: m.date, kind: m.kind || 'text' };
       if (m.kind === 'qs') { const q = db.qs.find(x => x.id === m.qsId); o.qs = { id: m.qsId, type: m.qsType, title: (QS_TEMPLATES[m.qsType] || {}).title || 'Questionnaire', status: q ? q.status : 'pending', docId: q ? q.docId : null }; }
+      if (m.kind === 'presence') { const p = db.presences.find(x => x.id === m.presenceId); o.presence = { id: m.presenceId, title: (PRESENCE_TEMPLATES[p && p.type] || {}).title || 'Feuille de présence', status: p ? p.status : 'pending', docId: p ? p.docId : null }; }
       return o;
     });
   res.json({ messages: msgs });
@@ -452,7 +490,7 @@ const HEADBG = 'F3E7E0', LBLBG = 'F7EEE9', ACCENTC = 'BE6E54', DARKC = 'A8593C',
 function dxCell(text, o) {
   o = o || {};
   const children = String(text == null ? '' : text).split('\n').map(ln => new Paragraph({ alignment: o.align || AlignmentType.LEFT, children: [new TextRun({ text: ln, bold: !!o.bold, italics: !!o.italics, color: o.color || INKC, size: o.size || 19 })] }));
-  return new TableCell({ width: o.width, columnSpan: o.span, borders: TBL_CELLBORDERS, verticalAlign: o.valign || V_CENTER, shading: o.fill ? { type: SH_CLEAR, color: 'auto', fill: o.fill } : undefined, margins: { top: 36, bottom: 36, left: 90, right: 90 }, children });
+  return new TableCell({ width: o.width, columnSpan: o.span, verticalMerge: o.vMerge, borders: TBL_CELLBORDERS, verticalAlign: o.valign || V_CENTER, shading: o.fill ? { type: SH_CLEAR, color: 'auto', fill: o.fill } : undefined, margins: { top: 36, bottom: 36, left: 90, right: 90 }, children });
 }
 function dxPara(text, o) {
   o = o || {};
@@ -485,6 +523,40 @@ function pdfRows(doc, rows, left) {
     let x = left; const y = doc.y;
     row.cells.forEach(c => { pdfCell(doc, x, y, c.w, hh, c.text, c); x += c.w; });
     doc.y = y + hh;
+  });
+}
+// besoins du Level Test : tableau 3 colonnes avec la catégorie fusionnée à gauche (fidèle au Word)
+function pdfBesoins(doc, groups, left, catW, HB, LB) {
+  groups.forEach(g => {
+    const H = g.rows.map(r => {
+      let h = 18; doc.font('Helvetica').fontSize(9);
+      if (r.label) h = Math.max(h, doc.heightOfString(String(r.label), { width: r.lw - 14 }) + 11);
+      h = Math.max(h, doc.heightOfString(String(r.ans || ''), { width: (r.label ? r.aw : r.lw + r.aw) - 14 }) + 11);
+      return h;
+    });
+    let i = 0;
+    while (i < g.rows.length) {
+      let startY = doc.y;
+      if (startY + H[i] > doc.page.height - doc.page.margins.bottom) { doc.addPage(); startY = doc.y; }
+      const pbottom = doc.page.height - doc.page.margins.bottom;
+      let j = i, segH = 0;
+      while (j < g.rows.length && startY + segH + H[j] <= pbottom) { segH += H[j]; j++; }
+      if (j === i) { segH = H[i]; j = i + 1; }
+      pdfCell(doc, left, startY, catW, segH, g.cat, { fill: HB, bold: true, color: '#a8593c', size: 10 });
+      let y = startY;
+      for (let k = i; k < j; k++) {
+        const r = g.rows[k];
+        if (r.label) {
+          pdfCell(doc, left + catW, y, r.lw, H[k], r.label, { fill: LB, size: 9, valign: 'top' });
+          pdfCell(doc, left + catW + r.lw, y, r.aw, H[k], r.ans, { size: 9, valign: 'top' });
+        } else {
+          pdfCell(doc, left + catW, y, r.lw + r.aw, H[k], r.ans, { size: 9, valign: 'top' });
+        }
+        y += H[k];
+      }
+      doc.y = startY + segH;
+      i = j;
+    }
   });
 }
 function wsRows(w) {
@@ -572,6 +644,16 @@ function buildWorksheetPdf(w, user) {
   });
 }
 
+// historique de génération (réouvrable) — normalisé pour TOUS les types de documents, 40 derniers par dossier.
+// Tout générateur de document doit l'appeler pour apparaître dans l'onglet « Historique ».
+function recordDocgen(g, user, info) {
+  if (!g) return;
+  db.docgens.push({ id: crypto.randomUUID(), group: g.id, kind: info.kind, tpl: info.tpl || info.kind, title: info.title, format: info.format || 'pdf', date: Date.now(), byName: senderDisplay(user), apprenant: info.apprenant || 'apprenant', sessionCount: info.sessionCount, snapshot: info.snapshot || null });
+  const gh = db.docgens.filter(x => x.group === g.id).sort((a, b) => a.date - b.date);
+  while (gh.length > 40) { const old = gh.shift(); db.docgens = db.docgens.filter(x => x.id !== old.id); }
+  save();
+}
+
 app.post('/api/worksheet/generate', auth, async (req, res) => {
   const { group, format } = req.body || {};
   const fmt = (format === 'word' || format === 'docx') ? 'word' : 'pdf';
@@ -583,13 +665,9 @@ app.post('/api/worksheet/generate', auth, async (req, res) => {
     if (fmt === 'word') { buf = await buildWorksheetDocx(w, req.user); ext = 'docx'; type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
     else { buf = await buildWorksheetPdf(w, req.user); ext = 'pdf'; type = 'application/pdf'; }
   } catch (e) { console.error('Génération worksheet:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
-  // historique de génération (réouvrable pour dupliquer) — on garde les 30 derniers par dossier
-  db.docgens.push({ id: crypto.randomUUID(), group: g.id, format: fmt, date: Date.now(), byName: senderDisplay(req.user), apprenant: (w.header && w.header.nomApprenant) || 'apprenant', sessionCount: (w.sessions || []).length, snapshot: { header: w.header || {}, sessions: w.sessions || [] } });
-  const gh = db.docgens.filter(x => x.group === g.id).sort((a, b) => a.date - b.date);
-  while (gh.length > 30) { const old = gh.shift(); db.docgens = db.docgens.filter(x => x.id !== old.id); }
-  save();
+  recordDocgen(g, req.user, { kind: 'interactive', title: 'Interactive Worksheet', format: fmt, apprenant: (w.header && w.header.nomApprenant) || 'apprenant', sessionCount: (w.sessions || []).length, snapshot: { header: w.header || {}, sessions: w.sessions || [] } });
   // on renvoie directement le fichier en téléchargement (aucun dépôt dans le dossier)
-  const name = `Interactive Worksheet - ${safeFile((w.header && w.header.nomApprenant) || 'apprenant')} - ${nameDate()}.${ext}`;
+  const name = `1 - Interactive Worksheet - ${safeFile((w.header && w.header.nomApprenant) || 'apprenant')} - ${nameDate()}.${ext}`;
   res.setHeader('Content-Type', type);
   res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
   res.send(buf);
@@ -599,7 +677,7 @@ app.get('/api/worksheet/history', auth, (req, res) => {
   const g = groupById(req.query.group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
   const history = db.docgens.filter(x => x.group === g.id).sort((a, b) => b.date - a.date)
-    .map(x => ({ id: x.id, format: x.format, date: x.date, byName: x.byName, apprenant: x.apprenant, sessionCount: x.sessionCount, snapshot: x.snapshot }));
+    .map(x => ({ id: x.id, kind: x.kind || 'interactive', tpl: x.tpl || x.kind || 'interactive', title: x.title || 'Interactive Worksheet', format: x.format, date: x.date, byName: x.byName, apprenant: x.apprenant, sessionCount: x.sessionCount, snapshot: x.snapshot }));
   res.json({ history });
 });
 
@@ -733,7 +811,8 @@ app.post('/api/testdoc/generate', auth, async (req, res) => {
     if (format === 'word' || format === 'docx') { buf = await buildTestDocx(tpl.title, header, extra, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
     else { buf = await buildTestPdf(tpl.title, header, extra, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('testdoc:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
-  const name = safeFile(tpl.title) + ' - ' + safeFile((header && header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
+  recordDocgen(g, req.user, { kind: 'test', tpl: type, title: tpl.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: (header && header.nomApprenant) || 'apprenant' });
+  const name = (type === 'test_mid' ? '5' : '6') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((header && header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
   res.setHeader('Content-Type', ctype);
   res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
   res.send(buf);
@@ -821,7 +900,8 @@ app.post('/api/attestation/generate', auth, async (req, res) => {
     if (format === 'word' || format === 'docx') { buf = await buildAttestationDocx(d, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
     else { buf = await buildAttestationPdf(d, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('attestation:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
-  const name = safeFile('Attestation de fin de stage') + ' - ' + safeFile(d.apprenant || 'apprenant') + ' - ' + nameDate() + '.' + ext;
+  recordDocgen(g, req.user, { kind: 'attestation', title: 'Attestation de fin de formation', format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.apprenant || 'apprenant' });
+  const name = '4 - ' + safeFile('Attestation de fin de formation') + ' - ' + safeFile(d.apprenant || 'apprenant') + ' - ' + nameDate() + '.' + ext;
   res.setHeader('Content-Type', ctype);
   res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
   res.send(buf);
@@ -921,7 +1001,8 @@ function newContratRef() {
 }
 app.post('/api/contrat/generate', auth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
-  const { fields, format } = req.body || {};
+  const { group, fields, format } = req.body || {};
+  const g = groupById(group);
   const d = fields || {};
   d.ref = newContratRef(); // référence unique générée serveur (5 chiffres uniques)
   d.representant = 'Antonin HATTABE'; // représentant L&S fixe par défaut
@@ -930,7 +1011,8 @@ app.post('/api/contrat/generate', auth, async (req, res) => {
     if (format === 'word' || format === 'docx') { buf = await buildContratDocx(d, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
     else { buf = await buildContratPdf(d, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('contrat:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
-  const name = safeFile('Contrat de sous-traitance') + ' - ' + safeFile(d.stnom || 'formateur') + ' - ' + nameDate() + '.' + ext;
+  recordDocgen(g, req.user, { kind: 'contrat', title: 'Contrat de sous-traitance', format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.stnom || 'formateur' });
+  const name = '7 - ' + safeFile('Contrat de sous-traitance') + ' - ' + safeFile(d.stnom || 'formateur') + ' - ' + nameDate() + '.' + ext;
   res.setHeader('Content-Type', ctype);
   res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
   res.send(buf);
@@ -1104,7 +1186,7 @@ async function generateQsDoc(qs, format, fromUser) {
   else { buf = await buildQsPdf(qs, tpl, fromUser); ext = 'pdf'; type = 'application/pdf'; }
   const stored = crypto.randomUUID() + '.' + ext;
   fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
-  const name = safeFile(tpl.title) + ' - ' + safeFile((qs.header && qs.header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
+  const name = (qs.type === 'qs_mid' ? '2' : '3') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((qs.header && qs.header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
   const doc = { id: crypto.randomUUID(), group: qs.group, channel: 'commun', from: fromUser.id, fromAdmin: fromUser.role === 'admin', name, size: buf.length, type, stored, date: Date.now() };
   db.docs.push(doc);
   return doc;
@@ -1166,10 +1248,320 @@ app.post('/api/form/generate', auth, async (req, res) => {
     if (format === 'word' || format === 'docx') { buf = await buildQsDocx(qs, tpl, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
     else { buf = await buildQsPdf(qs, tpl, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('form gen:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
-  const name = safeFile(tpl.title) + ' - ' + safeFile((header && header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
+  recordDocgen(g, req.user, { kind: 'form', tpl: type, title: tpl.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: (header && header.nomApprenant) || 'apprenant' });
+  const name = (req.user.role === 'admin' ? '8' : '7') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((header && header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
   res.setHeader('Content-Type', ctype);
   res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
   res.send(buf);
+});
+
+// ---- Level Test : Évaluation orale / Questionnaire d'objectifs (formateur + admin) ----
+const LEVEL_TEST = {
+  title: "Évaluation orale / Questionnaire d'objectifs",
+  headerRows: [
+    [['dateEval', 'Date évaluation'], ['niveau', 'Level / Niveau']],
+    [['societe', 'Société'], ['langue', 'Langue']],
+    [['nom', 'Nom'], ['fonction', 'Fonction']],
+    [['prenom', 'Prénom'], ['planning', 'Planning']],
+    [['tel', 'Tél'], ['mail', 'Mail']]
+  ],
+  textFields: [
+    { id: 'objectifs', label: 'Principaux objectifs de la formation (professionnels, personnels et/ou linguistiques)' },
+    { id: 'niveauLangue', label: "Niveau de langue — appréciation d'examinateur" },
+    { id: 'experiences', label: 'Expériences précédentes (niveau scolaire, test, cours…)' },
+    { id: 'handicap', label: "Besoins spécifiques d'accès à la formation liés à un handicap" }
+  ],
+  besoins: [
+    { cat: 'Expression orale', items: [
+      { id: 'eo_tel', label: 'Téléphone' }, { id: 'eo_type', label: 'Si oui, quel type de conversation ?' },
+      { id: 'eo_visio', label: 'Visioconférence' }, { id: 'eo_f2f', label: 'Face à face' },
+      { id: 'eo_contexte', label: 'Dans quel contexte conversez-vous avec des interlocuteurs étrangers ?' },
+      { id: 'eo_freq', label: 'À quelle fréquence ?' }, { id: 'eo_horspro', label: 'Utilisez-vous cette langue hors du domaine professionnel ?' }
+    ] },
+    { cat: 'Compréhension orale', items: [
+      { id: 'co_tel', label: 'Difficultés au téléphone ?' }, { id: 'co_visio', label: 'Difficultés en visioconférence ?' },
+      { id: 'co_f2f', label: 'Difficultés en face à face ?' }, { id: 'co_vocab', label: 'Liées au vocabulaire spécifique' },
+      { id: 'co_debit', label: "Liées au débit d'élocution" }, { id: 'co_accent', label: 'Liées à un accent' }
+    ] },
+    { cat: 'Expression écrite', items: [{ id: 'ee_mails', label: 'Mails' }, { id: 'ee_autres', label: 'Autres' }] },
+    { cat: 'Compréhension écrite', items: [{ id: 'ce_mails', label: 'Mails' }, { id: 'ce_autres', label: 'Autres' }] },
+    { cat: "Centres d'intérêt", items: [{ id: 'interets', label: '' }] }
+  ],
+  evalEcrite: { titre: 'Évaluation écrite', fields: [['typeTestE', 'Type de test', 'Cambridge Aptitude Test'], ['dateEvalE', 'Date évaluation'], ['resultatE', 'Résultat'], ['niveauE', 'Level / Niveau']] },
+  evalOrale: { titre: 'Évaluation orale', fields: [['typeTestO', 'Type de test', 'TOEIC Test Level Projector'], ['dateEvalO', 'Date évaluation'], ['resultatO', 'Résultat'], ['niveauO', 'Level / Niveau']] }
+};
+function buildLevelTestDocx(d, user) {
+  const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
+  const kids = [];
+  kids.push(dxTable([new TableRow({ children: [dxCell(LEVEL_TEST.title.toUpperCase(), { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG })] })]));
+  kids.push(dxSpacer());
+  const Lc = (t) => dxCell(t, { width: PC(18), fill: LBLBG, bold: true }), Vc = (t) => dxCell(t || '', { width: PC(32) });
+  const headRows = LEVEL_TEST.headerRows.map(row => new TableRow({ children: row.reduce((acc, pair) => { acc.push(pair ? Lc(pair[1]) : dxCell('', { width: PC(18) })); acc.push(pair ? Vc(d[pair[0]]) : dxCell('', { width: PC(32) })); return acc; }, []) }));
+  (d.extraHeader || []).forEach(ex => { if (ex && (ex.label || ex.value)) headRows.push(new TableRow({ children: [Lc(ex.label || ''), dxCell(ex.value || '', { span: 3, width: PC(82) })] })); });
+  kids.push(dxTable(headRows));
+  kids.push(dxSpacer());
+  kids.push(dxTable(LEVEL_TEST.textFields.map(f => new TableRow({ children: [dxCell(f.label, { width: PC(50), fill: LBLBG, bold: true }), dxCell(d[f.id] || '', { width: PC(50), valign: VerticalAlign ? VerticalAlign.TOP : 'top' })] }))));
+  kids.push(dxSpacer());
+  kids.push(dxPara('BESOINS', { bold: true, color: DARKC, size: 24, after: 60 }));
+  const besoinRows = [];
+  LEVEL_TEST.besoins.forEach(b => {
+    b.items.forEach((it, idx) => {
+      const catCell = dxCell(idx === 0 ? b.cat : '', { width: PC(24), fill: HEADBG, bold: true, color: DARKC, vMerge: idx === 0 ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE });
+      if (it.label === '') besoinRows.push(new TableRow({ children: [catCell, dxCell(d[it.id] || '', { span: 2, width: PC(76) })] }));
+      else besoinRows.push(new TableRow({ children: [catCell, dxCell(it.label, { width: PC(48), fill: LBLBG }), dxCell(d[it.id] || '', { width: PC(28) })] }));
+    });
+  });
+  kids.push(dxTable(besoinRows)); kids.push(dxSpacer());
+  [LEVEL_TEST.evalEcrite, LEVEL_TEST.evalOrale].forEach(ev => {
+    const rows = [new TableRow({ children: [dxCell(ev.titre, { span: 2, fill: HEADBG, bold: true, color: ACCENTC })] })];
+    ev.fields.forEach(f => rows.push(new TableRow({ children: [dxCell(f[1], { width: PC(40), fill: LBLBG, bold: true }), dxCell(d[f[0]] || '', { width: PC(60) })] })));
+    kids.push(dxTable(rows)); kids.push(dxSpacer());
+  });
+  const hf = docxHeaderFooter(user);
+  return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+}
+function buildLevelTestPdf(d, user) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
+    const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
+    const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right, HB = '#f3e7e0', LB = '#f7eee9';
+    pdfRows(doc, [{ cells: [{ text: LEVEL_TEST.title.toUpperCase(), w: totalW, align: 'center', bold: true, color: '#be6e54', size: 14, fill: HB }], minH: 26 }], left);
+    doc.moveDown(0.4);
+    const lw = totalW * 0.18, vw = totalW * 0.32;
+    const headPdfRows = LEVEL_TEST.headerRows.map(row => ({ cells: row.reduce((acc, pair) => { acc.push({ text: pair ? pair[1] : '', w: lw, fill: pair ? LB : null, bold: !!pair, size: 8.5 }); acc.push({ text: pair ? (d[pair[0]] || '') : '', w: vw, size: 9 }); return acc; }, []) }));
+    (d.extraHeader || []).forEach(ex => { if (ex && (ex.label || ex.value)) headPdfRows.push({ cells: [{ text: ex.label || '', w: lw, fill: LB, bold: true, size: 8.5 }, { text: ex.value || '', w: totalW - lw, size: 9 }] }); });
+    pdfRows(doc, headPdfRows, left);
+    doc.moveDown(0.4);
+    pdfRows(doc, LEVEL_TEST.textFields.map(f => ({ cells: [{ text: f.label, w: totalW * 0.5, fill: LB, bold: true, size: 8.5, valign: 'top' }, { text: d[f.id] || '', w: totalW * 0.5, size: 9, valign: 'top' }], minH: 26 })), left);
+    doc.moveDown(0.4);
+    doc.fillColor('#a8593c').font('Helvetica-Bold').fontSize(12).text('BESOINS', left, doc.y); doc.moveDown(0.2);
+    const catW = totalW * 0.24, qW = totalW * 0.48, aW = totalW * 0.28;
+    pdfBesoins(doc, LEVEL_TEST.besoins.map(b => ({ cat: b.cat, rows: b.items.map(it => ({ label: it.label, ans: d[it.id] || '', lw: qW, aw: aW })) })), left, catW, HB, LB);
+    doc.moveDown(0.4);
+    [LEVEL_TEST.evalEcrite, LEVEL_TEST.evalOrale].forEach(ev => {
+      const rows = [{ cells: [{ text: ev.titre, w: totalW, fill: HB, bold: true, color: '#be6e54', size: 10 }], minH: 20 }];
+      ev.fields.forEach(f => rows.push({ cells: [{ text: f[1], w: totalW * 0.4, fill: LB, bold: true, size: 9 }, { text: d[f[0]] || '', w: totalW * 0.6, size: 9 }] }));
+      pdfRows(doc, rows, left); doc.moveDown(0.3);
+    });
+    pdfHeaderFooter(doc, user); doc.end();
+  });
+}
+app.get('/api/leveltest', auth, (req, res) => res.json({ tpl: LEVEL_TEST }));
+app.post('/api/leveltest/generate', auth, async (req, res) => {
+  const { group, fields, format } = req.body || {};
+  const g = groupById(group);
+  if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  const d = fields || {};
+  let buf, ext, ctype;
+  try {
+    if (format === 'word' || format === 'docx') { buf = await buildLevelTestDocx(d, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
+    else { buf = await buildLevelTestPdf(d, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
+  } catch (e) { console.error('leveltest:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
+  recordDocgen(g, req.user, { kind: 'leveltest', title: LEVEL_TEST.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.prenom || d.nom || 'apprenant' });
+  const name = (req.user.role === 'admin' ? '9' : '8') + ' - ' + safeFile(LEVEL_TEST.title) + ' - ' + safeFile(d.prenom || d.nom || 'apprenant') + ' - ' + nameDate() + '.' + ext;
+  res.setHeader('Content-Type', ctype);
+  res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
+  res.send(buf);
+});
+
+// ---- Feuilles de présence (formateur + admin) : 3 types -------------------
+const PRESENCE_TIMES = ['0:30', '1:00', '1:30', '2:00', '2:30', '3:00', '3:30', '4:00', '4:30', '5:00', '5:30', '6:00', '6:30', '7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00'];
+const PRESENCE_GRID_HEADER = [['', 'chk', 6], ['', 'time', 7], ['Date', 'date', 12], ['Jour', 'jour', 11], ['H début', 'hDebut', 10], ['H fin', 'hFin', 10], ['Durée', 'duree', 10], ['Sign Formateur', 'sf', 17], ['Sign Apprenant', 'ss', 17]];
+// data URL (png/jpeg) → buffer pour l'incrustation des signatures (pdfkit + docx)
+function sigImg(d) { if (!d || typeof d !== 'string') return null; const m = d.match(/^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)$/); if (!m) return null; try { return { buffer: Buffer.from(m[2], 'base64'), type: /jpe?g/.test(m[1]) ? 'jpg' : 'png' }; } catch (e) { return null; } }
+const PRESENCE_TEMPLATES = {
+  elearning: {
+    title: 'Feuille de présence — E-learning', kind: 'summary',
+    headerRows: [
+      [['mois', 'Mois'], ['langue', 'Langue']],
+      [['formateur', 'Formateur'], ['formation', 'Formation']],
+      [['apprenant', 'Apprenant'], ['debut', 'Début de la formation']],
+      [['compte', 'Compte'], ['fin', 'Fin de la formation']],
+      [['ref', 'Ref proposition'], ['lieu', 'Lieu']]
+    ],
+    summaryRows: [['heuresPrevues', "Nombre d'heures prévues"], ['heuresRealisees', "Nombre d'heures connexion réalisées"], ['dateRapport', 'Date du rapport']]
+  },
+  presentiel: {
+    title: 'Feuille de présence — Présentiel-Distanciel', kind: 'grid',
+    headerRows: [
+      [['mois', 'Mois'], ['langue', 'Contrat langue']],
+      [['formateur', 'Formateur'], ['formation', 'Formation']],
+      [['apprenant', 'Apprenant'], ['dureePrevue', 'Durée prévue']],
+      [['compte', 'Compte'], ['lieu', 'Lieu']],
+      [['ref', 'Ref proposition'], ['ville', 'Ville']]
+    ]
+  },
+  test: {
+    title: 'Feuille de présence — Test', kind: 'grid',
+    headerRows: [
+      [['mois', 'Mois'], ['langue', 'Contrat langue']],
+      [['formateur', 'Formateur'], ['formation', 'Formation']],
+      [['apprenant', 'Apprenant'], ['dureePrevue', 'Durée prévue']],
+      [['compte', 'Compte'], ['lieu', 'Lieu']],
+      [['ref', 'Ref proposition'], ['ville', 'Ville']]
+    ]
+  }
+};
+// grille PDF : créneaux 0:30→10:00 (case à cocher) + colonnes séance (+ signatures par séance remplie)
+function pdfPresenceGrid(doc, left, totalW, sessions, HB, sigF, sigA) {
+  const W = {}; PRESENCE_GRID_HEADER.forEach(c => { W[c[1]] = totalW * c[2] / 100; });
+  const rowH = 21;
+  let y = doc.y, x = left;
+  PRESENCE_GRID_HEADER.forEach(c => { pdfCell(doc, x, y, W[c[1]], rowH, c[0], { fill: HB, bold: true, size: 8, align: 'center' }); x += W[c[1]]; });
+  doc.y = y + rowH;
+  const slotMap = {}; (sessions || []).forEach(s => { if (s && s.slot && PRESENCE_TIMES.indexOf(s.slot) >= 0) slotMap[s.slot] = s; });
+  PRESENCE_TIMES.forEach((t, i) => {
+    if (doc.y + rowH > doc.page.height - doc.page.margins.bottom) doc.addPage();
+    y = doc.y; x = left; const s = slotMap[t] || {};
+    const hasData = !!slotMap[t];
+    pdfCell(doc, x, y, W.chk, rowH, '', {});
+    const sq = 9, cx = x + (W.chk - sq) / 2, cy = y + (rowH - sq) / 2;
+    if (hasData) doc.rect(cx, cy, sq, sq).fillColor('#be6e54').fill();
+    doc.rect(cx, cy, sq, sq).lineWidth(0.8).strokeColor('#9a8b7e').stroke();
+    x += W.chk;
+    const vals = { time: t, date: s.date || '', jour: s.jour || '', hDebut: s.hDebut || '', hFin: s.hFin || '', duree: s.duree || '', sf: '', ss: '' };
+    let sfX = 0, ssX = 0;
+    ['time', 'date', 'jour', 'hDebut', 'hFin', 'duree', 'sf', 'ss'].forEach(k => { if (k === 'sf') sfX = x; if (k === 'ss') ssX = x; pdfCell(doc, x, y, W[k], rowH, vals[k], { size: 8, align: 'center', bold: k === 'time' }); x += W[k]; });
+    if (hasData && sigF) { try { doc.image(sigF.buffer, sfX + 3, y + 2, { fit: [W.sf - 6, rowH - 4], align: 'center', valign: 'center' }); } catch (e) { } }
+    if (hasData && sigA) { try { doc.image(sigA.buffer, ssX + 3, y + 2, { fit: [W.ss - 6, rowH - 4], align: 'center', valign: 'center' }); } catch (e) { } }
+    doc.y = y + rowH;
+  });
+}
+function buildPresencePdf(type, d, user) {
+  const tpl = PRESENCE_TEMPLATES[type];
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
+    const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
+    const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right, HB = '#f3e7e0', LB = '#f7eee9';
+    const sigF = sigImg(d.formateurSig), sigA = sigImg(d.apprenantSig);
+    pdfRows(doc, [{ cells: [{ text: 'FEUILLES DE PRÉSENCE', w: totalW, align: 'center', bold: true, color: '#be6e54', size: 14, fill: HB }], minH: 26 }], left);
+    doc.moveDown(0.4);
+    const lw = totalW * 0.16, vw = totalW * 0.34;
+    pdfRows(doc, tpl.headerRows.map(row => ({ cells: row.reduce((acc, pair) => { acc.push({ text: pair ? pair[1] : '', w: lw, fill: pair ? LB : null, bold: !!pair, size: 8.5 }); acc.push({ text: pair ? (d[pair[0]] || '') : '', w: vw, size: 9 }); return acc; }, []) })), left);
+    doc.moveDown(0.5);
+    if (tpl.kind === 'summary') {
+      pdfRows(doc, tpl.summaryRows.map(r => ({ cells: [{ text: r[1], w: totalW * 0.5, fill: LB, bold: true, size: 9 }, { text: d[r[0]] || '', w: totalW * 0.5, size: 9, bold: r[0] === 'heuresPrevues' }], minH: 22 })), left);
+      doc.moveDown(0.8);
+      const sigY = doc.y, valX = left + totalW * 0.32, valW = totalW * 0.68;
+      pdfRows(doc, [
+        { cells: [{ text: 'Signature Formateur', w: totalW * 0.32, fill: LB, bold: true, size: 9, valign: 'top' }, { text: '', w: valW }], minH: 56 },
+        { cells: [{ text: 'Signature Apprenant', w: totalW * 0.32, fill: LB, bold: true, size: 9, valign: 'top' }, { text: '', w: valW }], minH: 56 }
+      ], left);
+      if (sigF) { try { doc.image(sigF.buffer, valX + 10, sigY + 6, { fit: [valW - 20, 44], align: 'center', valign: 'center' }); } catch (e) { } }
+      if (sigA) { try { doc.image(sigA.buffer, valX + 10, sigY + 62, { fit: [valW - 20, 44], align: 'center', valign: 'center' }); } catch (e) { } }
+    } else {
+      pdfPresenceGrid(doc, left, totalW, d.sessions || [], HB, sigF, sigA);
+    }
+    pdfHeaderFooter(doc, user); doc.end();
+  });
+}
+function buildPresenceDocx(type, d, user) {
+  const tpl = PRESENCE_TEMPLATES[type];
+  const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
+  const sigF = sigImg(d.formateurSig), sigA = sigImg(d.apprenantSig);
+  const sigCell = (sig, widthPC, w, h) => new TableCell({ width: PC(widthPC), borders: TBL_CELLBORDERS, verticalAlign: V_CENTER, margins: { top: 20, bottom: 20, left: 40, right: 40 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: sig ? [new ImageRun({ type: sig.type, data: sig.buffer, transformation: { width: w, height: h } })] : [] })] });
+  const kids = [];
+  kids.push(dxTable([new TableRow({ children: [dxCell('FEUILLES DE PRÉSENCE', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG })] })]));
+  kids.push(dxSpacer());
+  const Lc = (t) => dxCell(t, { width: PC(16), fill: LBLBG, bold: true }), Vc = (t) => dxCell(t || '', { width: PC(34) });
+  kids.push(dxTable(tpl.headerRows.map(row => new TableRow({ children: row.reduce((acc, pair) => { acc.push(pair ? Lc(pair[1]) : dxCell('', { width: PC(16) })); acc.push(pair ? Vc(d[pair[0]]) : dxCell('', { width: PC(34) })); return acc; }, []) }))));
+  kids.push(dxSpacer());
+  if (tpl.kind === 'summary') {
+    kids.push(dxTable(tpl.summaryRows.map(r => new TableRow({ children: [dxCell(r[1], { width: PC(50), fill: LBLBG, bold: true }), dxCell(d[r[0]] || '', { width: PC(50), bold: r[0] === 'heuresPrevues' })] }))));
+    kids.push(dxSpacer()); kids.push(dxSpacer());
+    kids.push(dxTable([dxRowMin([dxCell('Signature Formateur', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top' }), sigCell(sigF, 68, 150, 49)], 900)]));
+    kids.push(dxSpacer());
+    kids.push(dxTable([dxRowMin([dxCell('Signature Apprenant', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top' }), sigCell(sigA, 68, 150, 49)], 900)]));
+  } else {
+    const rows = [new TableRow({ children: PRESENCE_GRID_HEADER.map(c => dxCell(c[0], { width: PC(c[2]), fill: HEADBG, bold: true, align: AlignmentType.CENTER })) })];
+    const slotMap = {}; (d.sessions || []).forEach(s => { if (s && s.slot && PRESENCE_TIMES.indexOf(s.slot) >= 0) slotMap[s.slot] = s; });
+    PRESENCE_TIMES.forEach((t) => {
+      const s = slotMap[t] || {}; const hasData = !!slotMap[t];
+      const vals = { chk: hasData ? '✗' : '', time: t, date: s.date || '', jour: s.jour || '', hDebut: s.hDebut || '', hFin: s.hFin || '', duree: s.duree || '', sf: '', ss: '' };
+      rows.push(dxRowMin(PRESENCE_GRID_HEADER.map(c => {
+        if ((c[1] === 'sf' || c[1] === 'ss') && hasData) return sigCell(c[1] === 'sf' ? sigF : sigA, c[2], 52, 17);
+        if (c[1] === 'chk') return dxCell(vals.chk, { width: PC(c[2]), align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 20, fill: hasData ? '#f3e7e0' : undefined });
+        return dxCell(vals[c[1]], { width: PC(c[2]), align: AlignmentType.CENTER, bold: c[1] === 'time', size: c[1] === 'time' ? 18 : 17 });
+      }), 360));
+    });
+    kids.push(dxTable(rows));
+  }
+  const hf = docxHeaderFooter(user);
+  return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+}
+app.get('/api/presence', auth, (req, res) => res.json({ templates: PRESENCE_TEMPLATES }));
+app.post('/api/presence/generate', auth, async (req, res) => {
+  const { group, type, fields, format } = req.body || {};
+  const tpl = PRESENCE_TEMPLATES[type];
+  const g = groupById(group);
+  if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
+  if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  const d = fields || {};
+  let buf, ext, ctype;
+  try {
+    if (format === 'word' || format === 'docx') { buf = await buildPresenceDocx(type, d, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
+    else { buf = await buildPresencePdf(type, d, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
+  } catch (e) { console.error('presence:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
+  recordDocgen(g, req.user, { kind: 'presence', title: tpl.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.apprenant || 'apprenant' });
+  const name = (req.user.role === 'admin' ? '10' : '9') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile(d.apprenant || 'apprenant') + ' - ' + nameDate() + '.' + ext;
+  res.setHeader('Content-Type', ctype);
+  res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
+  res.send(buf);
+});
+
+// ---- Feuilles de présence : flux de signatures (formateur signe → apprenant signe → dépôt) ----
+async function depositPresenceDoc(p, byUser) {
+  const tpl = PRESENCE_TEMPLATES[p.type] || {};
+  const d = Object.assign({}, p.fields, { formateurSig: p.formateurSig, apprenantSig: p.apprenantSig });
+  const buf = await buildPresencePdf(p.type, d, byUser);
+  const stored = crypto.randomUUID() + '.pdf';
+  fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
+  const name = safeFile(tpl.title || 'Feuille de présence') + ' - ' + safeFile((p.fields && p.fields.apprenant) || 'apprenant') + ' - ' + nameDate() + ' - signée.pdf';
+  const doc = { id: crypto.randomUUID(), group: p.group, channel: 'commun', from: byUser.id, fromAdmin: byUser.role === 'admin', name, size: buf.length, type: 'application/pdf', stored, date: Date.now() };
+  db.docs.push(doc);
+  return doc;
+}
+// le formateur (ou admin) remplit, signe, puis envoie à l'apprenant pour signature
+app.post('/api/presence/send', auth, (req, res) => {
+  const { group, type, fields, formateurSig } = req.body || {};
+  const tpl = PRESENCE_TEMPLATES[type];
+  const g = groupById(group);
+  if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
+  if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  if (!sigImg(formateurSig)) return res.status(400).json({ error: 'Signature du formateur manquante.' });
+  const p = { id: crypto.randomUUID(), group: g.id, type, fields: fields || {}, formateurSig, apprenantSig: null, status: 'pending', docId: null, by: req.user.id, date: Date.now() };
+  db.presences.push(p);
+  db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'commun', from: req.user.id, fromAdmin: req.user.role === 'admin', kind: 'presence', presenceId: p.id, text: 'Feuille de présence à signer : ' + tpl.title, date: Date.now() });
+  notify(g.eleve, `${senderDisplay(req.user)} vous demande de signer une feuille de présence (${tpl.title}).`);
+  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé une feuille de présence à signer (${tpl.title}).`));
+  save();
+  res.json({ ok: true, id: p.id });
+});
+// statut d'une feuille (pour l'apprenant)
+app.get('/api/presence/:id', auth, (req, res) => {
+  const p = db.presences.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Feuille introuvable.' });
+  if (!isMember(groupById(p.group), req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  res.json({ presence: { id: p.id, type: p.type, title: (PRESENCE_TEMPLATES[p.type] || {}).title, status: p.status, docId: p.docId } });
+});
+// l'apprenant signe → génère le doc final (2 signatures) et le dépose dans le canal commun
+app.post('/api/presence/:id/sign', auth, async (req, res) => {
+  const p = db.presences.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Feuille introuvable.' });
+  const g = groupById(p.group);
+  if (!isMember(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  if (p.status === 'done') return res.status(400).json({ error: 'Feuille déjà signée.' });
+  const sig = (req.body || {}).sig;
+  if (!sigImg(sig)) return res.status(400).json({ error: 'Signature manquante.' });
+  p.apprenantSig = sig; p.status = 'done'; p.signedBy = req.user.id; p.signedAt = Date.now();
+  const byUser = db.users.find(u => u.id === p.by) || req.user;
+  let doc;
+  try { doc = await depositPresenceDoc(p, byUser); } catch (e) { console.error('presence sign:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
+  p.docId = doc.id;
+  recordDocgen(g, byUser, { kind: 'presence', tpl: 'presence', title: (PRESENCE_TEMPLATES[p.type] || {}).title, format: 'pdf', apprenant: (p.fields && p.fields.apprenant) || 'apprenant' });
+  notifyChannel(g, 'commun', req.user, `${senderDisplay(req.user)} a signé la feuille de présence — document déposé dans le dossier.`);
+  save();
+  res.json({ ok: true, doc: docPub(doc) });
 });
 
 // comptes démo (email + mot de passe affichés sur la page de connexion)
