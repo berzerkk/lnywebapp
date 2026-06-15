@@ -9,7 +9,7 @@ Site marketing + **espace documents** pour un organisme de formation en langues 
 - Anim héros : `morph.js` (canvas 2D, nuage de particules + logo). `medallion.js`/`sphere.js`/`worldmap.js`/`painting.js` = en réserve, non chargés.
 
 ## Lancer / arrêter
-- Démarrer : `node server.js` (port **8000**) → http://localhost:8000. (Sert site + API.)
+- **Port** : `process.env.PORT || process.argv[2] || 3000`. **Défaut = 3000** (aligné avec la prod) ; en **local on lance toujours sur 8000** : `node server.js 8000` → http://localhost:8000. (Sert site + API.) La preview MCP utilise 8011.
 - Le port peut être passé en argument : `node server.js 8011`.
 - Données sensibles bloquées par le serveur (`/data`, `node_modules`, `server.js`).
 - ⚠️ Toujours **un seul** serveur Node sur un port donné (sinon il écrase `db.json`). Tuer le port avant de relancer.
