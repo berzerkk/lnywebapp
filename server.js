@@ -1568,7 +1568,13 @@ app.post('/api/presence/:id/sign', auth, async (req, res) => {
 app.get('/api/demo-accounts', (req, res) => res.json({ accounts: DEMO_ACCOUNTS.map(d => ({ email: d.email, password: DEMO_PASSWORD, role: d.role, name: `${d.prenom} ${d.nom}` })) }));
 
 // ---- statique (site) -------------------------------------------------------
-app.use(express.static(ROOT, { extensions: ['html'] }));
+// Anti-cache pour HTML/JS/CSS : le navigateur ET Cloudflare doivent revalider à chaque fois
+// (sinon un ancien account.js — injecté dynamiquement par partials.js — reste servi du cache
+// après un déploiement, même avec Ctrl+Shift+R). ETag conservé → 304 si inchangé (efficace).
+app.use(express.static(ROOT, {
+  extensions: ['html'],
+  setHeaders: (res, filePath) => { if (/\.(html|js|css)$/i.test(filePath)) res.setHeader('Cache-Control', 'no-cache'); }
+}));
 app.use((req, res) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) return res.sendFile(path.join(ROOT, 'index.html'));
   res.status(404).json({ error: 'Not found' });
