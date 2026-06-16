@@ -770,11 +770,19 @@
       fields.map(function (f) { return gi('qsh-' + f[0], f[1], h[f[0]]); }).join('') + '</div>';
     var m = buildFsModal('qsh-modal', titles[type] || 'Questionnaire', body, '<button class="btn btn-primary qsh-send" type="button" style="padding:11px 22px">Envoyer à l\'apprenant →</button>');
     m.querySelector('.qsh-send').onclick = function () {
-      var header = {}; fields.forEach(function (f) { header[f[0]] = val('qsh-' + f[0]); });
-      var btn = m.querySelector('.qsh-send'); btn.disabled = true; btn.textContent = 'Envoi…';
-      apiJSON('/api/qs/send', 'POST', { group: selected, type: type, header: header }).then(function (r) {
-        if (!r.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant →'; alert((r.data && r.data.error) || 'Erreur'); return; }
-        closeFsModal('qsh-modal'); channel = 'commun'; renderDashboard();
+      confirmDialog({
+        title: "Envoyer à l'apprenant ?",
+        message: "Le questionnaire va être envoyé à l'apprenant pour qu'il le remplisse. Êtes-vous sûr de ne pas vouloir modifier l'en-tête avant l'envoi ?",
+        confirm: "Confirmer l'envoi",
+        cancel: 'Continuer à modifier',
+        onConfirm: function () {
+          var header = {}; fields.forEach(function (f) { header[f[0]] = val('qsh-' + f[0]); });
+          var btn = m.querySelector('.qsh-send'); btn.disabled = true; btn.textContent = 'Envoi…';
+          apiJSON('/api/qs/send', 'POST', { group: selected, type: type, header: header }).then(function (r) {
+            if (!r.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant →'; alert((r.data && r.data.error) || 'Erreur'); return; }
+            closeFsModal('qsh-modal'); channel = 'commun'; renderDashboard();
+          });
+        }
       });
     };
   }
@@ -1121,14 +1129,22 @@
       render();
       m.querySelector('.pr-gen').onclick = function () {
         if (sigPad.isEmpty()) { alert('Veuillez signer (ou téléverser votre signature) avant d\'envoyer à l\'apprenant.'); return; }
-        var tpl = T[curType], fields = {};
-        tpl.headerRows.forEach(function (row) { row.forEach(function (pair) { if (pair) fields[pair[0]] = val('pr-' + pair[0]); }); });
-        if (tpl.kind === 'summary') { fields.heuresPrevues = val('pr-heuresPrevues'); fields.heuresRealisees = val('pr-heuresRealisees'); fields.dateRapport = val('pr-dateRapport'); }
-        else { collectSessions(); fields.sessions = sessions.filter(function (s) { return s.date || s.jour || s.hDebut || s.hFin || s.duree; }); }
-        var btn = m.querySelector('.pr-gen'); btn.disabled = true; btn.textContent = 'Envoi…';
-        apiJSON('/api/presence/send', 'POST', { group: selected, type: curType, fields: fields, formateurSig: sigPad.dataURL() }).then(function (rr) {
-          if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant pour signature →'; alert((rr.data && rr.data.error) || 'Erreur'); return; }
-          closeFsModal('pr-modal'); channel = 'commun'; renderDashboard();
+        confirmDialog({
+          title: "Envoyer à l'apprenant ?",
+          message: "La feuille de présence (avec votre signature) va être envoyée à l'apprenant pour qu'il la signe à son tour. Êtes-vous sûr de ne pas vouloir modifier avant l'envoi ?",
+          confirm: "Confirmer l'envoi",
+          cancel: 'Continuer à modifier',
+          onConfirm: function () {
+            var tpl = T[curType], fields = {};
+            tpl.headerRows.forEach(function (row) { row.forEach(function (pair) { if (pair) fields[pair[0]] = val('pr-' + pair[0]); }); });
+            if (tpl.kind === 'summary') { fields.heuresPrevues = val('pr-heuresPrevues'); fields.heuresRealisees = val('pr-heuresRealisees'); fields.dateRapport = val('pr-dateRapport'); }
+            else { collectSessions(); fields.sessions = sessions.filter(function (s) { return s.date || s.jour || s.hDebut || s.hFin || s.duree; }); }
+            var btn = m.querySelector('.pr-gen'); btn.disabled = true; btn.textContent = 'Envoi…';
+            apiJSON('/api/presence/send', 'POST', { group: selected, type: curType, fields: fields, formateurSig: sigPad.dataURL() }).then(function (rr) {
+              if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant pour signature →'; alert((rr.data && rr.data.error) || 'Erreur'); return; }
+              closeFsModal('pr-modal'); channel = 'commun'; renderDashboard();
+            });
+          }
         });
       };
     });
@@ -1162,10 +1178,18 @@
       var pad = mountSignaturePad(m.querySelector('.sigpad'));
       m.querySelector('.prs-send').onclick = function () {
         if (pad.isEmpty()) { alert('Veuillez signer (ou téléverser votre signature).'); return; }
-        var btn = m.querySelector('.prs-send'); btn.disabled = true; btn.textContent = 'Envoi…';
-        apiJSON('/api/presence/' + encodeURIComponent(presenceId) + '/sign', 'POST', { sig: pad.dataURL() }).then(function (rr) {
-          if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer ma signature →'; alert((rr.data && rr.data.error) || 'Erreur'); return; }
-          closeFsModal('prsign-modal'); renderDashboard();
+        confirmDialog({
+          title: 'Envoyer votre signature ?',
+          message: 'Une fois votre signature envoyée, la feuille de présence sera finalisée et vous ne pourrez plus la modifier.',
+          confirm: "Confirmer l'envoi",
+          cancel: 'Revenir',
+          onConfirm: function () {
+            var btn = m.querySelector('.prs-send'); btn.disabled = true; btn.textContent = 'Envoi…';
+            apiJSON('/api/presence/' + encodeURIComponent(presenceId) + '/sign', 'POST', { sig: pad.dataURL() }).then(function (rr) {
+              if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer ma signature →'; alert((rr.data && rr.data.error) || 'Erreur'); return; }
+              closeFsModal('prsign-modal'); renderDashboard();
+            });
+          }
         });
       };
     });
