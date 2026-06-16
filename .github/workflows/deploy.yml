@@ -1,0 +1,17 @@
+name: Deploy V3 to Local Server
+
+on:
+  push:
+    branches:
+      - V3
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Rebuild and restart Docker containers
+        run: |
+          docker compose up -d --build
