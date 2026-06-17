@@ -128,7 +128,10 @@
   if (!window.__lsAccountLoaded) {
     window.__lsAccountLoaded = true;
     var acc = document.createElement('script');
-    acc.src = 'assets/account.js';
+    // cache-buster horodaté : account.js est injecté dynamiquement (le hard-refresh ne le
+    // rafraîchit pas) → on force une URL unique pour toujours charger la dernière version,
+    // y compris derrière le CDN Cloudflare.
+    acc.src = 'assets/account.js?v=' + Date.now();
     document.body.appendChild(acc);
   }
 })();
