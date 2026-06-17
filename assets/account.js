@@ -376,7 +376,7 @@
     if (!selected) return;
     if (preset) { genState = { header: preset.header || {}, sessions: Array.isArray(preset.sessions) ? preset.sessions.slice() : [] }; showGenModal(); return; }
     api('/api/worksheet?group=' + encodeURIComponent(selected)).then(function (r) {
-      if (!r.ok) { alert((r.data && r.data.error) || 'Accès refusé.'); return; }
+      if (!r.ok) { alertDialog((r.data && r.data.error) || 'Accès refusé.'); return; }
       var w = r.data.worksheet || {};
       genState = { header: w.header || {}, sessions: Array.isArray(w.sessions) ? w.sessions.slice() : [] };
       showGenModal();
@@ -410,7 +410,7 @@
             btn.disabled = false; btn.textContent = 'Document généré ✓ — re-générer';
             setTimeout(function () { btn.textContent = 'Générer le document →'; }, 3000);
           })
-          .catch(function (e) { btn.disabled = false; btn.textContent = 'Générer le document →'; alert(e.message || 'Génération impossible.'); });
+          .catch(function (e) { btn.disabled = false; btn.textContent = 'Générer le document →'; alertDialog(e.message || 'Génération impossible.'); });
       });
     };
   }
@@ -461,7 +461,7 @@
       notes: { vocabulaire: val('g-nVoc'), structure: val('g-nStr'), communication: val('g-nCom'), autre: val('g-nAut') }
     };
   }
-  function saveGen(cb) { apiJSON('/api/worksheet', 'POST', { group: selected, header: genState.header, sessions: genState.sessions }).then(function (r) { if (!r.ok) { alert((r.data && r.data.error) || 'Enregistrement impossible.'); return; } if (cb) cb(); }); }
+  function saveGen(cb) { apiJSON('/api/worksheet', 'POST', { group: selected, header: genState.header, sessions: genState.sessions }).then(function (r) { if (!r.ok) { alertDialog((r.data && r.data.error) || 'Enregistrement impossible.'); return; } if (cb) cb(); }); }
 
   // ---- choix du modèle de document --------------------------------------
   function openTemplatePicker() {
@@ -559,7 +559,7 @@
       return '<li><span class="c-name">' + esc(fullName(o)) + '<small>' + ROLES[o.role] + (o.email ? ' · ' + esc(o.email) : '') + '</small></span><button class="btn-mini add-pick" data-id="' + o.id + '">Ajouter</button></li>';
     }).join('') + '</ul>' : '<p class="ds-empty" style="padding:6px 4px">' + (ADD_CANDIDATES.length ? 'Aucun résultat.' : 'Aucun ' + (ME.role === 'prof' ? 'apprenant' : 'formateur') + ' disponible.') + '</p>';
     box.querySelectorAll('.add-pick').forEach(function (b) {
-      b.onclick = function () { b.disabled = true; apiJSON('/api/groups', 'POST', { targetId: b.getAttribute('data-id') }).then(function (r) { if (r.ok) { selected = r.data.group; channel = 'commun'; closeAddModal(); renderDashboard(); } else { alert((r.data && r.data.error) || 'Erreur'); b.disabled = false; } }); };
+      b.onclick = function () { b.disabled = true; apiJSON('/api/groups', 'POST', { targetId: b.getAttribute('data-id') }).then(function (r) { if (r.ok) { selected = r.data.group; channel = 'commun'; closeAddModal(); renderDashboard(); } else { alertDialog((r.data && r.data.error) || 'Erreur'); b.disabled = false; } }); };
     });
   }
   function wireChat() {
@@ -570,7 +570,7 @@
     f.onsubmit = function (e) {
       e.preventDefault();
       var inp = document.getElementById('chat-input'); var txt = inp.value.trim(); if (!txt) return; inp.value = ''; inp.disabled = true;
-      apiJSON('/api/messages', 'POST', { group: selected, channel: channel, text: txt }).then(function (r) { if (!r.ok && r.data && r.data.error) alert(r.data.error); renderDashboard(); });
+      apiJSON('/api/messages', 'POST', { group: selected, channel: channel, text: txt }).then(function (r) { if (!r.ok && r.data && r.data.error) alertDialog(r.data.error); renderDashboard(); });
     };
   }
   function wireUpload() {
@@ -581,8 +581,8 @@
         var fd = new FormData(); fd.append('group', selected); fd.append('channel', channel); fd.append('file', file);
         fetch('/api/documents', { method: 'POST', headers: { Authorization: 'Bearer ' + token() }, body: fd })
           .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }); })
-          .then(function (r) { if (!r.ok) alert((r.data && r.data.error) || 'Envoi impossible.'); })
-          .catch(function () { alert('Envoi impossible.'); })
+          .then(function (r) { if (!r.ok) alertDialog((r.data && r.data.error) || 'Envoi impossible.'); })
+          .catch(function () { alertDialog('Envoi impossible.'); })
           .then(function () { if (++done === files.length) renderDashboard(); });
       });
     };
@@ -652,7 +652,7 @@
           confirm: 'Supprimer définitivement', cancel: 'Annuler',
           onConfirm: function () {
             api(isGroup ? '/api/groups/' + encodeURIComponent(id) : '/api/users/' + encodeURIComponent(id), { method: 'DELETE' }).then(function (r) {
-              if (!r.ok) { alert((r.data && r.data.error) || 'Suppression impossible.'); return; }
+              if (!r.ok) { alertDialog((r.data && r.data.error) || 'Suppression impossible.'); return; }
               api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; rerenderAdmin(false); } });
             });
           }
@@ -736,6 +736,18 @@
     d.querySelector('.cf-ok').onclick = function () { close(); if (opts.onConfirm) opts.onConfirm(); };
     d.querySelector('.nm-backdrop').onclick = function () { close(); if (opts.onCancel) opts.onCancel(); };
   }
+  // pop-up d'information stylée « maison » (remplace l'alert() natif du navigateur) — un seul bouton OK
+  function alertDialog(message, title) {
+    var d = document.createElement('div'); d.className = 'notif-modal confirm-modal open';
+    d.innerHTML = '<div class="nm-backdrop"></div><div class="nm-card confirm-card"><h3>' + esc(title || 'Information') + '</h3>' +
+      '<p>' + esc(message == null ? '' : message) + '</p><div class="confirm-actions">' +
+      '<button class="btn btn-primary cf-ok" type="button" style="min-width:120px">OK</button></div></div>';
+    document.body.appendChild(d);
+    function close() { if (d.parentNode) d.remove(); }
+    d.querySelector('.cf-ok').onclick = close;
+    d.querySelector('.nm-backdrop').onclick = close;
+    var ok = d.querySelector('.cf-ok'); if (ok) ok.focus();
+  }
 
   // fiche client (pré-remplissage automatique des documents)
   function clientFiche() { return (CUR_GROUP && CUR_GROUP.eleve && CUR_GROUP.eleve.profile) || {}; }
@@ -752,7 +764,7 @@
         var u = URL.createObjectURL(blob); var a = document.createElement('a'); a.href = u; a.download = nm; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 2000);
         btn.disabled = false; btn.textContent = 'Document généré ✓ — re-générer'; setTimeout(function () { btn.textContent = orig; }, 3000);
       })
-      .catch(function (e) { btn.disabled = false; btn.textContent = orig; alert(e.message || 'Génération impossible.'); });
+      .catch(function (e) { btn.disabled = false; btn.textContent = orig; alertDialog(e.message || 'Génération impossible.'); });
   }
   function certifLine(p) { p = p || {}; var c = (p.certification || '').toLowerCase(); if (c === 'oui') return 'Avec certification' + (p.certificationText ? ' — ' + p.certificationText : ''); if (c === 'non') return 'Sans certification'; return ''; }
   function lieuLabel(p) { p = p || {}; var l = (p.lieu || '').toLowerCase(); var adr = p.lieuAdresse ? ' — ' + p.lieuAdresse : ''; if (l === 'mixte' || l === 'les deux') return 'Présentiel et distanciel' + adr; if (l === 'presentiel' || l === 'présentiel') return 'Présentiel' + adr; if (l === 'distanciel') return 'Distanciel'; return ''; }
@@ -779,7 +791,7 @@
           var header = {}; fields.forEach(function (f) { header[f[0]] = val('qsh-' + f[0]); });
           var btn = m.querySelector('.qsh-send'); btn.disabled = true; btn.textContent = 'Envoi…';
           apiJSON('/api/qs/send', 'POST', { group: selected, type: type, header: header }).then(function (r) {
-            if (!r.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant →'; alert((r.data && r.data.error) || 'Erreur'); return; }
+            if (!r.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant →'; alertDialog((r.data && r.data.error) || 'Erreur'); return; }
             closeFsModal('qsh-modal'); channel = 'commun'; renderDashboard();
           });
         }
@@ -974,7 +986,7 @@
           btn.disabled = false; btn.textContent = 'Document généré ✓ — re-générer';
           setTimeout(function () { btn.textContent = 'Générer le document →'; }, 3000);
         })
-        .catch(function (e) { btn.disabled = false; btn.textContent = 'Générer le document →'; alert(e.message || 'Génération impossible.'); });
+        .catch(function (e) { btn.disabled = false; btn.textContent = 'Générer le document →'; alertDialog(e.message || 'Génération impossible.'); });
     };
   }
 
@@ -1037,7 +1049,7 @@
   function openLevelTestModal() {
     if (!selected || !CUR_GROUP) return;
     api('/api/leveltest').then(function (r) {
-      if (!r.ok) { alert((r.data && r.data.error) || 'Erreur'); return; }
+      if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
       var tpl = r.data.tpl || {};
       var fc = clientFiche();
       var pre = { dateEval: new Date().toLocaleDateString('fr-FR'), societe: fc.societe || '', langue: fc.langue || '', nom: (CUR_GROUP.eleve.nom || ''), prenom: (CUR_GROUP.eleve.prenom || ''), tel: fc.tel || '', mail: (CUR_GROUP.eleve.email || '') };
@@ -1081,7 +1093,7 @@
   function openPresenceModal() {
     if (!selected || !CUR_GROUP) return;
     api('/api/presence').then(function (r) {
-      if (!r.ok) { alert((r.data && r.data.error) || 'Erreur'); return; }
+      if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
       var T = r.data.templates || {};
       var fc = clientFiche();
       var moisNow = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); moisNow = moisNow.charAt(0).toUpperCase() + moisNow.slice(1);
@@ -1128,7 +1140,7 @@
       document.getElementById('pr-type').onchange = function () { curType = this.value; sessions = []; render(); };
       render();
       m.querySelector('.pr-gen').onclick = function () {
-        if (sigPad.isEmpty()) { alert('Veuillez signer (ou téléverser votre signature) avant d\'envoyer à l\'apprenant.'); return; }
+        if (sigPad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature) avant d\'envoyer à l\'apprenant.'); return; }
         confirmDialog({
           title: "Envoyer à l'apprenant ?",
           message: "La feuille de présence (avec votre signature) va être envoyée à l'apprenant pour qu'il la signe à son tour. Êtes-vous sûr de ne pas vouloir modifier avant l'envoi ?",
@@ -1141,7 +1153,7 @@
             else { collectSessions(); fields.sessions = sessions.filter(function (s) { return s.date || s.jour || s.hDebut || s.hFin || s.duree; }); }
             var btn = m.querySelector('.pr-gen'); btn.disabled = true; btn.textContent = 'Envoi…';
             apiJSON('/api/presence/send', 'POST', { group: selected, type: curType, fields: fields, formateurSig: sigPad.dataURL() }).then(function (rr) {
-              if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant pour signature →'; alert((rr.data && rr.data.error) || 'Erreur'); return; }
+              if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant pour signature →'; alertDialog((rr.data && rr.data.error) || 'Erreur'); return; }
               closeFsModal('pr-modal'); channel = 'commun'; renderDashboard();
             });
           }
@@ -1170,14 +1182,14 @@
   // ---- l'apprenant signe la feuille de présence reçue ----------------------
   function openPresenceSignModal(presenceId) {
     api('/api/presence/' + encodeURIComponent(presenceId)).then(function (r) {
-      if (!r.ok) { alert((r.data && r.data.error) || 'Erreur'); return; }
+      if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
       var p = r.data.presence || {};
-      if (p.status === 'done') { alert('Cette feuille est déjà signée.'); renderDashboard(); return; }
+      if (p.status === 'done') { alertDialog('Cette feuille est déjà signée.'); renderDashboard(); return; }
       var body = '<p class="ds-empty" style="margin:0 0 12px">Signez la feuille de présence « ' + esc(p.title || '') + ' » ci-dessous à la souris (ou au doigt), ou téléversez une image de votre signature.</p>' + sigPadHTML();
       var m = buildFsModal('prsign-modal', 'Signer la feuille de présence', body, '<button class="btn btn-primary prs-send" type="button" style="padding:11px 22px">Envoyer ma signature →</button>');
       var pad = mountSignaturePad(m.querySelector('.sigpad'));
       m.querySelector('.prs-send').onclick = function () {
-        if (pad.isEmpty()) { alert('Veuillez signer (ou téléverser votre signature).'); return; }
+        if (pad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature).'); return; }
         confirmDialog({
           title: 'Envoyer votre signature ?',
           message: 'Une fois votre signature envoyée, la feuille de présence sera finalisée et vous ne pourrez plus la modifier.',
@@ -1186,7 +1198,7 @@
           onConfirm: function () {
             var btn = m.querySelector('.prs-send'); btn.disabled = true; btn.textContent = 'Envoi…';
             apiJSON('/api/presence/' + encodeURIComponent(presenceId) + '/sign', 'POST', { sig: pad.dataURL() }).then(function (rr) {
-              if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer ma signature →'; alert((rr.data && rr.data.error) || 'Erreur'); return; }
+              if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer ma signature →'; alertDialog((rr.data && rr.data.error) || 'Erreur'); return; }
               closeFsModal('prsign-modal'); renderDashboard();
             });
           }
@@ -1199,7 +1211,7 @@
   function openFormModal(type) {
     if (!selected || !CUR_GROUP) return;
     api('/api/form/' + encodeURIComponent(type)).then(function (r) {
-      if (!r.ok) { alert((r.data && r.data.error) || 'Erreur'); return; }
+      if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
       var tpl = r.data.tpl || {};
       var hf = tpl.headerFields || [];
       var fc = clientFiche();
@@ -1231,7 +1243,7 @@
             btn.disabled = false; btn.textContent = 'Document généré ✓ — re-générer';
             setTimeout(function () { btn.textContent = 'Générer le document →'; }, 3000);
           })
-          .catch(function (e) { btn.disabled = false; btn.textContent = 'Générer le document →'; alert(e.message || 'Génération impossible.'); });
+          .catch(function (e) { btn.disabled = false; btn.textContent = 'Générer le document →'; alertDialog(e.message || 'Génération impossible.'); });
       };
     });
   }
@@ -1281,9 +1293,9 @@
   }
   function openQsFillModal(qsId) {
     api('/api/qs/' + encodeURIComponent(qsId)).then(function (r) {
-      if (!r.ok) { alert((r.data && r.data.error) || 'Erreur'); return; }
+      if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
       var q = r.data.qs;
-      if (q.status === 'done') { alert('Ce questionnaire a déjà été envoyé.'); return; }
+      if (q.status === 'done') { alertDialog('Ce questionnaire a déjà été envoyé.'); return; }
       qsFillState = { id: qsId, items: q.items || [], answers: Object.assign({}, q.answers || {}) };
       var recap = '<div class="qs-recap">' + (q.headerFields || []).map(function (f) { return '<span><b>' + esc(f.label) + ' :</b> ' + esc(q.header[f.id] || '—') + '</span>'; }).join('') + '</div>';
       var footer = '<button class="btn btn-primary qs-submit" type="button" style="padding:11px 22px">Envoyer votre réponse →</button>';
@@ -1300,7 +1312,7 @@
             var btn = m.querySelector('.qs-submit'); btn.disabled = true; btn.textContent = 'Envoi…';
             apiJSON('/api/qs/' + encodeURIComponent(qsId) + '/submit', 'POST', { answers: qsFillState.answers, format: 'pdf' }).then(function (rr) {
               btn.disabled = false; btn.textContent = 'Envoyer votre réponse →';
-              if (!rr.ok) { alert((rr.data && rr.data.error) || 'Erreur'); return; }
+              if (!rr.ok) { alertDialog((rr.data && rr.data.error) || 'Erreur'); return; }
               closeFsModal('qsf-modal'); renderDashboard();
             });
           }
