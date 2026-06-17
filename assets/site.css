@@ -641,6 +641,7 @@ footer a:hover{color:#fff8ef}
 .confirm-card h3{font-family:var(--ff-head);font-size:21px;margin-bottom:8px}
 .confirm-card p{color:var(--ink-soft);font-size:14.5px;line-height:1.5}
 .confirm-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.confirm-actions .btn{justify-content:center;text-align:center}
 .tbl-dim{display:flex;gap:14px;margin-top:14px}
 .tbl-dim label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink);flex:1}
 .tbl-dim input{font:inherit;font-size:15px;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--ink)}
