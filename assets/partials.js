@@ -93,7 +93,6 @@
           '<div class="row"><span>Association Loi 1901</span><span>·</span><span>SIRET 881 226 641 00028</span><span>·</span><span>RNA W061014363</span><span>·</span><span>APE 8559A</span><span>·</span><span>TVA FR31881226641</span></div>' +
           '<div class="row"><span>Déclaration d\'activité enregistrée sous le n° 93 060 886 106 auprès du Préfet de la région PACA. Cet enregistrement ne vaut pas agrément de l\'État.</span></div>' +
           '<div class="row"><a href="cgv.html">Conditions générales</a><a href="confidentialite.html">Politique de confidentialité</a><a href="reglement-interieur.html">Règlement intérieur</a><a href="mentions-legales.html">Mentions légales</a></div>' +
-          '<div class="row" style="color:#6f6253">* Chiffres arrêtés au 31/12/2025.</div>' +
           '<div class="row" style="color:#6f6253">© ' + new Date().getFullYear() + ' Languages &amp; Success. Tous droits réservés.</div>' +
         '</div>' +
       '</div>' +
