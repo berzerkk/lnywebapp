@@ -218,7 +218,11 @@ body.menu-open{overflow:hidden}
 @media(max-width:760px){.lm-inner{grid-template-columns:1fr;gap:24px;padding:24px;align-content:center}.lm-word{font-size:clamp(40px,15vw,76px);transform:translateY(-20px)}.lang-modal.open .lm-word{transform:none}.lm-card{padding:34px 26px}}
 
 .two{display:grid;grid-template-columns:1fr 1fr;gap:26px}
-#formats .two{align-items:start}
+/* colonne droite des formats : Certifications + Espace documents empilés, calés sur la hauteur de "Tous les formats" */
+.fmt-col{display:flex;flex-direction:column;gap:26px;min-width:0}
+.fmt-docs{flex:1;display:flex;flex-direction:column}
+.fmt-docs p:not(.sub){font-size:14.5px;color:var(--ink-soft);line-height:1.55;margin-bottom:18px}
+.fmt-docs .btn{margin-top:auto;align-self:flex-start}
 .panel{border:1px solid var(--line);border-radius:14px;padding:36px;background:var(--bg-card)}
 .panel h3{font-size:27px;margin-bottom:8px}
 .panel .sub{color:var(--ink-soft);font-size:15px;margin-bottom:22px}
