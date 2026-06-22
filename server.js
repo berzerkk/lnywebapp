@@ -1314,7 +1314,7 @@ function buildLevelTestDocx(d, user) {
   kids.push(dxTable(besoinRows)); kids.push(dxSpacer());
   [LEVEL_TEST.evalEcrite, LEVEL_TEST.evalOrale].forEach(ev => {
     const rows = [new TableRow({ children: [dxCell(ev.titre, { span: 2, fill: HEADBG, bold: true, color: ACCENTC })] })];
-    ev.fields.forEach(f => rows.push(new TableRow({ children: [dxCell(f[1], { width: PC(40), fill: LBLBG, bold: true }), dxCell(d[f[0]] || '', { width: PC(60) })] })));
+    ev.fields.forEach(f => rows.push(new TableRow({ children: [dxCell(f[1], { width: PC(40), fill: LBLBG, bold: true }), dxCell(d[f[0]] || '', { width: PC(60), bold: f[0] === 'typeTestE' || f[0] === 'typeTestO' })] })));
     kids.push(dxTable(rows)); kids.push(dxSpacer());
   });
   const hf = docxHeaderFooter(user);
@@ -1335,12 +1335,12 @@ function buildLevelTestPdf(d, user) {
     pdfRows(doc, LEVEL_TEST.textFields.map(f => ({ cells: [{ text: f.label, w: totalW * 0.5, fill: LB, bold: true, size: 8.5, valign: 'top' }, { text: d[f.id] || '', w: totalW * 0.5, size: 9, valign: 'top' }], minH: 26 })), left);
     doc.moveDown(0.4);
     doc.fillColor('#a8593c').font('Helvetica-Bold').fontSize(12).text('BESOINS', left, doc.y); doc.moveDown(0.2);
-    const catW = totalW * 0.24, qW = totalW * 0.48, aW = totalW * 0.28;
+    const catW = totalW * 0.22, qW = totalW * 0.40, aW = totalW * 0.38;
     pdfBesoins(doc, LEVEL_TEST.besoins.map(b => ({ cat: b.cat, rows: b.items.map(it => ({ label: it.label, ans: d[it.id] || '', lw: qW, aw: aW })) })), left, catW, HB, LB);
     doc.moveDown(0.4);
     [LEVEL_TEST.evalEcrite, LEVEL_TEST.evalOrale].forEach(ev => {
       const rows = [{ cells: [{ text: ev.titre, w: totalW, fill: HB, bold: true, color: '#be6e54', size: 10 }], minH: 20 }];
-      ev.fields.forEach(f => rows.push({ cells: [{ text: f[1], w: totalW * 0.4, fill: LB, bold: true, size: 9 }, { text: d[f[0]] || '', w: totalW * 0.6, size: 9 }] }));
+      ev.fields.forEach(f => rows.push({ cells: [{ text: f[1], w: totalW * 0.4, fill: LB, bold: true, size: 9 }, { text: d[f[0]] || '', w: totalW * 0.6, size: 9, bold: f[0] === 'typeTestE' || f[0] === 'typeTestO' }] }));
       pdfRows(doc, rows, left); doc.moveDown(0.3);
     });
     pdfHeaderFooter(doc, user); doc.end();

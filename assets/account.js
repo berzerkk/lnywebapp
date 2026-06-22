@@ -1053,12 +1053,13 @@
       var tpl = r.data.tpl || {};
       var fc = clientFiche();
       var pre = { dateEval: new Date().toLocaleDateString('fr-FR'), societe: fc.societe || '', langue: fc.langue || '', nom: (CUR_GROUP.eleve.nom || ''), prenom: (CUR_GROUP.eleve.prenom || ''), tel: fc.tel || '', mail: (CUR_GROUP.eleve.email || '') };
+      function fld(id, label, v, multi) { return multi ? '<label class="gf">' + label + '<textarea id="' + id + '" rows="2">' + esc(v || '') + '</textarea></label>' : gi(id, label, v); }
       var head = '<p class="ds-empty" style="margin:0 0 14px">En-tête prérempli depuis la fiche. Complétez l\'évaluation et les besoins, puis générez le document.</p><h4 class="gen-h">En-tête</h4><div class="gf-grid">';
-      (tpl.headerRows || []).forEach(function (row) { row.forEach(function (pair) { if (pair) head += gi('lt-' + pair[0], pair[1], pre[pair[0]] || ''); }); });
+      (tpl.headerRows || []).forEach(function (row) { row.forEach(function (pair) { if (pair) head += fld('lt-' + pair[0], pair[1], pre[pair[0]] || '', pair[0] === 'fonction' || pair[0] === 'planning'); }); });
       head += '</div><div id="lt-extra-wrap"></div><button type="button" class="btn-mini lt-add-field" style="margin-top:4px">+ Ajouter un champ</button>';
-      var tf = '<h4 class="gen-h">Objectifs &amp; profil</h4><div class="gf-grid">' + (tpl.textFields || []).map(function (f) { return ga('lt-' + f.id, f.label, ''); }).join('') + '</div>';
+      var tf = '<h4 class="gen-h">Objectifs &amp; profil</h4><div class="gf-grid">' + (tpl.textFields || []).map(function (f) { return ga('lt-' + f.id, f.label, f.id === 'handicap' ? 'PAS DE BESOIN SPÉCIFIQUE' : ''); }).join('') + '</div>';
       var bes = '<h4 class="gen-h">Besoins</h4>' + (tpl.besoins || []).map(function (b) {
-        return '<h5 class="lt-cat">' + esc(b.cat) + '</h5><div class="gf-grid">' + b.items.map(function (it) { return gi('lt-' + it.id, it.label || b.cat, ''); }).join('') + '</div>';
+        return '<h5 class="lt-cat">' + esc(b.cat) + '</h5><div class="gf-grid">' + b.items.map(function (it) { return fld('lt-' + it.id, it.label || b.cat, '', it.id === 'interets'); }).join('') + '</div>';
       }).join('');
       var ev = [tpl.evalEcrite, tpl.evalOrale].map(function (e) {
         return '<h4 class="gen-h">' + esc(e.titre) + '</h4><div class="gf-grid">' + e.fields.map(function (f) { return gi('lt-' + f[0], f[1], f[2] || ''); }).join('') + '</div>';
