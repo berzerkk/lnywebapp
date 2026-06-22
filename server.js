@@ -1318,7 +1318,7 @@ const LEVEL_TEST = {
   evalOrale: { titre: 'Évaluation orale', fields: [['typeTestO', 'Type de test', 'TOEIC Test Level Projector'], ['dateEvalO', 'Date évaluation'], ['resultatO', 'Résultat'], ['niveauO', 'Level / Niveau']] }
 };
 // case "objectifs" du Level Test : les libellés "Besoin :" / "Objectif :" en gras + souligné
-const OBJ_LABEL_RE = /^(\s*)(Besoin|Objectif)(\s*:)(.*)$/;
+const OBJ_LABEL_RE = /^(\s*)(Besoin(?:\(s\))?|Objectif(?:\(s\))?)(\s*:)(.*)$/;
 function objectifsParasDocx(text) {
   return String(text == null ? '' : text).split('\n').map(ln => {
     const m = ln.match(OBJ_LABEL_RE);
