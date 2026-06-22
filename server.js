@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule } = require('docx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType } = require('docx');
 const LOGO_PATH = path.join(__dirname, 'assets', 'ls-logo.png');
 const LEGAL_LINES = [
   'ASSOCIATION Loi 1901 LANGUAGES & SUCCESS - L&S',
@@ -497,7 +497,11 @@ function dxPara(text, o) {
   const runs = String(text == null ? '' : text).split('\n').map((ln, i) => new TextRun({ text: ln, break: i > 0 ? 1 : undefined, bold: !!o.bold, italics: !!o.italics, color: o.color || INKC, size: o.size || 20 }));
   return new Paragraph({ alignment: o.align || AlignmentType.LEFT, spacing: { before: o.before || 0, after: o.after == null ? 80 : o.after }, children: runs });
 }
-const dxTable = (rows) => new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
+// dxTable(rows) = table 100% (grille égalisée par Word). dxTable(rows, cols) = LAYOUT FIXE
+// avec grille de colonnes proportionnelle (twips) → Word respecte enfin les largeurs (sinon il égalise tout).
+const dxTable = (rows, cols) => new Table(cols
+  ? { rows, layout: TableLayoutType.FIXED, columnWidths: cols, width: { size: cols.reduce((a, b) => a + b, 0), type: WidthType.DXA } }
+  : { width: { size: 100, type: WidthType.PERCENTAGE }, rows });
 const dxSpacer = () => new Paragraph({ text: '', spacing: { after: 120 } });
 const dxRowMin = (children, twips) => new TableRow({ children, height: twips ? { value: twips, rule: HeightRule.ATLEAST } : undefined });
 // cellule pdf (fond + bordure + texte ; valign 'top'|'center')
@@ -1292,30 +1296,32 @@ const LEVEL_TEST = {
 };
 function buildLevelTestDocx(d, user) {
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
+  // grilles de colonnes en twips (largeur utile A4 = 9026) → layout fixe, Word respecte les proportions
+  const COL_HEAD = [1625, 2888, 1625, 2888], COL_TF = [4513, 4513], COL_BES = [1986, 3610, 3430], COL_EVAL = [3610, 5416];
   const kids = [];
-  kids.push(dxTable([new TableRow({ children: [dxCell(LEVEL_TEST.title.toUpperCase(), { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG })] })]));
+  kids.push(dxTable([new TableRow({ children: [dxCell(LEVEL_TEST.title.toUpperCase(), { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG })] })], [9026]));
   kids.push(dxSpacer());
   const Lc = (t) => dxCell(t, { width: PC(18), fill: LBLBG, bold: true }), Vc = (t) => dxCell(t || '', { width: PC(32) });
   const headRows = LEVEL_TEST.headerRows.map(row => new TableRow({ children: row.reduce((acc, pair) => { acc.push(pair ? Lc(pair[1]) : dxCell('', { width: PC(18) })); acc.push(pair ? Vc(d[pair[0]]) : dxCell('', { width: PC(32) })); return acc; }, []) }));
   (d.extraHeader || []).forEach(ex => { if (ex && (ex.label || ex.value)) headRows.push(new TableRow({ children: [Lc(ex.label || ''), dxCell(ex.value || '', { span: 3, width: PC(82) })] })); });
-  kids.push(dxTable(headRows));
+  kids.push(dxTable(headRows, COL_HEAD));
   kids.push(dxSpacer());
-  kids.push(dxTable(LEVEL_TEST.textFields.map(f => new TableRow({ children: [dxCell(f.label, { width: PC(50), fill: LBLBG, bold: true }), dxCell(d[f.id] || '', { width: PC(50), valign: VerticalAlign ? VerticalAlign.TOP : 'top' })] }))));
+  kids.push(dxTable(LEVEL_TEST.textFields.map(f => new TableRow({ children: [dxCell(f.label, { width: PC(50), fill: LBLBG, bold: true }), dxCell(d[f.id] || '', { width: PC(50), valign: VerticalAlign ? VerticalAlign.TOP : 'top' })] })), COL_TF));
   kids.push(dxSpacer());
   kids.push(dxPara('BESOINS', { bold: true, color: DARKC, size: 24, after: 60 }));
   const besoinRows = [];
   LEVEL_TEST.besoins.forEach(b => {
     b.items.forEach((it, idx) => {
-      const catCell = dxCell(idx === 0 ? b.cat : '', { width: PC(24), fill: HEADBG, bold: true, color: DARKC, vMerge: idx === 0 ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE });
-      if (it.label === '') besoinRows.push(new TableRow({ children: [catCell, dxCell(d[it.id] || '', { span: 2, width: PC(76) })] }));
-      else besoinRows.push(new TableRow({ children: [catCell, dxCell(it.label, { width: PC(48), fill: LBLBG }), dxCell(d[it.id] || '', { width: PC(28) })] }));
+      const catCell = dxCell(idx === 0 ? b.cat : '', { width: PC(22), fill: HEADBG, bold: true, color: DARKC, vMerge: idx === 0 ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE });
+      if (it.label === '') besoinRows.push(new TableRow({ children: [catCell, dxCell(d[it.id] || '', { span: 2, width: PC(78) })] }));
+      else besoinRows.push(new TableRow({ children: [catCell, dxCell(it.label, { width: PC(40), fill: LBLBG }), dxCell(d[it.id] || '', { width: PC(38) })] }));
     });
   });
-  kids.push(dxTable(besoinRows)); kids.push(dxSpacer());
+  kids.push(dxTable(besoinRows, COL_BES)); kids.push(dxSpacer());
   [LEVEL_TEST.evalEcrite, LEVEL_TEST.evalOrale].forEach(ev => {
     const rows = [new TableRow({ children: [dxCell(ev.titre, { span: 2, fill: HEADBG, bold: true, color: ACCENTC })] })];
     ev.fields.forEach(f => rows.push(new TableRow({ children: [dxCell(f[1], { width: PC(40), fill: LBLBG, bold: true }), dxCell(d[f[0]] || '', { width: PC(60), bold: f[0] === 'typeTestE' || f[0] === 'typeTestO' })] })));
-    kids.push(dxTable(rows)); kids.push(dxSpacer());
+    kids.push(dxTable(rows, COL_EVAL)); kids.push(dxSpacer());
   });
   const hf = docxHeaderFooter(user);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
