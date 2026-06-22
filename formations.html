@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nos formations · Languages & Success</title>
-<meta name="description" content="Formations linguistiques sur mesure dans 13 langues, du niveau A1 à C2. Blended learning, coaching, préparation aux examens, stage intensif. Certifié Qualiopi." />
+<meta name="description" content="Formations linguistiques sur mesure dans 12 langues, du niveau A1 à C2. Blended learning, coaching, préparation aux examens, stage intensif. Certifié Qualiopi." />
 <link rel="icon" type="image/png" href="assets/ls-logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -27,23 +27,22 @@
 <section class="sec" id="langues" style="padding-top:40px">
   <div class="wrap">
     <div class="sec-head" data-reveal>
-      <span class="eyebrow">Treize langues</span>
+      <span class="eyebrow">Douze langues</span>
       <h2>Les langues que nous enseignons.</h2>
     </div>
     <div class="lang-wrap" data-reveal>
-      <a class="lang-item" href="test-de-niveau.html"><span class="lw">Français</span></a>
-      <a class="lang-item" href="test-de-niveau.html"><span class="lw">FLE</span></a>
       <a class="lang-item" href="test-de-niveau.html"><span class="lw">Anglais</span></a>
-      <a class="lang-item" href="test-de-niveau.html"><span class="lw">Italien</span></a>
+      <a class="lang-item" href="test-de-niveau.html"><span class="lw">Français (FLE)</span></a>
       <a class="lang-item" href="test-de-niveau.html"><span class="lw">Espagnol</span></a>
       <a class="lang-item" href="test-de-niveau.html"><span class="lw">Allemand</span></a>
+      <a class="lang-item" href="test-de-niveau.html"><span class="lw">Italien</span></a>
       <a class="lang-item" href="test-de-niveau.html"><span class="lw">Portugais</span></a>
+      <a class="lang-item" href="test-de-niveau.html"><span class="lw">Russe</span></a>
       <a class="lang-item" href="test-de-niveau.html"><span class="lw">Chinois</span></a>
-      <a class="lang-item" href="test-de-niveau.html"><span class="lw">Arabe</span></a>
       <a class="lang-item" href="test-de-niveau.html"><span class="lw">Japonais</span></a>
+      <a class="lang-item" href="test-de-niveau.html"><span class="lw">Arabe</span></a>
       <a class="lang-item" href="test-de-niveau.html"><span class="lw">Hongrois</span></a>
       <a class="lang-item" href="test-de-niveau.html"><span class="lw">Serbe</span></a>
-      <a class="lang-item" href="test-de-niveau.html"><span class="lw">Russe</span></a>
     </div>
   </div>
 </section>
@@ -220,7 +219,7 @@
       <button class="lm-close" id="lm-close" aria-label="Fermer">&times;</button>
       <div class="lm-eyebrow">Cours de langue</div>
       <p class="lm-q">Intéressé(e) par les cours de <b id="lm-lang">français</b> ?</p>
-      <p class="lm-sub">Dites-nous votre objectif et votre niveau, un conseiller vous rappelle pour construire votre parcours sur mesure, financé CPF ou OPCO.</p>
+      <p class="lm-sub">Dites-nous votre objectif et votre niveau. Un conseiller vous rappelle pour construire votre parcours sur mesure et trouver le financement adapté.</p>
       <div class="lm-actions">
         <a href="test-de-niveau.html" id="lm-test" class="btn btn-primary">Faire le test de niveau →</a>
         <a href="contact.html" class="btn btn-ghost">Nous contacter →</a>
@@ -237,8 +236,8 @@
   var modal=document.getElementById('lang-modal'); if(!modal) return;
   var wordEl=document.getElementById('lm-word'), langEl=document.getElementById('lm-lang'), closeBtn=document.getElementById('lm-close');
   var testEl=document.getElementById('lm-test');
-  var LABELS={ 'FLE':'français langue étrangère' };
-  function testLangFor(name){ return name==='FLE' ? 'Français' : name; }
+  var LABELS={ 'Français (FLE)':'français langue étrangère (FLE)' };
+  function testLangFor(name){ return name==='Français (FLE)' ? 'Français' : name; }
   function open(name){ var disp=LABELS[name]||name.toLowerCase(); wordEl.textContent=name; langEl.textContent=disp; if(testEl) testEl.href='test-de-niveau.html?lang='+encodeURIComponent(testLangFor(name)); modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; }
   function close(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
   document.querySelectorAll('#langues .lang-item').forEach(function(a){ a.addEventListener('click',function(e){ e.preventDefault(); open(a.textContent.trim()); }); });
