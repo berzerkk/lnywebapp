@@ -531,6 +531,7 @@ function pdfRows(doc, rows, left) {
 }
 // besoins du Level Test : tableau 3 colonnes avec la catégorie fusionnée à gauche (fidèle au Word)
 function pdfBesoins(doc, groups, left, catW, HB, LB) {
+  const pageH = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
   groups.forEach(g => {
     const H = g.rows.map(r => {
       let h = 18; doc.font('Helvetica').fontSize(9);
@@ -538,6 +539,15 @@ function pdfBesoins(doc, groups, left, catW, HB, LB) {
       h = Math.max(h, doc.heightOfString(String(r.ans || ''), { width: (r.label ? r.aw : r.lw + r.aw) - 14 }) + 11);
       return h;
     });
+    // la cellule catégorie (texte vertical) doit pouvoir afficher tout son libellé : si le cumul
+    // des lignes est plus court que le texte, on rehausse les lignes pour que la cellule tienne.
+    doc.font('Helvetica-Bold').fontSize(10);
+    const catH = doc.heightOfString(String(g.cat), { width: catW - 14 }) + 10;
+    let total = H.reduce((a, b) => a + b, 0);
+    if (total < catH) { const extra = (catH - total) / H.length; for (let k = 0; k < H.length; k++) H[k] += extra; total = catH; }
+    // garder la catégorie d'un seul tenant : si elle ne tient pas dans l'espace restant mais tiendrait
+    // sur une page neuve, on saute la page AVANT (sinon sa cellule serait coupée en deux pages).
+    if (doc.y + total > doc.page.height - doc.page.margins.bottom && total <= pageH) doc.addPage();
     let i = 0;
     while (i < g.rows.length) {
       let startY = doc.y;
@@ -1326,8 +1336,8 @@ function buildLevelTestDocx(d, user) {
   LEVEL_TEST.besoins.forEach(b => {
     b.items.forEach((it, idx) => {
       const catCell = dxCell(idx === 0 ? b.cat : '', { width: PC(22), fill: HEADBG, bold: true, color: DARKC, vMerge: idx === 0 ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE });
-      if (it.label === '') besoinRows.push(new TableRow({ children: [catCell, dxCell(d[it.id] || '', { span: 2, width: PC(78) })] }));
-      else besoinRows.push(new TableRow({ children: [catCell, dxCell(it.label, { width: PC(40), fill: LBLBG }), dxCell(d[it.id] || '', { width: PC(38) })] }));
+      if (it.label === '') besoinRows.push(new TableRow({ cantSplit: true, children: [catCell, dxCell(d[it.id] || '', { span: 2, width: PC(78) })] }));
+      else besoinRows.push(new TableRow({ cantSplit: true, children: [catCell, dxCell(it.label, { width: PC(40), fill: LBLBG }), dxCell(d[it.id] || '', { width: PC(38) })] }));
     });
   });
   kids.push(dxTable(besoinRows, COL_BES)); kids.push(dxSpacer());
