@@ -1317,10 +1317,43 @@ const LEVEL_TEST = {
   evalEcrite: { titre: 'Évaluation écrite', fields: [['typeTestE', 'Type de test', 'Cambridge Aptitude Test'], ['dateEvalE', 'Date évaluation'], ['resultatE', 'Résultat'], ['niveauE', 'Level / Niveau']] },
   evalOrale: { titre: 'Évaluation orale', fields: [['typeTestO', 'Type de test', 'TOEIC Test Level Projector'], ['dateEvalO', 'Date évaluation'], ['resultatO', 'Résultat'], ['niveauO', 'Level / Niveau']] }
 };
+// case "objectifs" du Level Test : les libellés "Besoin :" / "Objectif :" en gras + souligné
+const OBJ_LABEL_RE = /^(\s*)(Besoin|Objectif)(\s*:)(.*)$/;
+function objectifsParasDocx(text) {
+  return String(text == null ? '' : text).split('\n').map(ln => {
+    const m = ln.match(OBJ_LABEL_RE);
+    const runs = m
+      ? [new TextRun({ text: m[2] + m[3], bold: true, underline: {}, color: INKC, size: 19 }), new TextRun({ text: m[4], color: INKC, size: 19 })]
+      : [new TextRun({ text: ln, color: INKC, size: 19 })];
+    return new Paragraph({ children: runs });
+  });
+}
+// ligne "objectifs" du Level Test en PDF : libellés "Besoin :" / "Objectif :" en gras + souligné
+function pdfObjectifsRow(doc, left, totalW, label, value, LB) {
+  const lw = totalW * 0.5, vw = totalW * 0.5, padX = 7;
+  if (doc.y + 40 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+  const startY = doc.y, vx = left + lw + padX, vAvail = vw - padX * 2;
+  let yy = startY + 5;
+  String(value == null ? '' : value).split('\n').forEach(ln => {
+    const m = ln.match(OBJ_LABEL_RE);
+    doc.fillColor('#2a241d').fontSize(9);
+    if (m) {
+      doc.font('Helvetica-Bold').text(m[2] + m[3], vx, yy, { width: vAvail, underline: true, continued: true });
+      doc.font('Helvetica').text(m[4] || '', { underline: false });
+    } else { doc.font('Helvetica').text(ln || ' ', vx, yy, { width: vAvail }); }
+    yy = doc.y;
+  });
+  const hh = Math.max(yy + 5 - startY, 26);
+  doc.rect(left, startY, lw, hh).fillColor(LB).fill();
+  doc.rect(left, startY, lw, hh).lineWidth(0.6).strokeColor('#d9cabe').stroke();
+  doc.fillColor('#2a241d').font('Helvetica-Bold').fontSize(8.5).text(label, left + padX, startY + 5, { width: lw - padX * 2 });
+  doc.rect(left + lw, startY, vw, hh).lineWidth(0.6).strokeColor('#d9cabe').stroke();
+  doc.y = startY + hh;
+}
 function buildLevelTestDocx(d, user) {
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
   // grilles de colonnes en twips (largeur utile A4 = 9026) → layout fixe, Word respecte les proportions
-  const COL_HEAD = [1625, 2888, 1625, 2888], COL_TF = [4513, 4513], COL_BES = [1986, 3610, 3430], COL_EVAL = [3610, 5416];
+  const COL_HEAD = [1625, 2888, 1625, 2888], COL_TF = [4513, 4513], COL_BES = [1986, 1760, 5280], COL_EVAL = [3610, 5416];
   const kids = [];
   kids.push(dxTable([new TableRow({ children: [dxCell(LEVEL_TEST.title.toUpperCase(), { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG })] })], [9026]));
   kids.push(dxSpacer());
@@ -1329,7 +1362,7 @@ function buildLevelTestDocx(d, user) {
   (d.extraHeader || []).forEach(ex => { if (ex && (ex.label || ex.value)) headRows.push(new TableRow({ children: [Lc(ex.label || ''), dxCell(ex.value || '', { span: 3, width: PC(82) })] })); });
   kids.push(dxTable(headRows, COL_HEAD));
   kids.push(dxSpacer());
-  kids.push(dxTable(LEVEL_TEST.textFields.map(f => new TableRow({ children: [dxCell(f.label, { width: PC(50), fill: LBLBG, bold: true }), dxCell(d[f.id] || '', { width: PC(50), valign: VerticalAlign ? VerticalAlign.TOP : 'top' })] })), COL_TF));
+  kids.push(dxTable(LEVEL_TEST.textFields.map(f => new TableRow({ children: [dxCell(f.label, { width: PC(50), fill: LBLBG, bold: true }), f.id === 'objectifs' ? new TableCell({ width: PC(50), borders: TBL_CELLBORDERS, verticalAlign: VerticalAlign ? VerticalAlign.TOP : 'top', margins: { top: 36, bottom: 36, left: 90, right: 90 }, children: objectifsParasDocx(d.objectifs) }) : dxCell(d[f.id] || '', { width: PC(50), valign: VerticalAlign ? VerticalAlign.TOP : 'top' })] })), COL_TF));
   kids.push(dxSpacer());
   kids.push(dxPara('BESOINS', { bold: true, color: DARKC, size: 24, after: 60 }));
   const besoinRows = [];
@@ -1337,7 +1370,7 @@ function buildLevelTestDocx(d, user) {
     b.items.forEach((it, idx) => {
       const catCell = dxCell(idx === 0 ? b.cat : '', { width: PC(22), fill: HEADBG, bold: true, color: DARKC, vMerge: idx === 0 ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE });
       if (it.label === '') besoinRows.push(new TableRow({ cantSplit: true, children: [catCell, dxCell(d[it.id] || '', { span: 2, width: PC(78) })] }));
-      else besoinRows.push(new TableRow({ cantSplit: true, children: [catCell, dxCell(it.label, { width: PC(40), fill: LBLBG }), dxCell(d[it.id] || '', { width: PC(38) })] }));
+      else besoinRows.push(new TableRow({ cantSplit: true, children: [catCell, dxCell(it.label, { width: PC(19.5), fill: LBLBG }), dxCell(d[it.id] || '', { width: PC(58.5) })] }));
     });
   });
   kids.push(dxTable(besoinRows, COL_BES)); kids.push(dxSpacer());
@@ -1361,10 +1394,11 @@ function buildLevelTestPdf(d, user) {
     (d.extraHeader || []).forEach(ex => { if (ex && (ex.label || ex.value)) headPdfRows.push({ cells: [{ text: ex.label || '', w: lw, fill: LB, bold: true, size: 8.5 }, { text: ex.value || '', w: totalW - lw, size: 9 }] }); });
     pdfRows(doc, headPdfRows, left);
     doc.moveDown(0.4);
-    pdfRows(doc, LEVEL_TEST.textFields.map(f => ({ cells: [{ text: f.label, w: totalW * 0.5, fill: LB, bold: true, size: 8.5, valign: 'top' }, { text: d[f.id] || '', w: totalW * 0.5, size: 9, valign: 'top' }], minH: 26 })), left);
+    pdfObjectifsRow(doc, left, totalW, LEVEL_TEST.textFields[0].label, d.objectifs || '', LB);
+    pdfRows(doc, LEVEL_TEST.textFields.slice(1).map(f => ({ cells: [{ text: f.label, w: totalW * 0.5, fill: LB, bold: true, size: 8.5, valign: 'top' }, { text: d[f.id] || '', w: totalW * 0.5, size: 9, valign: 'top' }], minH: 26 })), left);
     doc.moveDown(0.4);
     doc.fillColor('#a8593c').font('Helvetica-Bold').fontSize(12).text('BESOINS', left, doc.y); doc.moveDown(0.2);
-    const catW = totalW * 0.22, qW = totalW * 0.40, aW = totalW * 0.38;
+    const catW = totalW * 0.22, qW = totalW * 0.195, aW = totalW * 0.585;
     pdfBesoins(doc, LEVEL_TEST.besoins.map(b => ({ cat: b.cat, rows: b.items.map(it => ({ label: it.label, ans: d[it.id] || '', lw: qW, aw: aW })) })), left, catW, HB, LB);
     doc.moveDown(0.4);
     [LEVEL_TEST.evalEcrite, LEVEL_TEST.evalOrale].forEach(ev => {
@@ -1610,15 +1644,34 @@ app.post('/api/presence/:id/cancel', auth, (req, res) => {
 app.get('/api/demo-accounts', (req, res) => res.json({ accounts: DEMO_ACCOUNTS.map(d => ({ email: d.email, password: DEMO_PASSWORD, role: d.role, name: `${d.prenom} ${d.nom}` })) }));
 
 // ---- statique (site) -------------------------------------------------------
-// Anti-cache pour HTML/JS/CSS : le navigateur ET Cloudflare doivent revalider à chaque fois
-// (sinon un ancien account.js — injecté dynamiquement par partials.js — reste servi du cache
-// après un déploiement, même avec Ctrl+Shift+R). ETag conservé → 304 si inchangé (efficace).
+// Cache-busting AUTOMATIQUE : version d'assets calculée au démarrage (donc nouvelle à CHAQUE
+// déploiement, puisque le conteneur redémarre). Les pages HTML écrivent `?v=BUILD`, et le serveur
+// remplace `BUILD` par cette version à la volée → le navigateur et Cloudflare rechargent forcément
+// le CSS/JS frais après un déploiement, sans bump manuel. (account.js est injecté avec ?v=Date.now().)
+const ASSET_VER = Date.now().toString(36);
+function sendHtml(res, file) {
+  fs.readFile(file, 'utf8', (err, html) => {
+    if (err) { res.status(404).json({ error: 'Not found' }); return; }
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('html').send(html.replace(/\?v=BUILD/g, '?v=' + ASSET_VER));
+  });
+}
+// HTML (pages + extensionless + "/") : injection de version + no-cache, avant le statique
+app.get(/.*/, (req, res, next) => {
+  if (req.method !== 'GET' || req.path.startsWith('/api/')) return next();
+  let p = req.path === '/' ? '/index.html' : (path.extname(req.path) ? req.path : req.path + '.html');
+  if (!p.endsWith('.html')) return next();
+  let file;
+  try { file = path.normalize(path.join(ROOT, decodeURIComponent(p))); } catch (e) { return next(); }
+  if (!file.startsWith(ROOT)) return next();
+  fs.access(file, fs.constants.F_OK, (err) => sendHtml(res, err ? path.join(ROOT, 'index.html') : file));
+});
+// assets (css/js/images…) : no-cache sur js/css (ETag → 304 si inchangé)
 app.use(express.static(ROOT, {
-  extensions: ['html'],
-  setHeaders: (res, filePath) => { if (/\.(html|js|css)$/i.test(filePath)) res.setHeader('Cache-Control', 'no-cache'); }
+  setHeaders: (res, filePath) => { if (/\.(js|css)$/i.test(filePath)) res.setHeader('Cache-Control', 'no-cache'); }
 }));
 app.use((req, res) => {
-  if (req.method === 'GET' && !req.path.startsWith('/api/')) return res.sendFile(path.join(ROOT, 'index.html'));
+  if (req.method === 'GET' && !req.path.startsWith('/api/')) return sendHtml(res, path.join(ROOT, 'index.html'));
   res.status(404).json({ error: 'Not found' });
 });
 // ---- comptes démo (affichés sur la page de connexion) ----------------------
