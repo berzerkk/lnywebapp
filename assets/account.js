@@ -266,7 +266,7 @@
     var actions;
     if (q.status === 'done' && q.docId) actions = '<a class="btn-mini" href="/api/documents/' + q.docId + '/download?token=' + encodeURIComponent(token()) + '">Télécharger le questionnaire rempli</a>';
     else if (ME.role === 'eleve') actions = '<button class="btn-mini qs-fill-btn" data-qs="' + q.id + '">Remplir le questionnaire →</button>';
-    else actions = '<span class="qs-wait">En attente de la réponse de l\'apprenant…</span>';
+    else actions = '<span class="qs-wait">En attente de la réponse de l\'apprenant…</span><div class="req-acts"><button class="btn-mini ghost qs-edit-btn" data-qs="' + q.id + '" data-type="' + esc(q.type || '') + '">Modifier</button><button class="btn-mini ghost qs-cancel-btn" data-qs="' + q.id + '">Annuler</button></div>';
     return '<div class="msg ' + (mine ? 'me' : 'them') + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') +
       '<div class="qs-card-msg"><span class="qs-ic">📋</span><div class="qs-card-body"><b>' + esc(q.title || 'Questionnaire') + '</b>' +
       '<div class="qs-status' + (q.status === 'done' ? ' done' : '') + '">' + (q.status === 'done' ? 'Rempli ✓' : 'À remplir') + '</div>' + actions + '</div></div><time>' + fmtTime(m.date) + '</time></div>';
@@ -276,10 +276,31 @@
     var actions;
     if (p.status === 'done' && p.docId) actions = '<a class="btn-mini" href="/api/documents/' + p.docId + '/download?token=' + encodeURIComponent(token()) + '">Télécharger la feuille signée</a>';
     else if (ME.role === 'eleve') actions = '<button class="btn-mini pr-sign-btn" data-pr="' + p.id + '">Signer →</button>';
-    else actions = '<span class="qs-wait">En attente de la signature de l\'apprenant…</span>';
+    else actions = '<span class="qs-wait">En attente de la signature de l\'apprenant…</span><div class="req-acts"><button class="btn-mini ghost pr-edit-btn" data-pr="' + p.id + '">Modifier</button><button class="btn-mini ghost pr-cancel-btn" data-pr="' + p.id + '">Annuler</button></div>';
     return '<div class="msg ' + (mine ? 'me' : 'them') + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') +
       '<div class="qs-card-msg"><span class="qs-ic">🖊️</span><div class="qs-card-body"><b>' + esc(p.title || 'Feuille de présence') + '</b>' +
       '<div class="qs-status' + (p.status === 'done' ? ' done' : '') + '">' + (p.status === 'done' ? 'Signée ✓' : 'À signer') + '</div>' + actions + '</div></div><time>' + fmtTime(m.date) + '</time></div>';
+  }
+  // l'envoyeur (formateur/admin) annule une demande en attente (QS ou présence)
+  function cancelRequest(kind, id) {
+    confirmDialog({
+      title: kind === 'presence' ? 'Annuler la demande de signature ?' : 'Annuler le questionnaire ?',
+      message: "La demande sera retirée du dossier et l'apprenant ne pourra plus y répondre. Vous pourrez en renvoyer une nouvelle.",
+      confirm: 'Annuler la demande', cancel: 'Revenir',
+      onConfirm: function () {
+        var url = (kind === 'presence' ? '/api/presence/' : '/api/qs/') + encodeURIComponent(id) + '/cancel';
+        apiJSON(url, 'POST', {}).then(function (r) { if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; } renderDashboard(); });
+      }
+    });
+  }
+  // l'envoyeur modifie une demande en attente = on l'annule puis on rouvre le générateur (préremplI depuis le dossier)
+  function editRequest(kind, id, type) {
+    var url = (kind === 'presence' ? '/api/presence/' : '/api/qs/') + encodeURIComponent(id) + '/cancel';
+    apiJSON(url, 'POST', {}).then(function (r) {
+      if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
+      renderDashboard();
+      if (kind === 'presence') openPresenceModal(); else openQsHeaderModal(type);
+    });
   }
   function chatHTML(messages) {
     return '<div class="chat"><div class="chat-msgs" id="chat-msgs">' +
@@ -566,6 +587,10 @@
     var box = document.getElementById('chat-msgs'); if (box) box.scrollTop = box.scrollHeight;
     document.querySelectorAll('.qs-fill-btn').forEach(function (b) { b.onclick = function () { openQsFillModal(b.getAttribute('data-qs')); }; });
     document.querySelectorAll('.pr-sign-btn').forEach(function (b) { b.onclick = function () { openPresenceSignModal(b.getAttribute('data-pr')); }; });
+    document.querySelectorAll('.qs-cancel-btn').forEach(function (b) { b.onclick = function () { cancelRequest('qs', b.getAttribute('data-qs')); }; });
+    document.querySelectorAll('.qs-edit-btn').forEach(function (b) { b.onclick = function () { editRequest('qs', b.getAttribute('data-qs'), b.getAttribute('data-type')); }; });
+    document.querySelectorAll('.pr-cancel-btn').forEach(function (b) { b.onclick = function () { cancelRequest('presence', b.getAttribute('data-pr')); }; });
+    document.querySelectorAll('.pr-edit-btn').forEach(function (b) { b.onclick = function () { editRequest('presence', b.getAttribute('data-pr')); }; });
     var f = document.getElementById('chat-form'); if (!f) return;
     f.onsubmit = function (e) {
       e.preventDefault();
@@ -782,19 +807,11 @@
       fields.map(function (f) { return gi('qsh-' + f[0], f[1], h[f[0]]); }).join('') + '</div>';
     var m = buildFsModal('qsh-modal', titles[type] || 'Questionnaire', body, '<button class="btn btn-primary qsh-send" type="button" style="padding:11px 22px">Envoyer à l\'apprenant →</button>');
     m.querySelector('.qsh-send').onclick = function () {
-      confirmDialog({
-        title: "Envoyer à l'apprenant ?",
-        message: "Le questionnaire va être envoyé à l'apprenant pour qu'il le remplisse. Êtes-vous sûr de ne pas vouloir modifier l'en-tête avant l'envoi ?",
-        confirm: "Confirmer l'envoi",
-        cancel: 'Continuer à modifier',
-        onConfirm: function () {
-          var header = {}; fields.forEach(function (f) { header[f[0]] = val('qsh-' + f[0]); });
-          var btn = m.querySelector('.qsh-send'); btn.disabled = true; btn.textContent = 'Envoi…';
-          apiJSON('/api/qs/send', 'POST', { group: selected, type: type, header: header }).then(function (r) {
-            if (!r.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant →'; alertDialog((r.data && r.data.error) || 'Erreur'); return; }
-            closeFsModal('qsh-modal'); channel = 'commun'; renderDashboard();
-          });
-        }
+      var header = {}; fields.forEach(function (f) { header[f[0]] = val('qsh-' + f[0]); });
+      var btn = m.querySelector('.qsh-send'); btn.disabled = true; btn.textContent = 'Envoi…';
+      apiJSON('/api/qs/send', 'POST', { group: selected, type: type, header: header }).then(function (r) {
+        if (!r.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant →'; alertDialog((r.data && r.data.error) || 'Erreur'); return; }
+        closeFsModal('qsh-modal'); channel = 'commun'; renderDashboard();
       });
     };
   }
@@ -1142,22 +1159,14 @@
       render();
       m.querySelector('.pr-gen').onclick = function () {
         if (sigPad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature) avant d\'envoyer à l\'apprenant.'); return; }
-        confirmDialog({
-          title: "Envoyer à l'apprenant ?",
-          message: "La feuille de présence (avec votre signature) va être envoyée à l'apprenant pour qu'il la signe à son tour. Êtes-vous sûr de ne pas vouloir modifier avant l'envoi ?",
-          confirm: "Confirmer l'envoi",
-          cancel: 'Continuer à modifier',
-          onConfirm: function () {
-            var tpl = T[curType], fields = {};
-            tpl.headerRows.forEach(function (row) { row.forEach(function (pair) { if (pair) fields[pair[0]] = val('pr-' + pair[0]); }); });
-            if (tpl.kind === 'summary') { fields.heuresPrevues = val('pr-heuresPrevues'); fields.heuresRealisees = val('pr-heuresRealisees'); fields.dateRapport = val('pr-dateRapport'); }
-            else { collectSessions(); fields.sessions = sessions.filter(function (s) { return s.date || s.jour || s.hDebut || s.hFin || s.duree; }); }
-            var btn = m.querySelector('.pr-gen'); btn.disabled = true; btn.textContent = 'Envoi…';
-            apiJSON('/api/presence/send', 'POST', { group: selected, type: curType, fields: fields, formateurSig: sigPad.dataURL() }).then(function (rr) {
-              if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant pour signature →'; alertDialog((rr.data && rr.data.error) || 'Erreur'); return; }
-              closeFsModal('pr-modal'); channel = 'commun'; renderDashboard();
-            });
-          }
+        var tpl = T[curType], fields = {};
+        tpl.headerRows.forEach(function (row) { row.forEach(function (pair) { if (pair) fields[pair[0]] = val('pr-' + pair[0]); }); });
+        if (tpl.kind === 'summary') { fields.heuresPrevues = val('pr-heuresPrevues'); fields.heuresRealisees = val('pr-heuresRealisees'); fields.dateRapport = val('pr-dateRapport'); }
+        else { collectSessions(); fields.sessions = sessions.filter(function (s) { return s.date || s.jour || s.hDebut || s.hFin || s.duree; }); }
+        var btn = m.querySelector('.pr-gen'); btn.disabled = true; btn.textContent = 'Envoi…';
+        apiJSON('/api/presence/send', 'POST', { group: selected, type: curType, fields: fields, formateurSig: sigPad.dataURL() }).then(function (rr) {
+          if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant pour signature →'; alertDialog((rr.data && rr.data.error) || 'Erreur'); return; }
+          closeFsModal('pr-modal'); channel = 'commun'; renderDashboard();
         });
       };
     });

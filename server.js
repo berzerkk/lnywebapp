@@ -1233,6 +1233,19 @@ app.post('/api/qs/:id/submit', auth, async (req, res) => {
   save();
   res.json({ ok: true, doc: docPub(doc) });
 });
+// l'envoyeur (ou un admin) annule un questionnaire en attente, tant que l'apprenant n'a pas répondu
+app.post('/api/qs/:id/cancel', auth, (req, res) => {
+  const qs = db.qs.find(x => x.id === req.params.id);
+  if (!qs) return res.status(404).json({ error: 'Questionnaire introuvable.' });
+  if (req.user.id !== qs.by && req.user.role !== 'admin') return res.status(403).json({ error: 'Seul l\'envoyeur peut annuler.' });
+  if (qs.status === 'done') return res.status(400).json({ error: 'Déjà rempli par l\'apprenant : annulation impossible.' });
+  const g = groupById(qs.group);
+  db.qs = db.qs.filter(x => x.id !== qs.id);
+  db.messages = db.messages.filter(m => !(m.kind === 'qs' && m.qsId === qs.id));
+  if (g) notify(g.eleve, `${senderDisplay(req.user)} a annulé une demande de questionnaire.`);
+  save();
+  res.json({ ok: true });
+});
 
 // ---- formulaires auto-remplis par le formateur (téléchargés directement) ---
 app.get('/api/form/:type', auth, (req, res) => {
@@ -1568,6 +1581,19 @@ app.post('/api/presence/:id/sign', auth, async (req, res) => {
   notifyChannel(g, 'commun', req.user, `${senderDisplay(req.user)} a signé la feuille de présence — document déposé dans le dossier.`);
   save();
   res.json({ ok: true, doc: docPub(doc) });
+});
+// l'envoyeur (ou un admin) annule une feuille de présence en attente, tant que l'apprenant n'a pas signé
+app.post('/api/presence/:id/cancel', auth, (req, res) => {
+  const p = db.presences.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Feuille introuvable.' });
+  if (req.user.id !== p.by && req.user.role !== 'admin') return res.status(403).json({ error: 'Seul l\'envoyeur peut annuler.' });
+  if (p.status === 'done') return res.status(400).json({ error: 'Déjà signée par l\'apprenant : annulation impossible.' });
+  const g = groupById(p.group);
+  db.presences = db.presences.filter(x => x.id !== p.id);
+  db.messages = db.messages.filter(m => !(m.kind === 'presence' && m.presenceId === p.id));
+  if (g) notify(g.eleve, `${senderDisplay(req.user)} a annulé une demande de signature.`);
+  save();
+  res.json({ ok: true });
 });
 
 // comptes démo (email + mot de passe affichés sur la page de connexion)
