@@ -15,7 +15,12 @@ window.LS_TESTS = {
     { t: "“I wish I ___ more time to prepare.”", o: ["have","had","will have","am having"], a: 1, e: "« I wish » + prétérit pour exprimer un regret au présent : « had »." },
     { t: "“___ harder, she would have passed.”", o: ["If she studied","Had she studied","She had studied","Did she study"], a: 1, e: "Inversion de la 3ᵉ conditionnelle : « Had she studied » = « If she had studied »." },
     { t: "“The proposal was met with ___ scepticism.”", o: ["a few","considerable","many","plenty"], a: 1, e: "« scepticism » est indénombrable : on emploie « considerable » (et non « many/a few »)." },
-    { t: "“His argument, ___ compelling, ultimately lacked evidence.”", o: ["however","albeit","whereas","despite"], a: 1, e: "« albeit » = « bien que » ; il introduit une concession (« albeit compelling »)." }
+    { t: "“His argument, ___ compelling, ultimately lacked evidence.”", o: ["however","albeit","whereas","despite"], a: 1, e: "« albeit » = « bien que » ; il introduit une concession (« albeit compelling »)." },
+    { t: "“Yesterday they ___ a great film.”", o: ["watch","watched","watching","watches"], a: 1, e: "Au prétérit (hier), « watch » devient « watched »." },
+    { t: "“It's the ___ day of the year.”", o: ["long","longer","longest","most long"], a: 2, e: "Superlatif d'un adjectif court : « the longest »." },
+    { t: "“The bridge ___ in 1995.”", o: ["built","was built","has built","is building"], a: 1, e: "Voix passive au passé : « was built »." },
+    { t: "“Not only ___ late, but he also forgot the keys.”", o: ["he was","was he","he is","is he"], a: 1, e: "Après « not only » en tête de phrase, on inverse sujet et auxiliaire : « was he »." },
+    { t: "“The breakthrough was met with widespread ___.”", o: ["acclaim","claim","exclaim","proclaim"], a: 0, e: "« acclaim » = éloges / reconnaissance générale." }
   ],
   "Français": [
     { t: "« Elle ___ au travail tous les jours. »", o: ["va","vas","allez","vont"], a: 0, e: "À la 3ᵉ personne du singulier, le verbe « aller » fait « elle va »." },
@@ -27,7 +32,12 @@ window.LS_TESTS = {
     { t: "« Je voudrais qu'il ___ plus de temps. »", o: ["a","avait","ait","aura"], a: 2, e: "« vouloir que » entraîne le subjonctif : « qu'il ait »." },
     { t: "« ___ plus tôt, elle aurait réussi. »", o: ["Si elle étudiait","Si elle avait étudié","Avait-elle étudié","Elle étudiait"], a: 1, e: "Condition irréelle du passé : « si » + plus-que-parfait, puis conditionnel passé." },
     { t: "« La proposition a été accueillie avec un scepticisme ___. »", o: ["considérable","peu","beaucoup","plein"], a: 0, e: "L'adjectif « considérable » qualifie « scepticisme » (les autres ne sont pas des adjectifs)." },
-    { t: "« Son argument, ___ convaincant, manquait de preuves. »", o: ["cependant","quoique","tandis","malgré"], a: 1, e: "« quoique » = « bien que » : il introduit une concession (+ adjectif)." }
+    { t: "« Son argument, ___ convaincant, manquait de preuves. »", o: ["cependant","quoique","tandis","malgré"], a: 1, e: "« quoique » = « bien que » : il introduit une concession (+ adjectif)." },
+    { t: "« Hier, ils ___ un bon film. »", o: ["regardent","ont regardé","regarderont","regardaient"], a: 1, e: "Action passée ponctuelle → passé composé « ont regardé »." },
+    { t: "« C'est le jour ___ de l'année. »", o: ["plus long","le plus long","très long","aussi long"], a: 1, e: "Superlatif : « le plus long »." },
+    { t: "« Ce pont ___ en 1995. »", o: ["a construit","a été construit","construisait","construit"], a: 1, e: "Voix passive au passé : « a été construit »." },
+    { t: "« À peine ___ arrivé qu'il repartit. »", o: ["il était","était-il","il est","il fut"], a: 1, e: "Après « à peine » en tête de phrase, on inverse le sujet : « était-il »." },
+    { t: "« La découverte a été accueillie avec un ___ unanime. »", o: ["enthousiasme","enthousiaste","enthousiasmer","enthousiasmé"], a: 0, e: "Il faut le nom « enthousiasme » (les autres sont adjectif ou verbe)." }
   ],
   "Italien": [
     { t: "« Lei ___ al lavoro ogni giorno. »", o: ["va","vai","andare","vanno"], a: 0, e: "« lei » (3ᵉ pers. sing.) : « andare » fait « va »." },
@@ -39,7 +49,12 @@ window.LS_TESTS = {
     { t: "« Vorrei che lui ___ più tempo. »", o: ["ha","aveva","avesse","avrà"], a: 2, e: "« vorrei che » entraîne le subjonctif : « avesse »." },
     { t: "« Se ___ di più, avrebbe superato l'esame. »", o: ["studiava","avesse studiato","ha studiato","studiò"], a: 1, e: "Période hypothétique de l'irréel : « se avesse studiato »." },
     { t: "« La proposta fu accolta con ___ scetticismo. »", o: ["poco","notevole","molti","tanti"], a: 1, e: "« notevole » (considérable) qualifie « scetticismo » au singulier." },
-    { t: "« Il suo argomento, ___ convincente, mancava di prove. »", o: ["tuttavia","sebbene","mentre","nonostante"], a: 1, e: "« sebbene » = « bien que » : concession suivie de l'adjectif." }
+    { t: "« Il suo argomento, ___ convincente, mancava di prove. »", o: ["tuttavia","sebbene","mentre","nonostante"], a: 1, e: "« sebbene » = « bien que » : concession suivie de l'adjectif." },
+    { t: "« Ieri ___ un bel film. »", o: ["guardano","hanno guardato","guarderanno","guardavano"], a: 1, e: "Passato prossimo pour une action passée : « hanno guardato »." },
+    { t: "« È il giorno ___ dell'anno. »", o: ["più lungo","il più lungo","molto lungo","tanto lungo"], a: 1, e: "Superlativo relativo : « il più lungo »." },
+    { t: "« Il ponte ___ nel 1995. »", o: ["ha costruito","fu costruito","costruiva","costruisce"], a: 1, e: "Forma passiva al passato : « fu costruito »." },
+    { t: "« Non appena ___ arrivato, ripartì. »", o: ["era","fu","è","sarà"], a: 1, e: "« Non appena fu arrivato » exprime l'immédiateté (passato remoto)." },
+    { t: "« La scoperta fu accolta con ___ unanime. »", o: ["entusiasmo","entusiasta","entusiasmare","entusiasmato"], a: 0, e: "Serve il sostantivo « entusiasmo »." }
   ],
   "Espagnol": [
     { t: "« Ella ___ al trabajo todos los días. »", o: ["va","vas","ir","van"], a: 0, e: "« ella » (3ᵉ pers.) : « ir » fait « va »." },
@@ -51,7 +66,12 @@ window.LS_TESTS = {
     { t: "« Ojalá ___ más tiempo. »", o: ["tengo","tenía","tuviera","tendré"], a: 2, e: "« ojalá » entraîne le subjonctif : « tuviera »." },
     { t: "« Si ___ más, habría aprobado. »", o: ["estudiaba","hubiera estudiado","estudió","estudia"], a: 1, e: "Condition irréelle : « si hubiera estudiado »." },
     { t: "« La propuesta fue recibida con un escepticismo ___. »", o: ["considerable","poco","muchos","lleno"], a: 0, e: "« considerable » qualifie « escepticismo »." },
-    { t: "« Su argumento, ___ convincente, carecía de pruebas. »", o: ["sin embargo","aunque","mientras","a pesar"], a: 1, e: "« aunque » = « bien que » : concession suivie de l'adjectif." }
+    { t: "« Su argumento, ___ convincente, carecía de pruebas. »", o: ["sin embargo","aunque","mientras","a pesar"], a: 1, e: "« aunque » = « bien que » : concession suivie de l'adjectif." },
+    { t: "« Ayer ___ una buena película. »", o: ["ven","vieron","verán","veían"], a: 1, e: "Pretérito indefinido pour une action passée : « vieron »." },
+    { t: "« Es el día ___ del año. »", o: ["más largo","el más largo","muy largo","tan largo"], a: 1, e: "Superlativo : « el más largo »." },
+    { t: "« El puente ___ en 1995. »", o: ["construyó","fue construido","construía","construye"], a: 1, e: "Voz pasiva en pasado : « fue construido »." },
+    { t: "« Apenas ___ llegado cuando se marchó. »", o: ["había","hubo","ha","habrá"], a: 0, e: "« Apenas había llegado » (pluscuamperfecto, antériorité)." },
+    { t: "« El hallazgo fue recibido con un ___ unánime. »", o: ["entusiasmo","entusiasta","entusiasmar","entusiasmado"], a: 0, e: "Se necesita el sustantivo « entusiasmo »." }
   ],
   "Allemand": [
     { t: "„Sie ___ jeden Tag zur Arbeit.“", o: ["geht","gehen","gehst","gegangen"], a: 0, e: "« sie » (elle, 3ᵉ pers. sing.) : « gehen » fait « geht »." },
@@ -63,7 +83,12 @@ window.LS_TESTS = {
     { t: "„Ich wünschte, ich ___ mehr Zeit.“", o: ["habe","hätte","werde haben","hatte"], a: 1, e: "Souhait irréel → Konjunktiv II « hätte »." },
     { t: "„___ sie mehr gelernt, hätte sie bestanden.“", o: ["Wenn sie lernte","Hätte sie","Sie hatte","Lernte sie"], a: 1, e: "Inversion conditionnelle : « Hätte sie gelernt » = « wenn sie gelernt hätte »." },
     { t: "„Der Vorschlag stieß auf ___ Skepsis.“", o: ["wenig","erhebliche","viele","voll"], a: 1, e: "L'adjectif décliné « erhebliche » (considérable) qualifie « Skepsis »." },
-    { t: "„Sein Argument, ___ überzeugend, war letztlich unbelegt.“", o: ["jedoch","wenngleich","während","trotz"], a: 1, e: "« wenngleich » = « bien que » : concession suivie de l'adjectif." }
+    { t: "„Sein Argument, ___ überzeugend, war letztlich unbelegt.“", o: ["jedoch","wenngleich","während","trotz"], a: 1, e: "« wenngleich » = « bien que » : concession suivie de l'adjectif." },
+    { t: "„Gestern ___ sie einen guten Film.“", o: ["sehen","sahen","werden sehen","sieht"], a: 1, e: "Präteritum (gestern) : « sahen »." },
+    { t: "„Es ist der ___ Tag des Jahres.“", o: ["lang","länger","längste","am längsten"], a: 2, e: "Superlatif attributif décliné : « der längste Tag »." },
+    { t: "„Die Brücke ___ 1995 gebaut.“", o: ["hat","wurde","ist","baut"], a: 1, e: "Passif (Vorgangspassiv) au passé : « wurde … gebaut »." },
+    { t: "„Kaum ___ er angekommen, ging er wieder.“", o: ["war","ist","wird","hatte"], a: 0, e: "Après « kaum » en tête de phrase, inversion : « kaum war er angekommen »." },
+    { t: "„Die Entdeckung stieß auf ___ Begeisterung.“", o: ["große","großer","großen","groß"], a: 0, e: "« auf + accusatif » : « auf große Begeisterung » (féminin accusatif)." }
   ],
   "Portugais": [
     { t: "« Ela ___ ao trabalho todos os dias. »", o: ["vai","vais","ir","vão"], a: 0, e: "« ela » (3ᵉ pers.) : « ir » fait « vai »." },
@@ -75,7 +100,12 @@ window.LS_TESTS = {
     { t: "« Quem dera que ele ___ mais tempo. »", o: ["tem","tinha","tivesse","terá"], a: 2, e: "« quem dera que » entraîne le subjonctif : « tivesse »." },
     { t: "« Se ___ mais, teria passado. »", o: ["estudava","tivesse estudado","estudou","estuda"], a: 1, e: "Condition irréelle : « se tivesse estudado »." },
     { t: "« A proposta foi recebida com um ceticismo ___. »", o: ["considerável","pouco","muitos","cheio"], a: 0, e: "« considerável » qualifie « ceticismo »." },
-    { t: "« O seu argumento, ___ convincente, carecia de provas. »", o: ["contudo","embora","enquanto","apesar"], a: 1, e: "« embora » = « bien que » : concession suivie de l'adjectif." }
+    { t: "« O seu argumento, ___ convincente, carecia de provas. »", o: ["contudo","embora","enquanto","apesar"], a: 1, e: "« embora » = « bien que » : concession suivie de l'adjectif." },
+    { t: "« Ontem ___ um bom filme. »", o: ["veem","viram","verão","viam"], a: 1, e: "Pretérito perfeito pour une action passée : « viram »." },
+    { t: "« É o dia ___ do ano. »", o: ["mais longo","o mais longo","muito longo","tão longo"], a: 1, e: "Superlativo : « o mais longo »." },
+    { t: "« A ponte ___ em 1995. »", o: ["construiu","foi construída","construía","constrói"], a: 1, e: "Voz passiva no passado : « foi construída »." },
+    { t: "« Mal ___ chegado, partiu de novo. »", o: ["tinha","teve","tem","terá"], a: 0, e: "« Mal tinha chegado » (mais-que-perfeito, antériorité)." },
+    { t: "« A descoberta foi recebida com um ___ unânime. »", o: ["entusiasmo","entusiasta","entusiasmar","entusiasmado"], a: 0, e: "É preciso o substantivo « entusiasmo »." }
   ],
   "Chinois": [
     { t: "我 ___ 学生。", o: ["是","有","在","很"], a: 0, e: "« 是 » exprime « être » : 我是学生 = je suis étudiant." },
@@ -87,7 +117,12 @@ window.LS_TESTS = {
     { t: "请 ___ 门关上。", o: ["把","被","给","让"], a: 0, e: "La construction « 把 » place l'objet avant le verbe : 把门关上." },
     { t: "这个问题 ___ 老师解决了。", o: ["被","把","给","对"], a: 0, e: "« 被 » marque le passif : 被老师解决 = résolu par le professeur." },
     { t: "他对这个计划表示 ___ 。", o: ["怀疑","高兴","知道","旅行"], a: 0, e: "« 怀疑 » = doute / scepticisme." },
-    { t: "他的论点 ___ 有道理，但缺乏证据。", o: ["虽然","因为","所以","并且"], a: 0, e: "« 虽然…但… » = bien que… mais… (concession)." }
+    { t: "他的论点 ___ 有道理，但缺乏证据。", o: ["虽然","因为","所以","并且"], a: 0, e: "« 虽然…但… » = bien que… mais… (concession)." },
+    { t: "我有一 ___ 书。", o: ["本","个","只","张"], a: 0, e: "Le classificateur des livres est « 本 » : 一本书." },
+    { t: "我去 ___ 中国。", o: ["过","了","着","在"], a: 0, e: "« 过 » marque l'expérience vécue : 去过中国 = être déjà allé en Chine." },
+    { t: "他说话说 ___ 很快。", o: ["得","的","地","了"], a: 0, e: "Le complément de degré s'introduit par « 得 » : 说得很快." },
+    { t: "这件事 ___ 他都不知道。", o: ["连","就","才","还"], a: 0, e: "« 连…都… » = même… : 连他都不知道 = même lui ne le sait pas." },
+    { t: "___ 下雨，我们也要去。", o: ["即使","因为","所以","虽然"], a: 0, e: "« 即使…也… » = même si… : 即使下雨，也要去." }
   ],
   "Arabe": [
     { t: "هي ___ إلى العمل كل يوم.", o: ["تذهب","يذهب","ذهب","نذهب"], a: 0, e: "« تذهب » = elle va (accord féminin avec هي)." },
@@ -99,7 +134,12 @@ window.LS_TESTS = {
     { t: "أتمنى لو ___ وقتًا أكثر.", o: ["كان لديّ","لديّ","سيكون","يكون"], a: 0, e: "Souhait irréel : « لو كان لديّ » (si j'avais)." },
     { t: "لو ___ أكثر، لنجحت.", o: ["درست","تدرس","ستدرس","ادرس"], a: 0, e: "« لو » + accompli exprime la condition irréelle : لو درست." },
     { t: "قوبل الاقتراح بـ ___ كبير.", o: ["شكّ","فرح","علم","سفر"], a: 0, e: "« شكّ » = doute / scepticisme." },
-    { t: "حجته، ___ كانت مقنعة، تفتقر إلى الأدلة.", o: ["مع أنها","لأنها","لذلك","لكن"], a: 0, e: "« مع أنّ » = bien que (concession)." }
+    { t: "حجته، ___ كانت مقنعة، تفتقر إلى الأدلة.", o: ["مع أنها","لأنها","لذلك","لكن"], a: 0, e: "« مع أنّ » = bien que (concession)." },
+    { t: "أمس ___ فيلمًا جيدًا.", o: ["شاهدوا","يشاهدون","سيشاهدون","شاهد"], a: 0, e: "Le passé (أمس) : « شاهدوا » (ils ont regardé)." },
+    { t: "هذا هو اليوم ___ في السنة.", o: ["الأطول","أطول","طويل","الطويل"], a: 0, e: "Le superlatif défini : « اليوم الأطول » (le jour le plus long)." },
+    { t: "___ الجسر عام 1995.", o: ["بُني","بنى","يبني","يُبنى"], a: 0, e: "Le passif au passé : « بُنِيَ » (a été construit)." },
+    { t: "ما إن ___ حتى غادر.", o: ["وصل","يصل","سيصل","صِل"], a: 0, e: "« ما إن … حتى » exprime l'immédiateté : ما إن وصل حتى غادر." },
+    { t: "قوبل الاكتشاف بـ ___ كبير.", o: ["حماس","حماسة","متحمس","يتحمس"], a: 0, e: "« حماس » = enthousiasme (substantif)." }
   ],
   "Japonais": [
     { t: "彼女は毎日仕事に ___ 。", o: ["行きます","行く","来ます","食べます"], a: 0, e: "« 行きます » = aller (forme polie au présent)." },
@@ -111,7 +151,12 @@ window.LS_TESTS = {
     { t: "もっと時間が ___ いいのに。", o: ["あれば","ある","あって","あった"], a: 0, e: "« 〜ばいいのに » exprime un souhait / regret." },
     { t: "もっと勉強 ___ 、合格しただろう。", o: ["していれば","して","したら","する"], a: 0, e: "« 〜ば » exprime la condition : していれば = si j'avais étudié." },
     { t: "その提案は大きな ___ を持って迎えられた。", o: ["疑い","喜び","知識","食べ物"], a: 0, e: "« 疑い » = doute / scepticisme." },
-    { t: "彼の主張は、説得力が ___ 、証拠に欠けていた。", o: ["あるものの","あるので","あるから","あって"], a: 0, e: "« 〜ものの » = bien que (concession)." }
+    { t: "彼の主張は、説得力が ___ 、証拠に欠けていた。", o: ["あるものの","あるので","あるから","あって"], a: 0, e: "« 〜ものの » = bien que (concession)." },
+    { t: "私は毎朝コーヒーを ___ 。", o: ["飲みます","飲みません","飲んで","飲む"], a: 0, e: "« 飲みます » = boire (présent poli affirmatif)." },
+    { t: "東京は大阪 ___ 大きいです。", o: ["より","ほど","から","まで"], a: 0, e: "« より » sert à la comparaison : A は B より大きい = A est plus grand que B." },
+    { t: "この橋は1995年に ___ 。", o: ["建てられました","建てました","建てます","建てて"], a: 0, e: "« 建てられました » = a été construit (passif poli passé)." },
+    { t: "家に着く ___ 、雨が降り出した。", o: ["なり","ながら","つもり","ばかり"], a: 0, e: "« 〜なり » = aussitôt que : 着くなり = à peine arrivé." },
+    { t: "その発見は大きな ___ をもって迎えられた。", o: ["熱意","疑い","知識","食べ物"], a: 0, e: "« 熱意 » = enthousiasme / ferveur." }
   ],
   "Hongrois": [
     { t: "Ő minden nap ___ dolgozni.", o: ["megy","mész","megyek","mennek"], a: 0, e: "« ő » (3ᵉ pers. sing.) : « menni » fait « megy »." },
@@ -123,7 +168,12 @@ window.LS_TESTS = {
     { t: "Bárcsak több időm ___!", o: ["lenne","van","volt","lesz"], a: 0, e: "« bárcsak » + conditionnel « lenne » exprime le souhait." },
     { t: "Ha többet ___, átment volna.", o: ["tanult volna","tanul","tanult","tanulna"], a: 0, e: "Conditionnel passé : « tanult volna » (aurait étudié)." },
     { t: "A javaslatot jelentős ___ fogadták.", o: ["kétkedéssel","örömmel","tudással","étellel"], a: 0, e: "« kétkedés » = scepticisme (ici au cas instrumental -vel)." },
-    { t: "Az érve, ___ meggyőző volt, nélkülözte a bizonyítékot.", o: ["bár","mert","ezért","de"], a: 0, e: "« bár » = bien que (concession)." }
+    { t: "Az érve, ___ meggyőző volt, nélkülözte a bizonyítékot.", o: ["bár","mert","ezért","de"], a: 0, e: "« bár » = bien que (concession)." },
+    { t: "Tegnap ___ egy jó filmet.", o: ["néztek","néznek","fognak nézni","nézik"], a: 0, e: "Múlt idő (tegnap), tárgy határozatlan : « néztek »." },
+    { t: "Ez az év ___ napja.", o: ["leghosszabb","hosszabb","hosszú","nagyon hosszú"], a: 0, e: "Felsőfok : « a leghosszabb » (le plus long)." },
+    { t: "El ___ olvasnod a könyvet.", o: ["kell","kellesz","kellett volna","kelljen"], a: 0, e: "« el kell olvasnod » = tu dois le lire (kell + infinitif personnel)." },
+    { t: "Alig ___ meg, máris elment.", o: ["érkezett","érkezik","fog érkezni","érkezne"], a: 0, e: "« Alig érkezett meg » = à peine arrivé (passé)." },
+    { t: "A felfedezést nagy ___ fogadták.", o: ["lelkesedéssel","kétkedéssel","tudással","étellel"], a: 0, e: "« lelkesedés » = enthousiasme (ici à l'instrumental -vel)." }
   ],
   "Serbe": [
     { t: "Она ___ на посао сваког дана.", o: ["иде","идем","идеш","иду"], a: 0, e: "« она » (3ᵉ pers. sing.) : « ићи » fait « иде »." },
@@ -135,7 +185,12 @@ window.LS_TESTS = {
     { t: "Волео бих да ___ више времена.", o: ["имам","имао сам","имаћу","имао бих"], a: 0, e: "« Волео бих да » + présent : « да имам » (souhait)." },
     { t: "Да је ___ више, положила би.", o: ["учила","учи","учиће","учила би"], a: 0, e: "Condition irréelle : « да је учила » (si elle avait étudié)." },
     { t: "Предлог је дочекан са ___ скепсом.", o: ["знатном","мало","многи","пуно"], a: 0, e: "« знатном » (considérable) s'accorde avec « скепсом » à l'instrumental." },
-    { t: "Његов аргумент, ___ убедљив, није имао доказа.", o: ["иако","јер","зато","али"], a: 0, e: "« иако » = bien que (concession)." }
+    { t: "Његов аргумент, ___ убедљив, није имао доказа.", o: ["иако","јер","зато","али"], a: 0, e: "« иако » = bien que (concession)." },
+    { t: "Јуче ___ добар филм.", o: ["су гледали","гледају","гледаће","гледаху"], a: 0, e: "Перфекат (јуче) : « су гледали » (ils ont regardé)." },
+    { t: "То је ___ дан у години.", o: ["најдужи","дужи","дуг","веома дуг"], a: 0, e: "Суперлатив : « најдужи » (le plus long)." },
+    { t: "Мост ___ 1995. године.", o: ["је саграђен","је саградио","гради","ће саградити"], a: 0, e: "Пасив у прошлости : « је саграђен » (a été construit)." },
+    { t: "Тек што ___ стигао, отишао је.", o: ["је","да","ће","би"], a: 0, e: "« Тек што је стигао » = à peine arrivé (перфекат)." },
+    { t: "Откриће је дочекано с великим ___.", o: ["одушевљењем","сумњом","знањем","храном"], a: 0, e: "« одушевљење » = enthousiasme (ici à l'instrumental)." }
   ],
   "Russe": [
     { t: "Она ___ на работу каждый день.", o: ["ходит","идут","идёшь","иду"], a: 0, e: "Pour une action habituelle, on emploie « ходит » (она ходит)." },
@@ -147,6 +202,11 @@ window.LS_TESTS = {
     { t: "Хотел бы я, чтобы у меня ___ больше времени.", o: ["было","есть","будет","имеет"], a: 0, e: "Après « чтобы », le verbe se met au passé : « было » (souhait irréel)." },
     { t: "Если бы она ___ больше, она бы сдала.", o: ["училась","учится","выучит","учить"], a: 0, e: "Condition irréelle : « если бы она училась »." },
     { t: "Предложение было встречено со ___ скептицизмом.", o: ["значительным","мало","многие","полный"], a: 0, e: "« значительным » (considérable) s'accorde avec « скептицизмом » à l'instrumental." },
-    { t: "Его аргумент, ___ убедительный, не имел доказательств.", o: ["хотя и","потому что","поэтому","но"], a: 0, e: "« хотя и » = bien que (concession)." }
+    { t: "Его аргумент, ___ убедительный, не имел доказательств.", o: ["хотя и","потому что","поэтому","но"], a: 0, e: "« хотя и » = bien que (concession)." },
+    { t: "Вчера они ___ хороший фильм.", o: ["посмотрели","смотрят","посмотрят","смотри"], a: 0, e: "Прошедшее время (вчера) : « посмотрели »." },
+    { t: "Это ___ день в году.", o: ["длинный","самый длинный","длиннее","очень длинный"], a: 1, e: "Превосходная степень : « самый длинный »." },
+    { t: "Мост ___ в 1995 году.", o: ["построил","был построен","строит","строил"], a: 1, e: "Страдательный залог в прошлом : « был построен »." },
+    { t: "Едва он ___, как сразу ушёл.", o: ["пришёл","приходит","придёт","приди"], a: 0, e: "« Едва он пришёл » = à peine arrivé (прошедшее время)." },
+    { t: "Открытие было встречено с большим ___.", o: ["энтузиазмом","сомнением","знанием","едой"], a: 0, e: "« энтузиазм » = enthousiasme (здесь в творительном падеже)." }
   ]
 };

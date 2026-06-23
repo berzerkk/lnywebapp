@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Test de niveau gratuit · Languages & Success</title>
-<meta name="description" content="Évaluez votre niveau d'anglais en 10 questions. Recevez votre résultat CECRL détaillé et un conseiller vous rappelle pour construire votre parcours sur mesure." />
+<meta name="description" content="Évaluez votre niveau d'anglais en 15 questions. Recevez votre résultat CECRL détaillé et un conseiller vous rappelle pour construire votre parcours sur mesure." />
 <link rel="icon" type="image/png" href="assets/ls-logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,9 +17,9 @@
 <header class="page-hero" style="padding-bottom:30px">
   <div class="wrap">
     <div class="crumbs"><a href="index.html">Accueil</a> · Test de niveau</div>
-    <span class="eyebrow">Gratuit · 3 minutes · 10 questions</span>
+    <span class="eyebrow">Gratuit · 4 minutes · 15 questions</span>
     <h1>Quel est votre niveau, <i>vraiment ?</i></h1>
-    <p class="lead">Répondez à 10 questions. À la fin, laissez vos coordonnées pour recevoir votre niveau estimé.</p>
+    <p class="lead">Répondez à 15 questions. À la fin, laissez vos coordonnées pour recevoir votre niveau estimé.</p>
   </div>
 </header>
 
@@ -31,7 +31,7 @@
       <div class="quiz-card" id="screen-intro" data-reveal>
         <span class="eyebrow">Test de niveau</span>
         <h2 style="font-family:var(--ff-head);font-size:clamp(24px,3vw,34px);margin:10px 0 14px">Prêt à commencer ?</h2>
-        <p class="lead-soft">10 questions à choix multiple, de plus en plus exigeantes. Pas de piège : répondez spontanément. Vous pourrez revenir en arrière à tout moment.</p>
+        <p class="lead-soft">15 questions à choix multiple, de plus en plus exigeantes. Pas de piège : répondez spontanément. Vous pourrez revenir en arrière à tout moment.</p>
         <div class="field" style="max-width:340px;margin-top:20px">
           <label for="t-langue">Langue du test</label>
           <select id="t-langue" name="langue">
@@ -44,7 +44,7 @@
       <!-- Questions -->
       <div class="quiz-card hidden" id="screen-quiz">
         <div class="quiz-progress"><i id="bar"></i></div>
-        <div class="q-meta" id="q-meta">Question 1 / 10</div>
+        <div class="q-meta" id="q-meta">Question 1 / 15</div>
         <div class="q-text" id="q-text"></div>
         <div class="opts" id="opts"></div>
         <div class="quiz-foot">
@@ -102,7 +102,7 @@
 <script>window.LS_CONFIG={key:'sub'};</script>
 <script src="assets/partials.js?v=BUILD"></script>
 <script src="ls-engine.js"></script>
-<script src="test-data.js"></script>
+<script src="test-data.js?v=BUILD"></script>
 <script>
 (function(){
   // Jeu par défaut (anglais, depuis la banque partagée) ; remplacé par la langue choisie au démarrage.
@@ -110,15 +110,15 @@
   var LEVELS = [
     { min:0, code:'A1', name:'Niveau Découverte', desc:'Vous posez les bases : énoncés simples et besoins concrets. Un parcours débutant vous fera décoller rapidement.',
       can:['Vous présenter et présenter quelqu\'un','Comprendre et utiliser des expressions familières du quotidien','Poser et répondre à des questions simples (lieu, heure, besoins)'] },
-    { min:2, code:'A2', name:'Niveau Intermédiaire', desc:'Vous communiquez dans des situations simples et habituelles. Objectif : gagner en autonomie au quotidien.',
+    { min:3, code:'A2', name:'Niveau Intermédiaire', desc:'Vous communiquez dans des situations simples et habituelles. Objectif : gagner en autonomie au quotidien.',
       can:['Comprendre des phrases isolées sur des sujets familiers (travail, achats)','Échanger des informations simples et habituelles','Décrire votre environnement et vos besoins immédiats'] },
-    { min:4, code:'B1', name:'Niveau Seuil', desc:'Vous échangez clairement sur des sujets familiers. Un cap idéal pour viser l’aisance professionnelle.',
+    { min:6, code:'B1', name:'Niveau Seuil', desc:'Vous échangez clairement sur des sujets familiers. Un cap idéal pour viser l’aisance professionnelle.',
       can:['Vous débrouiller dans la plupart des situations en voyage','Raconter un événement, une expérience ou un projet','Donner et justifier votre avis sur des sujets familiers'] },
-    { min:6, code:'B2', name:'Niveau Avancé', desc:'Vous interagissez aisément avec des natifs. Parfait pour préparer une certification (TOEIC, Cambridge B2).',
+    { min:9, code:'B2', name:'Niveau Avancé', desc:'Vous interagissez aisément avec des natifs. Parfait pour préparer une certification (TOEIC, Cambridge B2).',
       can:['Communiquer avec spontanéité et aisance avec un locuteur natif','Reformuler une phrase et argumenter dans la langue','Comprendre des textes et des discussions complexes'] },
-    { min:8, code:'C1', name:'Niveau Autonome', desc:'Vous maniez la nuance sur des sujets complexes. On vise le perfectionnement et la précision.',
+    { min:12, code:'C1', name:'Niveau Autonome', desc:'Vous maniez la nuance sur des sujets complexes. On vise le perfectionnement et la précision.',
       can:['Vous exprimer couramment, sans chercher vos mots','Utiliser la langue avec souplesse dans la vie sociale et professionnelle','Comprendre des textes longs et exigeants, et leurs sous-entendus'] },
-    { min:10, code:'C2', name:'Niveau Maîtrise', desc:'Vous vous exprimez avec fluidité et finesse. Place au raffinement et aux contextes les plus exigeants.',
+    { min:14, code:'C2', name:'Niveau Maîtrise', desc:'Vous vous exprimez avec fluidité et finesse. Place au raffinement et aux contextes les plus exigeants.',
       can:['Comprendre sans effort presque tout ce que vous lisez ou entendez','Restituer faits et arguments de façon cohérente','Vous exprimer avec précision et nuance, même sur des sujets complexes'] }
   ];
 
