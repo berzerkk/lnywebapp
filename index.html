@@ -267,7 +267,7 @@
           <div class="tc-langs" id="tc-langs"></div>
         </div>
         <div class="tc-step hidden" id="tc-quiz">
-          <div class="q"><button class="tc-back" id="tc-back" type="button" aria-label="Changer de langue">‹</button> <span id="tc-meta">1 / 10</span></div>
+          <div class="q"><button class="tc-back" id="tc-back" type="button" aria-label="Changer de langue">‹</button> <span id="tc-meta">1 / 15</span></div>
           <h4 id="tc-qtext"></h4>
           <div class="ans" id="tc-ans"></div>
         </div>
@@ -489,7 +489,7 @@ window.LS_CONFIG = {
   function choose(label, value){
     fade(stepLang, stepQuiz, function(){
       var data=TQ[value]||TQ['Anglais'];
-      meta.textContent=label+' · 1 / 10';
+      meta.textContent=label+' · 1 / 15';
       qText.textContent=data.q;
       qText.setAttribute('dir', (value==='Arabe')?'rtl':'ltr');
       ansBox.innerHTML='';
