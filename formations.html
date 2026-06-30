@@ -145,8 +145,8 @@
     <div class="panel" data-reveal>
       <h3>Certifications préparées</h3>
       <p class="sub">En tant que partenaire référencé, nous délivrons des certifications officielles qui valident votre parcours CPF.</p>
-      <div class="chips">
-        <span class="chip solid">TOEIC</span><span class="chip solid">TOEFL</span><span class="chip solid">Linguaskill</span><span class="chip solid">IELTS</span><span class="chip solid">BRIGHT</span><span class="chip solid">PIPPLET</span><span class="chip solid">DCL</span><span class="chip solid">Duolingo English Test</span>
+      <div class="chips" id="cert-chips">
+        <span class="chip solid feat" data-cert="TOEIC">TOEIC<span class="skz">4 Skills</span></span><span class="chip solid" data-cert="TOEFL">TOEFL</span><span class="chip solid" data-cert="Linguaskill">Linguaskill</span><span class="chip solid" data-cert="IELTS">IELTS</span><span class="chip solid" data-cert="BRIGHT">BRIGHT</span><span class="chip solid" data-cert="PIPPLET">PIPPLET</span><span class="chip solid" data-cert="DCL">DCL</span><span class="chip solid" data-cert="Duolingo English Test">Duolingo English Test</span>
       </div>
     </div>
     <div class="panel" data-reveal>
@@ -181,7 +181,13 @@
     <div data-reveal>
       <span class="eyebrow">Accessibilité</span>
       <h2 style="font-size:clamp(26px,3.2vw,40px);margin-top:12px">Une formation accessible à tous.</h2>
-      <p class="lead-soft mt-s">Conformément aux principes d'égalité des chances, nos formations sont accessibles aux personnes en situation de handicap. Nous nous engageons à garantir un environnement inclusif et équitable, quelles que soient les capacités de chacun.</p>
+      <p class="lead-soft mt-s">Dans le cadre de notre engagement en faveur de l'égalité des chances et de l'inclusion, nous veillons à garantir un accès équitable à nos formations aux personnes en situation de handicap.</p>
+      <div class="eco-text" style="margin-top:14px">
+        <p>Avant l'entrée en formation, nous réalisons systématiquement une analyse individualisée de vos besoins, dans le respect de la confidentialité des informations que vous nous communiquez. Cet échange nous permet d'évaluer les conditions d'accessibilité et d'identifier, le cas échéant, les aménagements pédagogiques, organisationnels ou techniques nécessaires au bon déroulement de votre parcours (adaptation des supports, ajustement du rythme, modalités d'accompagnement spécifiques, outils numériques adaptés, etc.).</p>
+        <p>Notre référent handicap coordonne les mesures mises en œuvre et reste votre interlocuteur privilégié tout au long de votre parcours.</p>
+        <p>Lorsque votre situation requiert des dispositifs spécialisés qui ne relèvent pas directement de notre champ d'intervention, nous mobilisons notre réseau de partenaires institutionnels et professionnels pour vous orienter vers les structures compétentes : Agefiph, Cap emploi, MDPH et la Ressource Handicap Formation (RHF) Provence-Alpes-Côte d'Azur.</p>
+        <p>Notre démarche s'inscrit pleinement dans le respect des exigences du Référentiel National Qualité et des conditions d'accessibilité prévues par la réglementation en vigueur.</p>
+      </div>
     </div>
     <div class="aside-card" data-reveal>
       <h4>Référent handicap</h4>
@@ -228,6 +234,24 @@
   </div>
 </div>
 
+<div id="cert-modal" class="cert-modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="cm-backdrop"></div>
+  <div class="cm-inner">
+    <div class="cm-card">
+      <button class="cm-close" id="cm-close" aria-label="Fermer">&times;</button>
+      <div class="cm-eyebrow" id="cm-eyebrow">Certification préparée</div>
+      <h3 class="cm-title" id="cm-title">TOEIC</h3>
+      <p class="cm-tag" id="cm-tag"></p>
+      <p class="cm-intro" id="cm-intro"></p>
+      <ul class="cm-list" id="cm-list"></ul>
+      <div class="cm-actions">
+        <a href="contact.html" class="btn btn-primary">Être rappelé →</a>
+        <a href="test-de-niveau.html" class="btn btn-ghost">Faire le test de niveau →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>window.LS_CONFIG={key:'sub'};</script>
 <script src="assets/partials.js?v=BUILD"></script>
 <script src="ls-engine.js"></script>
@@ -243,6 +267,37 @@
   document.querySelectorAll('#langues .lang-item').forEach(function(a){ a.addEventListener('click',function(e){ e.preventDefault(); open(a.textContent.trim()); }); });
   closeBtn.addEventListener('click',close);
   modal.addEventListener('click',function(e){ if(!e.target.closest('.lm-card')) close(); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape' && modal.classList.contains('open')) close(); });
+})();
+</script>
+<script>
+(function(){
+  var modal=document.getElementById('cert-modal'); if(!modal) return;
+  var elEye=document.getElementById('cm-eyebrow'), elTitle=document.getElementById('cm-title'), elTag=document.getElementById('cm-tag'), elIntro=document.getElementById('cm-intro'), elList=document.getElementById('cm-list'), closeBtn=document.getElementById('cm-close');
+  var CERTS={
+    "TOEIC":{eyebrow:"Certification · Anglais professionnel",title:"TOEIC — Test of English for International Communication",tag:"La référence de l'anglais professionnel.",intro:"Nous vous préparons et nous vous faisons passer le TOEIC.",list:["Centre de passage agréé TOEIC, partenaire ETS Global","Passage en distanciel ou présentiel","Niveaux CECRL A1 → C1"]},
+    "TOEFL":{eyebrow:"Certification · Anglais académique",title:"TOEFL iBT — Test of English as a Foreign Language (Internet-Based Test)",tag:"The World's English Test.",intro:"Nous vous préparons et nous vous faisons passer le TOEFL iBT.",list:["Centre de passage agréé, partenaire ETS Global","Passage en distanciel","Niveaux CECRL A1 → C1","Durée : 2 h 00","Score sur 120"]},
+    "IELTS":{eyebrow:"Certification · Anglais",title:"IELTS — International English Language Testing System",tag:"IELTS Academic & IELTS General Training.",intro:"Nous vous préparons à l'IELTS (IELTS Academic et IELTS General Training).",list:["Passage en distanciel ou présentiel","Niveaux CECRL A1 → C2","Durée : 2 h 45","Score sur 9"]}
+  };
+  function open(key){
+    var c=CERTS[key];
+    if(c){
+      elEye.textContent=c.eyebrow; elTitle.textContent=c.title;
+      elTag.textContent=c.tag; elTag.style.display='';
+      elIntro.textContent=c.intro;
+      elList.innerHTML=c.list.map(function(x){return '<li>'+x+'</li>';}).join('');
+    } else {
+      elEye.textContent='Certification préparée'; elTitle.textContent=key;
+      elTag.style.display='none';
+      elIntro.textContent="Nous vous accompagnons dans la préparation et le passage de cette certification. Contactez-nous pour les modalités détaillées (durée, score, niveaux et lieu de passage).";
+      elList.innerHTML='';
+    }
+    modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden';
+  }
+  function close(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
+  document.querySelectorAll('#cert-chips .chip').forEach(function(ch){ ch.addEventListener('click',function(){ open(ch.getAttribute('data-cert')); }); });
+  closeBtn.addEventListener('click',close);
+  modal.addEventListener('click',function(e){ if(!e.target.closest('.cm-card')) close(); });
   document.addEventListener('keydown',function(e){ if(e.key==='Escape' && modal.classList.contains('open')) close(); });
 })();
 </script>
