@@ -146,7 +146,7 @@
       <h3>Certifications préparées</h3>
       <p class="sub">En tant que partenaire référencé, nous délivrons des certifications officielles qui valident votre parcours CPF.</p>
       <div class="chips" id="cert-chips">
-        <span class="chip solid feat" data-cert="TOEIC">TOEIC<span class="skz">4 Skills</span></span><span class="chip solid" data-cert="TOEFL">TOEFL</span><span class="chip solid" data-cert="Linguaskill">Linguaskill</span><span class="chip solid" data-cert="IELTS">IELTS</span><span class="chip solid" data-cert="BRIGHT">BRIGHT</span><span class="chip solid" data-cert="PIPPLET">PIPPLET</span><span class="chip solid" data-cert="DCL">DCL</span><span class="chip solid" data-cert="Duolingo English Test">Duolingo English Test</span>
+        <span class="chip solid c-link feat" data-cert="TOEIC">TOEIC<span class="skz">4 Skills</span></span><span class="chip solid c-link" data-cert="TOEFL">TOEFL</span><span class="chip solid">Linguaskill</span><span class="chip solid c-link" data-cert="IELTS">IELTS</span><span class="chip solid">BRIGHT</span><span class="chip solid">PIPPLET</span><span class="chip solid">DCL</span><span class="chip solid">Duolingo English Test</span>
       </div>
     </div>
     <div class="panel" data-reveal>
@@ -239,14 +239,18 @@
   <div class="cm-inner">
     <div class="cm-card">
       <button class="cm-close" id="cm-close" aria-label="Fermer">&times;</button>
-      <div class="cm-eyebrow" id="cm-eyebrow">Certification préparée</div>
-      <h3 class="cm-title" id="cm-title">TOEIC</h3>
-      <p class="cm-tag" id="cm-tag"></p>
-      <p class="cm-intro" id="cm-intro"></p>
-      <ul class="cm-list" id="cm-list"></ul>
-      <div class="cm-actions">
-        <a href="contact.html" class="btn btn-primary">Être rappelé →</a>
-        <a href="test-de-niveau.html" class="btn btn-ghost">Faire le test de niveau →</a>
+      <div class="cm-scroll">
+        <div class="cm-eyebrow" id="cm-eyebrow"></div>
+        <div class="cm-headrow"><h3 class="cm-title" id="cm-title"></h3><span class="cm-badges" id="cm-badges"></span></div>
+        <p class="cm-tag" id="cm-tag"></p>
+        <p class="cm-intro" id="cm-intro"></p>
+        <div class="cm-stats" id="cm-stats"></div>
+        <ul class="cm-list" id="cm-list"></ul>
+        <div id="cm-groups"></div>
+        <div class="cm-actions">
+          <a href="contact.html" class="btn btn-primary">Être rappelé →</a>
+          <a href="test-de-niveau.html" class="btn btn-ghost">Faire le test de niveau →</a>
+        </div>
       </div>
     </div>
   </div>
@@ -273,32 +277,82 @@
 <script>
 (function(){
   var modal=document.getElementById('cert-modal'); if(!modal) return;
-  var elEye=document.getElementById('cm-eyebrow'), elTitle=document.getElementById('cm-title'), elTag=document.getElementById('cm-tag'), elIntro=document.getElementById('cm-intro'), elList=document.getElementById('cm-list'), closeBtn=document.getElementById('cm-close');
+  var elEye=document.getElementById('cm-eyebrow'),elTitle=document.getElementById('cm-title'),elBadges=document.getElementById('cm-badges'),elTag=document.getElementById('cm-tag'),elIntro=document.getElementById('cm-intro'),elStats=document.getElementById('cm-stats'),elList=document.getElementById('cm-list'),elGroups=document.getElementById('cm-groups'),closeBtn=document.getElementById('cm-close');
+  function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
   var CERTS={
-    "TOEIC":{eyebrow:"Certification · Anglais professionnel",title:"TOEIC — Test of English for International Communication",tag:"La référence de l'anglais professionnel.",intro:"Nous vous préparons et nous vous faisons passer le TOEIC.",list:["Centre de passage agréé TOEIC, partenaire ETS Global","Passage en distanciel ou présentiel","Niveaux CECRL A1 → C1"]},
-    "TOEFL":{eyebrow:"Certification · Anglais académique",title:"TOEFL iBT — Test of English as a Foreign Language (Internet-Based Test)",tag:"The World's English Test.",intro:"Nous vous préparons et nous vous faisons passer le TOEFL iBT.",list:["Centre de passage agréé, partenaire ETS Global","Passage en distanciel","Niveaux CECRL A1 → C1","Durée : 2 h 00","Score sur 120"]},
-    "IELTS":{eyebrow:"Certification · Anglais",title:"IELTS — International English Language Testing System",tag:"IELTS Academic & IELTS General Training.",intro:"Nous vous préparons à l'IELTS (IELTS Academic et IELTS General Training).",list:["Passage en distanciel ou présentiel","Niveaux CECRL A1 → C2","Durée : 2 h 45","Score sur 9"]}
+    "TOEIC":{
+      eyebrow:"Certification · Anglais professionnel",
+      title:"TOEIC 4 skills",
+      badges:["Éligible CPF · RS 7229"],
+      tag:"La référence de l'anglais professionnel.",
+      intro:"Les quatre compétences — compréhension et expression, orale et écrite — évaluées en une seule session, sur ordinateur. C'est le format que nous proposons en certification.",
+      points:["Accès libre 24 h/24 et 7 j/7","Score : 25 points par compétence + moyenne globale","Badge numérique partageable (LinkedIn)","1 h 20 maximum, en une seule session","Nouveau format dès le 3 août 2026"],
+      groups:[{title:"Les autres versions",cards:[
+        {title:"TOEIC Listening & Reading",sub:"Compréhension orale et écrite · score sur 990",meta:"2 h",desc:"200 questions : 45 min d'écoute (100 questions) et 75 min de lecture (100 questions)."},
+        {title:"TOEIC Speaking & Writing",sub:"Expression orale et écrite · score sur 200",meta:"1 h 20",desc:"20 min d'expression orale (11 questions) et 1 h d'expression écrite (8 questions)."},
+        {title:"TOEIC Bridge",sub:"Débutants · CECRL A1–B1 · score sur 100",meta:"1 h",desc:"Compréhension orale et écrite : 25 min (50 questions) et 35 min (50 questions)."}
+      ]}]
+    },
+    "TOEFL":{
+      eyebrow:"Certification · Anglais académique",
+      title:"TOEFL iBT",
+      tag:"The World's English Test.",
+      intro:"Test of English as a Foreign Language — Internet-Based Test. Nous vous préparons et nous vous faisons passer le TOEFL iBT.",
+      stats:[{n:"< 2 h",l:"durée totale"},{n:"4",l:"épreuves"},{n:"2 ans",l:"validité"}],
+      groups:[{title:"Les quatre épreuves",cards:[
+        {title:"Reading",sub:"Compréhension écrite · Adaptatif",meta:"~30 min",desc:"Textes académiques, en deux modules de difficulté ajustée à votre niveau."},
+        {title:"Listening",sub:"Compréhension orale · Adaptatif",meta:"~29 min",desc:"Cours, conversations et échanges de la vie universitaire."},
+        {title:"Writing",sub:"Expression écrite",meta:"~23 min",desc:"Rédaction à partir de documents lus et écoutés."},
+        {title:"Speaking",sub:"Expression orale",meta:"~8 min",desc:"Tâches d'expression orale sur des sujets académiques."}
+      ]}]
+    },
+    "IELTS":{
+      eyebrow:"Certification · Anglais",
+      title:"IELTS",
+      tag:"Deux parcours, une même référence mondiale.",
+      intro:"International English Language Testing System. Nous vous préparons à l'IELTS (Academic et General Training).",
+      stats:[{n:"2 h 45",l:"durée totale"},{n:"4",l:"épreuves"},{n:"40",l:"questions à l'écoute et à la lecture"}],
+      groups:[
+        {title:"Deux parcours",cards:[
+          {title:"IELTS Academic",desc:"Pour intégrer une université ou un établissement d'enseignement supérieur."},
+          {title:"IELTS General Training",desc:"Pour attester votre niveau d'anglais dans un contexte professionnel."}
+        ]},
+        {title:"Les quatre épreuves",cards:[
+          {title:"Compréhension orale",sub:"Listening",meta:"~30 min",desc:"40 questions à partir d'enregistrements audio variés."},
+          {title:"Compréhension écrite",sub:"Reading",meta:"1 h",desc:"40 questions, sur trois textes en version Academic."},
+          {title:"Expression écrite",sub:"Writing",meta:"1 h",desc:"Deux rédactions, d'environ 150 et 250 mots."},
+          {title:"Expression orale",sub:"Speaking",meta:"11–14 min",desc:"Un entretien oral avec un examinateur, en trois temps."}
+        ]}
+      ]
+    }
   };
   function open(key){
-    var c=CERTS[key];
-    if(c){
-      elEye.textContent=c.eyebrow; elTitle.textContent=c.title;
-      elTag.textContent=c.tag; elTag.style.display='';
-      elIntro.textContent=c.intro;
-      elList.innerHTML=c.list.map(function(x){return '<li>'+x+'</li>';}).join('');
-    } else {
-      elEye.textContent='Certification préparée'; elTitle.textContent=key;
-      elTag.style.display='none';
-      elIntro.textContent="Nous vous accompagnons dans la préparation et le passage de cette certification. Contactez-nous pour les modalités détaillées (durée, score, niveaux et lieu de passage).";
-      elList.innerHTML='';
-    }
-    modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden';
+    var c=CERTS[key]; if(!c) return;
+    elEye.textContent=c.eyebrow||"Certification préparée";
+    elTitle.textContent=c.title||key;
+    elBadges.innerHTML=(c.badges||[]).map(function(b){return '<span class="cm-badge">'+esc(b)+'</span>';}).join('');
+    if(c.tag){elTag.textContent=c.tag;elTag.style.display='';}else{elTag.style.display='none';}
+    if(c.intro){elIntro.textContent=c.intro;elIntro.style.display='';}else{elIntro.style.display='none';}
+    elStats.innerHTML=(c.stats||[]).map(function(s){return '<div class="cm-stat"><div class="cm-stat-n">'+esc(s.n)+'</div><div class="cm-stat-l">'+esc(s.l)+'</div></div>';}).join('');
+    elStats.style.display=(c.stats&&c.stats.length)?'':'none';
+    elList.innerHTML=(c.points||[]).map(function(p){return '<li>'+esc(p)+'</li>';}).join('');
+    elList.style.display=(c.points&&c.points.length)?'':'none';
+    elGroups.innerHTML=(c.groups||[]).map(function(g){
+      var cards=g.cards.map(function(cd){
+        var meta=cd.meta?'<span class="cm-cmeta">'+esc(cd.meta)+'</span>':'';
+        var sub=cd.sub?'<div class="cm-csub">'+esc(cd.sub)+'</div>':'';
+        return '<div class="cm-c"><div class="cm-ctop"><div class="cm-ctitle">'+esc(cd.title)+'</div>'+meta+'</div>'+sub+'<p class="cm-cdesc">'+esc(cd.desc)+'</p></div>';
+      }).join('');
+      return '<div class="cm-group"><div class="cm-group-h">'+esc(g.title)+'</div><div class="cm-cards">'+cards+'</div></div>';
+    }).join('');
+    var sc=modal.querySelector('.cm-scroll'); if(sc) sc.scrollTop=0;
+    modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
   }
-  function close(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
-  document.querySelectorAll('#cert-chips .chip').forEach(function(ch){ ch.addEventListener('click',function(){ open(ch.getAttribute('data-cert')); }); });
+  function close(){modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.style.overflow='';}
+  document.querySelectorAll('#cert-chips .chip.c-link').forEach(function(ch){ch.addEventListener('click',function(){open(ch.getAttribute('data-cert'));});});
   closeBtn.addEventListener('click',close);
-  modal.addEventListener('click',function(e){ if(!e.target.closest('.cm-card')) close(); });
-  document.addEventListener('keydown',function(e){ if(e.key==='Escape' && modal.classList.contains('open')) close(); });
+  modal.addEventListener('click',function(e){if(!e.target.closest('.cm-card'))close();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&modal.classList.contains('open'))close();});
 })();
 </script>
 </body>
