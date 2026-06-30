@@ -71,7 +71,7 @@
       <div class="card" data-reveal>
         <div class="ic">C</div>
         <h3>Préparation aux examens</h3>
-        <p>Alternance de cours et d'un outil e-learning adapté à l'examen visé, pour optimiser vos résultats le jour du test : TOEIC, TOEFL, Linguaskill, IELTS, BRIGHT, PIPPLET, Cambridge…</p>
+        <p>Alternance de cours avec formateur et d'un outil e-learning spécifique à l'examen visé, pour optimiser vos résultats le jour du test : TOEIC, TOEFL iBT, Linguaskill, IELTS, Bright Langage, Examens Cambridge…</p>
         <span class="meta">Certification incluse</span>
       </div>
       <div class="card" data-reveal>
@@ -146,7 +146,7 @@
       <h3>Certifications préparées</h3>
       <p class="sub">En tant que partenaire référencé, nous délivrons des certifications officielles qui valident votre parcours CPF.</p>
       <div class="chips" id="cert-chips">
-        <span class="chip solid c-link feat" data-cert="TOEIC">TOEIC<span class="skz">4 Skills</span></span><span class="chip solid c-link" data-cert="TOEFL">TOEFL</span><span class="chip solid">Linguaskill</span><span class="chip solid c-link" data-cert="IELTS">IELTS</span><span class="chip solid">BRIGHT</span><span class="chip solid">PIPPLET</span><span class="chip solid">DCL</span><span class="chip solid">Duolingo English Test</span>
+        <span class="chip solid c-link" data-cert="TOEIC">TOEIC</span><span class="chip solid c-link" data-cert="TOEFL">TOEFL</span><span class="chip solid c-link" data-cert="Linguaskill">Linguaskill</span><span class="chip solid c-link" data-cert="IELTS">IELTS</span><span class="chip solid c-link" data-cert="Bright Langage">Bright Langage</span><span class="chip solid">DCL</span><span class="chip solid c-link" data-cert="Duolingo English Test">Duolingo English Test</span>
       </div>
     </div>
     <div class="panel" data-reveal>
@@ -241,12 +241,9 @@
       <button class="cm-close" id="cm-close" aria-label="Fermer">&times;</button>
       <div class="cm-scroll">
         <div class="cm-eyebrow" id="cm-eyebrow"></div>
-        <div class="cm-headrow"><h3 class="cm-title" id="cm-title"></h3><span class="cm-badges" id="cm-badges"></span></div>
-        <p class="cm-tag" id="cm-tag"></p>
+        <div class="cm-headrow"><h3 class="cm-title" id="cm-title"></h3><span class="cm-fullname" id="cm-fullname"></span></div>
         <p class="cm-intro" id="cm-intro"></p>
-        <div class="cm-stats" id="cm-stats"></div>
-        <ul class="cm-list" id="cm-list"></ul>
-        <div id="cm-groups"></div>
+        <div id="cm-blocks"></div>
         <div class="cm-actions">
           <a href="contact.html" class="btn btn-primary">Être rappelé →</a>
           <a href="test-de-niveau.html" class="btn btn-ghost">Faire le test de niveau →</a>
@@ -277,74 +274,135 @@
 <script>
 (function(){
   var modal=document.getElementById('cert-modal'); if(!modal) return;
-  var elEye=document.getElementById('cm-eyebrow'),elTitle=document.getElementById('cm-title'),elBadges=document.getElementById('cm-badges'),elTag=document.getElementById('cm-tag'),elIntro=document.getElementById('cm-intro'),elStats=document.getElementById('cm-stats'),elList=document.getElementById('cm-list'),elGroups=document.getElementById('cm-groups'),closeBtn=document.getElementById('cm-close');
+  var elEye=document.getElementById('cm-eyebrow'),elName=document.getElementById('cm-title'),elFull=document.getElementById('cm-fullname'),elIntro=document.getElementById('cm-intro'),elBlocks=document.getElementById('cm-blocks'),closeBtn=document.getElementById('cm-close');
   function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function card(cd){
+    var meta=cd.meta?'<span class="cm-cmeta">'+esc(cd.meta)+'</span>':'';
+    var sub=cd.sub?'<div class="cm-csub">'+esc(cd.sub)+'</div>':'';
+    var desc=cd.desc?'<p class="cm-cdesc">'+esc(cd.desc)+'</p>':'';
+    return '<div class="cm-c"><div class="cm-ctop"><div class="cm-ctitle">'+esc(cd.title)+'</div>'+meta+'</div>'+sub+desc+'</div>';
+  }
+  function block(b){
+    if(b.type==='stats') return '<div class="cm-stats">'+b.items.map(function(s){return '<div class="cm-stat"><div class="cm-stat-n">'+esc(s.n)+'</div><div class="cm-stat-l">'+esc(s.l)+'</div></div>';}).join('')+'</div>';
+    if(b.type==='points') return '<ul class="cm-list">'+b.items.map(function(p){return '<li>'+esc(p)+'</li>';}).join('')+'</ul>';
+    if(b.type==='callout') return '<div class="cm-callout'+(b.cpf?' cpf':'')+'">'+esc(b.text)+'</div>';
+    if(b.type==='badges') return '<div class="cm-badrow">'+b.items.map(function(x){return '<div class="cm-badbox">'+esc(x)+'</div>';}).join('')+'</div>';
+    if(b.type==='note') return '<p class="cm-note">'+esc(b.text)+'</p>';
+    if(b.type==='subhead') return '<div class="cm-subhead">'+esc(b.text)+'</div>';
+    if(b.type==='cards'){
+      var h=b.title?'<div class="cm-group-h">'+esc(b.title)+(b.cpf?' <span class="cm-cpftag">CPF</span>':'')+'</div>':'';
+      return '<div class="cm-group'+(b.cpf?' cpf':'')+'">'+h+'<div class="cm-cards">'+b.items.map(card).join('')+'</div></div>';
+    }
+    return '';
+  }
   var CERTS={
     "TOEIC":{
       eyebrow:"Certification · Anglais professionnel",
-      title:"TOEIC 4 skills",
-      badges:["Éligible CPF · RS 7229"],
-      tag:"La référence de l'anglais professionnel.",
-      intro:"Les quatre compétences — compréhension et expression, orale et écrite — évaluées en une seule session, sur ordinateur. C'est le format que nous proposons en certification.",
-      points:["Accès libre 24 h/24 et 7 j/7","Score : 25 points par compétence + moyenne globale","Badge numérique partageable (LinkedIn)","1 h 20 maximum, en une seule session","Nouveau format dès le 3 août 2026"],
-      groups:[{title:"Les autres versions",cards:[
-        {title:"TOEIC Listening & Reading",sub:"Compréhension orale et écrite · score sur 990",meta:"2 h",desc:"200 questions : 45 min d'écoute (100 questions) et 75 min de lecture (100 questions)."},
-        {title:"TOEIC Speaking & Writing",sub:"Expression orale et écrite · score sur 200",meta:"1 h 20",desc:"20 min d'expression orale (11 questions) et 1 h d'expression écrite (8 questions)."},
-        {title:"TOEIC Bridge",sub:"Débutants · CECRL A1–B1 · score sur 100",meta:"1 h",desc:"Compréhension orale et écrite : 25 min (50 questions) et 35 min (50 questions)."}
-      ]}]
+      name:"TOEIC", fullname:"Test of English for International Communication",
+      intro:"Centre de préparation et de passage agréé TOEIC, partenaire d'ETS Global.",
+      blocks:[
+        {type:"callout",cpf:true,text:"TOEIC 4 skills — Éligible CPF · RS 7229"},
+        {type:"stats",items:[{n:"1 h 20",l:"durée totale"},{n:"Distanciel",l:"passage"},{n:"CECRL A1–C1",l:"Score sur 100"},{n:"2 ans",l:"validité"}]},
+        {type:"points",items:["Accès libre 24 h/24 et 7 j/7","Score : 25 points par compétence + moyenne globale","Badge numérique partageable (LinkedIn)","Nouveau format dès le 3 août 2026"]},
+        {type:"cards",title:"Les 4 compétences évaluées",cpf:true,items:[
+          {title:"Listening",sub:"Compréhension orale",desc:"Comprendre des conversations, des annonces et des échanges du quotidien professionnel."},
+          {title:"Reading",sub:"Compréhension écrite",desc:"Phrases et textes à compléter, puis compréhension de documents professionnels."},
+          {title:"Speaking",sub:"Expression orale",desc:"Lire un texte à voix haute, décrire une image, donner son opinion."},
+          {title:"Writing",sub:"Expression écrite",desc:"Décrire une image, répondre à un e-mail formel, rédiger un essai argumenté."}
+        ]}
+      ]
     },
     "TOEFL":{
       eyebrow:"Certification · Anglais académique",
-      title:"TOEFL iBT",
-      tag:"The World's English Test.",
-      intro:"Test of English as a Foreign Language — Internet-Based Test. Nous vous préparons et nous vous faisons passer le TOEFL iBT.",
-      stats:[{n:"< 2 h",l:"durée totale"},{n:"4",l:"épreuves"},{n:"2 ans",l:"validité"}],
-      groups:[{title:"Les quatre épreuves",cards:[
-        {title:"Reading",sub:"Compréhension écrite · Adaptatif",meta:"~30 min",desc:"Textes académiques, en deux modules de difficulté ajustée à votre niveau."},
-        {title:"Listening",sub:"Compréhension orale · Adaptatif",meta:"~29 min",desc:"Cours, conversations et échanges de la vie universitaire."},
-        {title:"Writing",sub:"Expression écrite",meta:"~23 min",desc:"Rédaction à partir de documents lus et écoutés."},
-        {title:"Speaking",sub:"Expression orale",meta:"~8 min",desc:"Tâches d'expression orale sur des sujets académiques."}
-      ]}]
+      name:"TOEFL iBT", fullname:"Test of English as a Foreign Language — Internet-Based Test",
+      intro:"Centre de préparation et de passage agréé TOEFL iBT, partenaire d'ETS Global.",
+      blocks:[
+        {type:"stats",items:[{n:"< 2 h",l:"durée totale"},{n:"Distanciel ou présentiel",l:"passage"},{n:"CECRL A1–C1",l:"Score sur 120"},{n:"2 ans",l:"validité"}]},
+        {type:"cards",title:"Les 4 compétences évaluées",items:[
+          {title:"Listening",sub:"Compréhension orale · Adaptatif",meta:"~29 min",desc:"Cours, conversations et échanges de la vie universitaire."},
+          {title:"Reading",sub:"Compréhension écrite · Adaptatif",meta:"~30 min",desc:"Textes académiques, en deux modules de difficulté ajustée à votre niveau."},
+          {title:"Speaking",sub:"Expression orale",meta:"~8 min",desc:"Tâches d'expression orale sur des sujets académiques."},
+          {title:"Writing",sub:"Expression écrite",meta:"~23 min",desc:"Rédaction à partir de documents lus et écoutés."}
+        ]}
+      ]
     },
     "IELTS":{
       eyebrow:"Certification · Anglais",
-      title:"IELTS",
-      tag:"Deux parcours, une même référence mondiale.",
-      intro:"International English Language Testing System. Nous vous préparons à l'IELTS (Academic et General Training).",
-      stats:[{n:"2 h 45",l:"durée totale"},{n:"4",l:"épreuves"},{n:"40",l:"questions à l'écoute et à la lecture"}],
-      groups:[
-        {title:"Deux parcours",cards:[
-          {title:"IELTS Academic",desc:"Pour intégrer une université ou un établissement d'enseignement supérieur."},
-          {title:"IELTS General Training",desc:"Pour attester votre niveau d'anglais dans un contexte professionnel."}
-        ]},
-        {title:"Les quatre épreuves",cards:[
+      name:"IELTS", fullname:"International English Language Testing System",
+      intro:"Centre de préparation au IELTS (Academic et General Training).",
+      blocks:[
+        {type:"stats",items:[{n:"2 h 45",l:"durée totale"},{n:"Distanciel ou présentiel",l:"passage"},{n:"CECRL A1–C2",l:"Score sur 9"},{n:"2 ans",l:"validité"}]},
+        {type:"cards",title:"Les 4 compétences évaluées",items:[
           {title:"Compréhension orale",sub:"Listening",meta:"~30 min",desc:"40 questions à partir d'enregistrements audio variés."},
           {title:"Compréhension écrite",sub:"Reading",meta:"1 h",desc:"40 questions, sur trois textes en version Academic."},
-          {title:"Expression écrite",sub:"Writing",meta:"1 h",desc:"Deux rédactions, d'environ 150 et 250 mots."},
-          {title:"Expression orale",sub:"Speaking",meta:"11–14 min",desc:"Un entretien oral avec un examinateur, en trois temps."}
+          {title:"Expression orale",sub:"Speaking",meta:"11–14 min",desc:"Un entretien oral avec un examinateur, en trois temps."},
+          {title:"Expression écrite",sub:"Writing",meta:"1 h",desc:"Deux rédactions, d'environ 150 et 250 mots."}
         ]}
+      ]
+    },
+    "Bright Langage":{
+      eyebrow:"Certification · Multilingue",
+      name:"Bright Langage", fullname:"Bright Language",
+      intro:"Centre de préparation et de passage agréé Bright Language, partenaire Mahoney Training Consultants (MTC).",
+      blocks:[
+        {type:"stats",items:[{n:"2 h",l:"durée totale"},{n:"Distanciel",l:"passage"},{n:"CECRL A1–C2",l:"Score sur 5"},{n:"2 ans",l:"validité"}]},
+        {type:"badges",items:["BL Anglais — Éligible CPF · RS 6663","BL Français langue étrangère — Éligible CPF · RS 6481"]},
+        {type:"cards",title:"Les 5 compétences évaluées",cpf:true,items:[
+          {title:"Listening",sub:"Compréhension orale",desc:"60 questions sur des extraits audio."},
+          {title:"Reading",sub:"Compréhension écrite",desc:"QCM en ligne de 60 questions."},
+          {title:"Speaking",sub:"Expression orale",desc:"En visioconférence : se présenter et exposer ses objectifs."},
+          {title:"Writing",sub:"Expression écrite",desc:"Rédiger un e-mail, puis un texte d'environ 140 mots."},
+          {title:"Spoken Interaction",sub:"Interaction orale",desc:"Dialoguer avec l'évaluateur natif, en contexte professionnel."}
+        ]},
+        {type:"subhead",text:"Bright Language Listening & Reading"},
+        {type:"stats",items:[{n:"1 h",l:"durée totale"},{n:"Distanciel et présentiel",l:"passage"},{n:"CECRL A1–C2",l:"Score sur 5"},{n:"2 ans",l:"validité"}]},
+        {type:"note",text:"Disponible en 11 langues (anglais, français, espagnol, italien, allemand, portugais, néerlandais, flamand, suédois, russe, chinois mandarin)."},
+        {type:"note",text:"Compréhension orale et écrite : 60 questions sur des extraits audio et QCM en ligne de 60 questions."}
+      ]
+    },
+    "Linguaskill":{
+      eyebrow:"Certification · Anglais",
+      name:"Linguaskill", fullname:"from Cambridge",
+      intro:"Centre de préparation au Linguaskill from Cambridge.",
+      blocks:[
+        {type:"stats",items:[{n:"2 h",l:"durée totale (test complet, modulable)"},{n:"Distanciel et présentiel",l:"passage"},{n:"CECRL B1–C2",l:"Score sur 210"},{n:"2 ans",l:"validité"}]},
+        {type:"cards",title:"Deux parcours",items:[
+          {title:"Linguaskill General English"},
+          {title:"Linguaskill Business"}
+        ]},
+        {type:"cards",title:"Les 4 compétences évaluées",items:[
+          {title:"Linguaskill 4 Skills",meta:"2 h 20 min",desc:"Compréhension écrite & orale puis expression écrite & orale."},
+          {title:"Linguaskill Reading and Listening",meta:"1 h 20",desc:"Compréhension écrite & compréhension orale. QCM et textes à compléter, qui s'adaptent à votre niveau."},
+          {title:"Linguaskill Speaking",meta:"16 min",desc:"Expression orale. 5 sections : se présenter, répondre à des questions, lire des phrases à voix haute, décrire une image et donner son avis."},
+          {title:"Linguaskill Writing",meta:"45 min",desc:"Expression écrite. Rédiger un message court (souvent un e-mail), puis un texte long et structuré sur un sujet donné."}
+        ]}
+      ]
+    },
+    "Duolingo English Test":{
+      eyebrow:"Certification · Anglais",
+      name:"Duolingo English Test",
+      intro:"Centre de préparation au Duolingo English Test.",
+      blocks:[
+        {type:"stats",items:[{n:"1 h",l:"durée totale"},{n:"Distanciel",l:"passage"},{n:"CECRL A1–C2",l:"Score sur 160"},{n:"2 ans",l:"validité"}]},
+        {type:"subhead",text:"1ʳᵉ partie · 45 min"},
+        {type:"cards",title:"Les 4 compétences évaluées",items:[
+          {title:"Listening",sub:"Compréhension orale · Adaptatif",desc:"Vous écoutez des enregistrements, retranscrivez ce que vous entendez, puis répondez à des QCM."},
+          {title:"Reading",sub:"Compréhension écrite · Adaptatif",desc:"Vous complétez des mots, repérez les vrais mots anglais et répondez à des questions de compréhension."},
+          {title:"Speaking",sub:"Expression orale · Adaptatif",desc:"Vous lisez des phrases à voix haute et décrivez une photo à l'oral."},
+          {title:"Writing",sub:"Expression écrite · Adaptatif",desc:"Vous décrivez une photo par écrit, puis vous lisez une consigne et rédigez une réponse plus développée."}
+        ]},
+        {type:"subhead",text:"2ᵉ partie · 10 min"},
+        {type:"note",text:"Entretien vidéo non évalué · échantillon d'écriture non évalué."}
       ]
     }
   };
   function open(key){
     var c=CERTS[key]; if(!c) return;
-    elEye.textContent=c.eyebrow||"Certification préparée";
-    elTitle.textContent=c.title||key;
-    elBadges.innerHTML=(c.badges||[]).map(function(b){return '<span class="cm-badge">'+esc(b)+'</span>';}).join('');
-    if(c.tag){elTag.textContent=c.tag;elTag.style.display='';}else{elTag.style.display='none';}
-    if(c.intro){elIntro.textContent=c.intro;elIntro.style.display='';}else{elIntro.style.display='none';}
-    elStats.innerHTML=(c.stats||[]).map(function(s){return '<div class="cm-stat"><div class="cm-stat-n">'+esc(s.n)+'</div><div class="cm-stat-l">'+esc(s.l)+'</div></div>';}).join('');
-    elStats.style.display=(c.stats&&c.stats.length)?'':'none';
-    elList.innerHTML=(c.points||[]).map(function(p){return '<li>'+esc(p)+'</li>';}).join('');
-    elList.style.display=(c.points&&c.points.length)?'':'none';
-    elGroups.innerHTML=(c.groups||[]).map(function(g){
-      var cards=g.cards.map(function(cd){
-        var meta=cd.meta?'<span class="cm-cmeta">'+esc(cd.meta)+'</span>':'';
-        var sub=cd.sub?'<div class="cm-csub">'+esc(cd.sub)+'</div>':'';
-        return '<div class="cm-c"><div class="cm-ctop"><div class="cm-ctitle">'+esc(cd.title)+'</div>'+meta+'</div>'+sub+'<p class="cm-cdesc">'+esc(cd.desc)+'</p></div>';
-      }).join('');
-      return '<div class="cm-group"><div class="cm-group-h">'+esc(g.title)+'</div><div class="cm-cards">'+cards+'</div></div>';
-    }).join('');
+    elEye.textContent=c.eyebrow||'';
+    elName.textContent=c.name||key;
+    elFull.textContent=c.fullname||''; elFull.style.display=c.fullname?'':'none';
+    elIntro.textContent=c.intro||''; elIntro.style.display=c.intro?'':'none';
+    elBlocks.innerHTML=(c.blocks||[]).map(block).join('');
     var sc=modal.querySelector('.cm-scroll'); if(sc) sc.scrollTop=0;
     modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
   }
