@@ -270,6 +270,15 @@ body.menu-open{overflow:hidden}
 .cm-subhead{font-family:var(--ff-head);font-size:16px;font-weight:500;color:var(--ink);margin:8px 0 12px;padding-top:14px;border-top:1px solid var(--line)}
 .cm-note{font-size:13px;color:var(--ink-soft);line-height:1.5;margin:0 0 12px}
 .cm-group.cpf{background:rgba(190,110,84,.07);border:1px solid rgba(190,110,84,.22);border-radius:14px;padding:15px}
+/* Certifications v3 — intro gras+italique, rectangle englobant, nowrap, parcours colorés */
+.cm-intro{font-style:italic;font-weight:600}
+.cm-box{background:rgba(190,110,84,.08);border:1px solid rgba(190,110,84,.28);border-radius:16px;padding:16px;margin:0 0 18px}
+.cm-box>*:last-child{margin-bottom:0}
+.cm-box .cm-group{margin-bottom:0}
+.cm-boxhead{font-family:var(--ff-head);font-size:16px;font-weight:600;color:var(--accent);margin:0 0 14px}
+.cm-stat.nw .cm-stat-n{white-space:nowrap}
+.cm-c.tint-a{background:rgba(190,110,84,.13);border-color:rgba(190,110,84,.32)}
+.cm-c.tint-b{background:rgba(243,173,153,.2);border-color:rgba(243,173,153,.55)}
 
 .two{display:grid;grid-template-columns:1fr 1fr;gap:26px}
 /* colonne droite des formats : Certifications + Espace documents empilés, calés sur la hauteur de "Tous les formats" */
