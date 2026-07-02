@@ -279,6 +279,28 @@ body.menu-open{overflow:hidden}
 .cm-stat.nw .cm-stat-n{white-space:nowrap}
 .cm-c.tint-a{background:rgba(190,110,84,.13);border-color:rgba(190,110,84,.32)}
 .cm-c.tint-b{background:rgba(243,173,153,.2);border-color:rgba(243,173,153,.55)}
+/* Certifications v4 — pictos ronds, stats filet+serif, cascade, CTA sticky, scrollbar */
+.cm-ctop .cm-ctitle{flex:1}
+.cm-cic{flex:none;width:30px;height:30px;border-radius:50%;background:rgba(190,110,84,.13);color:var(--accent);display:grid;place-items:center}
+.cm-cic svg{width:15px;height:15px}
+.cm-cic svg,.cm-stat-l svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.cm-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.cm-stat{background:transparent;border:none;border-top:2px solid var(--accent);border-radius:0;padding:9px 0 0}
+.cm-stat-n{font-family:var(--ff-head);font-size:17px;font-weight:500;line-height:1.25;color:var(--ink)}
+.cm-stat-l{display:flex;align-items:flex-start;gap:5px;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;line-height:1.35}
+.cm-stat-l svg{width:12px;height:12px;flex:none;stroke:var(--accent);margin-top:1px}
+.cm-box .cm-stat{border-top-color:rgba(190,110,84,.5)}
+@media(hover:hover){.cm-c{transition:transform .18s ease,box-shadow .18s ease}.cm-c:hover{transform:translateY(-2px);box-shadow:0 12px 22px -14px rgba(42,33,24,.4)}}
+.cm-scroll{scrollbar-width:thin;scrollbar-color:rgba(190,110,84,.45) transparent}
+.cm-scroll::-webkit-scrollbar{width:8px}
+.cm-scroll::-webkit-scrollbar-thumb{background:rgba(190,110,84,.4);border-radius:99px;border:2px solid var(--bg-card)}
+.cm-scroll::-webkit-scrollbar-track{background:transparent}
+.cm-card::after{content:"";position:absolute;top:0;left:14px;right:14px;height:22px;background:linear-gradient(to bottom,var(--bg-card) 25%,transparent);border-radius:20px 20px 0 0;pointer-events:none;z-index:2}
+.cm-actions{position:sticky;bottom:0;z-index:2;background:linear-gradient(to top,var(--bg-card) 74%,transparent);padding:16px 0 4px;margin-top:2px}
+@keyframes cmIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.cert-modal.open .cm-in{animation:cmIn .45s cubic-bezier(.2,.85,.25,1) both}
+@media(prefers-reduced-motion:reduce){.cert-modal.open .cm-in{animation:none}}
+@media(max-width:560px){.cm-stats{grid-template-columns:1fr 1fr;gap:12px}}
 
 .two{display:grid;grid-template-columns:1fr 1fr;gap:26px}
 /* colonne droite des formats : Certifications + Espace documents empilés, calés sur la hauteur de "Tous les formats" */
