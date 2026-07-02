@@ -296,7 +296,8 @@ body.menu-open{overflow:hidden}
 .cm-scroll::-webkit-scrollbar-thumb{background:rgba(190,110,84,.4);border-radius:99px;border:2px solid var(--bg-card)}
 .cm-scroll::-webkit-scrollbar-track{background:transparent}
 .cm-card::after{content:"";position:absolute;top:0;left:14px;right:14px;height:22px;background:linear-gradient(to bottom,var(--bg-card) 25%,transparent);border-radius:20px 20px 0 0;pointer-events:none;z-index:2}
-.cm-actions{position:sticky;bottom:0;z-index:2;background:linear-gradient(to top,var(--bg-card) 74%,transparent);padding:16px 0 4px;margin-top:2px}
+.cm-actions{position:sticky;bottom:0;z-index:2;background:none;padding:16px 0 4px;margin-top:2px}
+.cm-actions .btn-ghost{background:var(--bg-card)}
 @keyframes cmIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 .cert-modal.open .cm-in{animation:cmIn .45s cubic-bezier(.2,.85,.25,1) both}
 @media(prefers-reduced-motion:reduce){.cert-modal.open .cm-in{animation:none}}
