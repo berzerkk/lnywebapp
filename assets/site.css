@@ -472,7 +472,12 @@ footer a:hover{color:#fff8ef}
 .steps-flat .step:nth-child(1),.steps-flat .step:nth-child(2){border-top:none;padding-top:0}
 .steps-flat .step h3 .n{color:var(--accent);font-style:italic;font-family:var(--ff-head)}
 .step p{color:var(--ink-soft);font-size:15px}
-@media(max-width:880px){.steps{grid-template-columns:1fr 1fr;gap:40px 24px}}
+@media(max-width:880px){
+  .steps{grid-template-columns:1fr 1fr;gap:32px 24px}
+  /* en réduit, le numéro rentre dans la case (sinon il chevauche le texte du step au-dessus) */
+  .step{padding-top:14px}
+  .step::before{position:static;display:block;transform:none;line-height:1;font-size:28px;margin-bottom:6px}
+}
 @media(max-width:520px){.steps{grid-template-columns:1fr}}
 
 /* prose (légal, articles) */
