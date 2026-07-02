@@ -109,8 +109,8 @@
       <div class="panel">
         <h3>Certifications</h3>
         <p class="sub">Validez officiellement votre niveau.</p>
-        <div class="chips">
-          <span class="chip solid">TOEIC</span><span class="chip solid">TOEFL</span><span class="chip solid">Linguaskill</span><span class="chip solid">BRIGHT</span><span class="chip solid">Pipplet</span><span class="chip solid">DCL</span><span class="chip solid">Duolingo English Test</span><span class="chip solid">Cambridge A2–C2</span>
+        <div class="chips" id="cert-chips">
+          <span class="chip solid c-link" data-cert="TOEIC">TOEIC</span><span class="chip solid c-link" data-cert="TOEFL">TOEFL</span><span class="chip solid c-link" data-cert="Linguaskill">Linguaskill</span><span class="chip solid c-link" data-cert="IELTS">IELTS</span><span class="chip solid c-link" data-cert="Bright Language">Bright Language</span><span class="chip solid">DCL</span><span class="chip solid c-link" data-cert="Duolingo English Test">Duolingo English Test</span>
         </div>
       </div>
       <div class="panel fmt-docs">
@@ -505,5 +505,6 @@ window.LS_CONFIG = {
   document.getElementById('tc-back').onclick=function(){ fade(stepQuiz, stepLang); };
 })();
 </script>
+<script src="assets/certs.js?v=BUILD"></script>
 </body>
 </html>
