@@ -34,7 +34,8 @@
     write:'<path d="M4.5 19.5l.9-3.6L15.8 5.5l2.7 2.7L8.1 18.6l-3.6.9z"/><path d="M13.9 7.4l2.7 2.7"/>',
     chat:'<path d="M16 4H4v8.5h2.5V16l3.5-3.5H16V4z"/><path d="M19 8.5h1v8.5h-2v2.5l-3-2.5h-3.5"/>',
     grid:'<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
-    kase:'<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5"/><path d="M3.5 12.5h17"/>'
+    kase:'<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5"/><path d="M3.5 12.5h17"/>',
+    grad:'<path d="M12 4L2.5 8.5 12 13l9.5-4.5L12 4z"/><path d="M6.5 10.8V15c0 1.4 2.5 2.8 5.5 2.8s5.5-1.4 5.5-2.8v-4.2"/>'
   };
   function svg(p){return '<svg viewBox="0 0 24 24" aria-hidden="true">'+p+'</svg>';}
   function icFor(cd){
@@ -87,6 +88,11 @@
             {title:"Speaking",sub:"Expression orale",desc:"Lire un texte à voix haute, décrire une image, donner son opinion."},
             {title:"Writing",sub:"Expression écrite",desc:"Décrire une image, répondre à un e-mail formel, rédiger un essai argumenté."}
           ]}
+        ]},
+        {type:"cards",title:"Les autres versions",items:[
+          {title:"TOEIC Listening & Reading",ic:"listen",sub:"Compréhension orale et écrite · score sur 990",meta:"2 h",desc:"200 questions : 45 min d'écoute (100 questions) et 75 min de lecture (100 questions)."},
+          {title:"TOEIC Speaking & Writing",ic:"speak",sub:"Expression orale et écrite · score sur 200",meta:"1 h 20",desc:"20 min d'expression orale (11 questions) et 1 h d'expression écrite (8 questions)."},
+          {title:"TOEIC Bridge",ic:"grad",sub:"Compréhension orale et écrite — débutants · CECRL A1–B1 · score sur 100",meta:"1 h",desc:"25 min (50 questions) et 35 min (50 questions)."}
         ]}
       ]
     },
