@@ -332,49 +332,7 @@ window.LS_CONFIG = {
 <script src="assets/partials.js?v=BUILD"></script>
 <script src="morph.js"></script>
 <script src="ls-engine.js"></script>
-<script>
-/* Bandeau clients : 1er logo (Suez) centré à l'apparition, entrée animée au scroll, boucle infinie */
-(function(){
-  var marquee=document.getElementById('clients-marquee');
-  var track=document.getElementById('marquee-track');
-  if(!marquee||!track) return;
-  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(reduce){ marquee.classList.add('in'); return; }
-
-  var DURATION=80; // secondes pour traverser un jeu (vitesse)
-  // 3 copies au total (1 + 2 clones) => du contenu de chaque côté du centre
-  var originals=Array.prototype.slice.call(track.children);
-  for(var c=0;c<2;c++){
-    originals.forEach(function(n){ var cl=n.cloneNode(true); cl.setAttribute('aria-hidden','true'); track.appendChild(cl); });
-  }
-
-  function layout(){
-    var W=track.scrollWidth/3;                          // largeur d'un jeu
-    var first=track.children[0];                        // Suez (jeu 1)
-    var suezCenter=first.offsetLeft+first.offsetWidth/2;
-    var C=marquee.clientWidth/2;
-    var startX=Math.round(C-(W+suezCenter));            // centre le Suez du jeu 2
-    var endX=Math.round(startX-W);
-    var st=document.getElementById('clients-kf');
-    if(!st){ st=document.createElement('style'); st.id='clients-kf'; document.head.appendChild(st); }
-    st.textContent='@keyframes clients-run{from{transform:translateX('+startX+'px)}to{transform:translateX('+endX+'px)}}';
-    var running=marquee.classList.contains('in');
-    track.style.transform='translateX('+startX+'px)';
-    track.style.animation='clients-run '+DURATION+'s linear infinite';
-    track.style.animationPlayState=running?'running':'paused';
-  }
-
-  layout();
-  window.addEventListener('load',layout);
-  var rt; window.addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(layout,150); });
-
-  function appear(){ marquee.classList.add('in'); track.style.animationPlayState='running'; }
-  if('IntersectionObserver' in window){
-    var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ appear(); io.unobserve(marquee); } }); },{threshold:0.3});
-    io.observe(marquee);
-  } else { appear(); }
-})();
-</script>
+<script src="assets/clients.js?v=BUILD"></script>
 <script>
 /* Tableau : léger basculement 3D au survol de la souris */
 (function(){
