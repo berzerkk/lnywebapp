@@ -36,7 +36,6 @@
     grid:'<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
     kase:'<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5"/><path d="M3.5 12.5h17"/>'
   };
-  var STIC=['<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/>','<path d="M12 21c-4-3.6-6.5-6.9-6.5-10a6.5 6.5 0 0 1 13 0c0 3.1-2.5 6.4-6.5 10z"/><circle cx="12" cy="10.8" r="2.2"/>','<path d="M5 20v-5M12 20V9M19 20V4.5"/>','<rect x="3.5" y="5.5" width="17" height="15" rx="2"/><path d="M8 3.5v4M16 3.5v4M3.5 10.5h17"/>'];
   function svg(p){return '<svg viewBox="0 0 24 24" aria-hidden="true">'+p+'</svg>';}
   function icFor(cd){
     if(cd.ic) return cd.ic;
@@ -61,7 +60,7 @@
   }
   function block(b){
     if(b.type==='box') return '<div class="cm-box">'+(b.head?'<div class="cm-boxhead">'+esc(b.head)+'</div>':'')+(b.blocks||[]).map(block).join('')+'</div>';
-    if(b.type==='stats') return '<div class="cm-stats">'+b.items.map(function(s,i){return '<div class="cm-stat'+(s.nw?' nw':'')+'"><div class="cm-stat-n">'+esc(s.n)+'</div><div class="cm-stat-l">'+svg(STIC[i]||STIC[0])+'<span>'+esc(s.l)+'</span></div></div>';}).join('')+'</div>';
+    if(b.type==='stats') return '<div class="cm-stats">'+b.items.map(function(s){return '<div class="cm-stat'+(s.nw?' nw':'')+'"><div class="cm-stat-n">'+esc(s.n)+'</div><div class="cm-stat-l">'+esc(s.l)+'</div></div>';}).join('')+'</div>';
     if(b.type==='points') return '<ul class="cm-list">'+b.items.map(function(p){return '<li>'+esc(p)+'</li>';}).join('')+'</ul>';
     if(b.type==='callout') return '<div class="cm-callout'+(b.cpf?' cpf':'')+'">'+esc(b.text)+'</div>';
     if(b.type==='badges') return '<div class="cm-badrow">'+b.items.map(function(x){return '<div class="cm-badbox">'+esc(x)+'</div>';}).join('')+'</div>';

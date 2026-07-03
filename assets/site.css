@@ -283,13 +283,9 @@ body.menu-open{overflow:hidden}
 .cm-ctop .cm-ctitle{flex:1}
 .cm-cic{flex:none;width:30px;height:30px;border-radius:50%;background:rgba(190,110,84,.13);color:var(--accent);display:grid;place-items:center}
 .cm-cic svg{width:15px;height:15px}
-.cm-cic svg,.cm-stat-l svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.cm-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.cm-stat{background:transparent;border:none;border-top:2px solid var(--accent);border-radius:0;padding:9px 0 0}
-.cm-stat-n{font-family:var(--ff-head);font-size:17px;font-weight:500;line-height:1.25;color:var(--ink)}
-.cm-stat-l{display:flex;align-items:flex-start;gap:5px;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;line-height:1.35}
-.cm-stat-l svg{width:12px;height:12px;flex:none;stroke:var(--accent);margin-top:1px}
-.cm-box .cm-stat{border-top-color:rgba(190,110,84,.5)}
+.cm-cic svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+/* stats : ancien modèle en carrés (fond + bordure + radius, typo simple) — grille conservée pour le 2x2 mobile */
+.cm-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 @media(hover:hover){.cm-c{transition:transform .18s ease,box-shadow .18s ease}.cm-c:hover{transform:translateY(-2px);box-shadow:0 12px 22px -14px rgba(42,33,24,.4)}}
 .cm-scroll{scrollbar-width:thin;scrollbar-color:rgba(190,110,84,.45) transparent}
 .cm-scroll::-webkit-scrollbar{width:8px}
