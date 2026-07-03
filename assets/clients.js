@@ -66,17 +66,17 @@
     if(!rafOn){ rafOn=true; last=performance.now(); requestAnimationFrame(loop); }
   }
 
-  /* drag + lancer */
+  /* drag + lancer — sur la piste des logos uniquement (pas le padding du bandeau) */
   var lastPX=0,lastPT=0,samples=[];
-  marquee.addEventListener('pointerdown',function(e){
+  track.addEventListener('pointerdown',function(e){
     if(e.button!==undefined&&e.button!==0&&e.pointerType==='mouse') return;
     takeOver(); mode='drag';
     lastPX=e.clientX; lastPT=performance.now(); samples=[];
     marquee.classList.add('dragging');
-    try{ marquee.setPointerCapture(e.pointerId); }catch(_){}
+    try{ track.setPointerCapture(e.pointerId); }catch(_){}
     e.preventDefault();
   });
-  marquee.addEventListener('pointermove',function(e){
+  track.addEventListener('pointermove',function(e){
     if(mode!=='drag') return;
     var now=performance.now(), dx=e.clientX-lastPX;
     x+=dx; wrapX(); apply();
@@ -95,8 +95,8 @@
     if(Math.abs(fv-autoV)<40){ v=autoV; mode='auto'; }
     else { v=fv; mode='momentum'; }
   }
-  marquee.addEventListener('pointerup',release);
-  marquee.addEventListener('pointercancel',release);
+  track.addEventListener('pointerup',release);
+  track.addEventListener('pointercancel',release);
 
   layout();
   window.addEventListener('load',layout);

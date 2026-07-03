@@ -168,10 +168,9 @@ body.menu-open{overflow:hidden}
 .marquee.in{opacity:1;transform:none}
 .marquee-track{display:flex;align-items:center;width:max-content}
 /* largeur = largeur naturelle (via --w) + marge identique => espacement constant */
-/* bandeau attrapable : la bande suit le curseur puis glisse avec inertie (clients.js) */
-.marquee{cursor:grab;touch-action:pan-y;user-select:none;-webkit-user-select:none}
-.marquee.dragging{cursor:grabbing}
-.marquee.dragging .client-logo{cursor:grabbing}
+/* bandeau attrapable : la PISTE des logos suit le curseur puis glisse avec inertie (clients.js) */
+.marquee-track{cursor:grab;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.marquee.dragging .marquee-track,.marquee.dragging .client-logo{cursor:grabbing}
 .client-logo{flex:none;height:60px;width:var(--w,120px);margin:0 28px;background-color:#b6ab98;-webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat;transition:transform .3s cubic-bezier(.2,.7,.2,1),background-color .3s;cursor:grab}
 .client-logo:hover{transform:scale(1.18);background-color:var(--accent)}
 /* Coloris : globe en nuances de gris visibles (au-dessus) + texte taupe (en-dessous) ; tout passe orange au survol */
