@@ -985,11 +985,12 @@ function contratBlocks(d) {
     { li: "Le Donneur d'ordre s'assure que le sous-traitant remplit bien les obligations mentionnées à l'article L. 6323-9-1 du Code du travail." },
     { li: "Le Donneur d'ordre se porte fort du respect de la réglementation applicable et de la qualité de l'enseignement du Sous-traitant, qui doit être conforme au référentiel national qualité QUALIOPI." },
     { art: 'ARTICLE 6 – MODALITÉS FINANCIÈRES' },
-    { p: `En contrepartie de ses prestations, le Sous-traitant percevra une rémunération de ${d.tauxHoraire || '…'} HT par heure de cours synchrone effectuée,` },
-    { p: `soit un total de ${d.montantTotal || '…'} HT pour l'intégralité de la mission de sous-traitance définie aux articles 1 et 2${d.heuresSync ? ' (soit ' + d.heuresSync + ' synchrones)' : ''}.` },
-    { p: "Le règlement sera effectué dans un délai de 5 jours maximum, à réception d'une facture accompagnée des feuilles de présence des heures synchrones effectuées dans le mois, dûment remplies et signées (par le Sous-traitant et le stagiaire), au plus tard le 5 de chaque mois." },
-    { p: "Le règlement de la facture finale est conditionné par l'envoi de l'ensemble des documents visés à l'article 4, afférents à la mission confiée au Sous-traitant, au Donneur d'ordre dûment remplis et signés par le formateur et le stagiaire, dans le respect des procédures QUALIOPI : les feuilles de présence (visio/téléphone/Face to Face), l'Interactive Worksheet, le questionnaire et test mi-parcours de formation, le questionnaire et test de fin de formation, l'attestation de fin de formation, le questionnaire du formateur, ainsi que tout autre document obligatoire dans le cadre de la certification QUALIOPI et dont la liste lui serait communiquée au cours de la formation." },
-    { p: "Le Sous-traitant remettra à l'association LANGUAGES & SUCCESS - L&S un relevé d'identité bancaire (RIB), afin de faciliter les règlements du prix de ses prestations." },
+    // les AJOUTS du nouveau modèle sont en gras (segments b:1) pour être repérés rapidement
+    { rp: [{ t: `En contrepartie de ses prestations, le Sous-traitant percevra une rémunération de ${d.tauxHoraire || '…'} HT par heure de cours ` }, { t: 'synchrone', b: 1 }, { t: ' effectuée,' }] },
+    { rp: [{ t: `soit un total de ${d.montantTotal || '…'} HT pour l'intégralité de la ` }, { t: 'mission de sous-traitance définie aux articles 1 et 2', b: 1 }].concat(d.heuresSync ? [{ t: ' ' }, { t: `(soit ${d.heuresSync} synchrones)`, b: 1 }] : []).concat([{ t: '.' }]) },
+    { rp: [{ t: "Le règlement sera effectué dans un délai de 5 jours maximum, à réception d'une facture accompagnée des feuilles de présence " }, { t: 'des heures synchrones effectuées dans le mois', b: 1 }, { t: ', dûment remplies et signées (par le Sous-traitant et le stagiaire)' }, { t: ', au plus tard le 5 de chaque mois', b: 1 }, { t: '.' }] },
+    { rp: [{ t: "Le règlement de la facture finale est conditionné par l'envoi de l'ensemble " }, { t: "des documents visés à l'article 4, afférents à la mission confiée au Sous-traitant, au Donneur d'ordre", b: 1 }, { t: ' dûment remplis et signés ' }, { t: "par le formateur et le stagiaire, dans le respect des procédures QUALIOPI : les feuilles de présence (visio/téléphone/Face to Face), l'Interactive Worksheet, le questionnaire et test mi-parcours de formation, le questionnaire et test de fin de formation, l'attestation de fin de formation, le questionnaire du formateur, ainsi que tout autre document obligatoire dans le cadre de la certification QUALIOPI et dont la liste lui serait communiquée au cours de la formation", b: 1 }, { t: '.' }] },
+    { rp: [{ t: 'Le Sous-traitant remettra ' }, { t: "à l'association LANGUAGES & SUCCESS - L&S", b: 1 }, { t: " un relevé d'identité bancaire (RIB), afin de faciliter les règlements " }, { t: 'du prix de ses prestations', b: 1 }, { t: '.' }] },
     { art: 'ARTICLE 7 – OBLIGATION DE LOYAUTÉ ET DE NON-CAPTATION DE CLIENTÈLE' },
     { p: "Les parties s'engagent à toujours se comporter l'une envers l'autre comme des partenaires loyaux et de bonne foi et notamment à s'informer mutuellement de toute difficulté qu'elles pourraient rencontrer dans le cadre de l'exécution du présent contrat." },
     { p: "L'Association LANGUAGES & SUCCESS - L&S s'engage à respecter le caractère indépendant de la mission effectuée par le Sous-traitant, et à ce titre, à ne pas entraver les cours que le Sous-traitant effectuerait en dehors de ceux dispensés pour l'Association LANGUAGES & SUCCESS - L&S." },
@@ -1019,6 +1020,7 @@ function buildContratDocx(d, user) {
     else if (b.art) kids.push(dxPara(b.art, { bold: true, color: DARKC, size: 23, before: 200, after: 80 }));
     else if (b.li) kids.push(dxPara('• ' + b.li, { size: 18, after: 50 }));
     else if (b.li2) kids.push(dxPara('        –  ' + b.li2, { size: 18, after: 40 }));
+    else if (b.rp) kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: 0, after: 90 }, children: b.rp.map(s => new TextRun({ text: s.t, bold: !!s.b, color: INKC, size: 19 })) }));
     else kids.push(dxPara(b.p, { bold: !!b.bold, size: 19, before: b.before ? 160 : 0, after: 90 }));
   });
   const hf = docxHeaderFooter(user);
@@ -1036,6 +1038,14 @@ function buildContratPdf(d, user) {
       else if (b.art) p(b.art, { bold: true, color: '#a8593c', size: 11, after: 0.3 });
       else if (b.li) p('•  ' + b.li, { size: 9, after: 0.2 });
       else if (b.li2) p('        –  ' + b.li2, { size: 9, after: 0.18 });
+      else if (b.rp) {
+        b.rp.forEach((s, i) => {
+          doc.font(s.b ? 'Helvetica-Bold' : 'Helvetica').fontSize(9.2).fillColor('#2a241d');
+          if (i === 0) doc.text(s.t, left, doc.y, { width: totalW, continued: b.rp.length > 1 });
+          else doc.text(s.t, { width: totalW, continued: i < b.rp.length - 1 });
+        });
+        doc.moveDown(0.45);
+      }
       else p(b.p, { bold: !!b.bold, size: 9.2, after: 0.45 });
     });
     pdfHeaderFooter(doc, user); doc.end();
