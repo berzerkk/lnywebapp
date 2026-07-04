@@ -1040,24 +1040,28 @@
   function openContratModal() {
     if (!selected || !CUR_GROUP || ME.role !== 'admin') return;
     var fc = clientFiche(), pf = profFiche();
-    var pre = { stnom: fullName(CUR_GROUP.prof), stNaissance: pf.dateNaissance || '', stNationalite: pf.nationalite || '', stAdresse: pf.adresse || '', stSiret: pf.siret || '', stNda: pf.nda || '', intitule: fc.intitule || '', langue: fc.langue || pf.langue || '', stagiaire: fullName(CUR_GROUP.eleve), duree: fc.heuresDetail || fc.heuresTotal || '', lieu: lieuLabel(fc) || 'en distanciel (Visioconférence et/ou téléphone)', dateDebut: fc.dateDebut || '', dateFin: fc.dateFin || '', lieuFait: 'Nice', dateFait: new Date().toLocaleDateString('fr-FR') };
-    var intro = '<p class="ds-empty" style="margin:0 0 14px">L\'introduction et l\'article 1 sont préremplis depuis les fiches. Renseignez le taux horaire et le montant total (article 5).</p>' +
+    var progPre = (fc.heuresTotal || '') + (fc.heuresDetail ? (fc.heuresTotal ? ' : ' : '') + fc.heuresDetail : '') + (fc.certificationText ? ' et la ' + fc.certificationText : '');
+    var missionPre = "l'animation des seules …h00 de formation synchrones, selon la ou les modalités précisées ci-dessus (présentiel et/ou distanciel). Les autres composantes du programme global demeurent mises en œuvre par le Donneur d'ordre dans les conditions de l'article 2.";
+    var pre = { stnom: fullName(CUR_GROUP.prof), stNaissance: pf.dateNaissance || '', stNationalite: pf.nationalite || '', stAdresse: pf.adresse || '', stSiret: pf.siret || '', stNda: pf.nda || '', intitule: fc.intitule || '', langue: fc.langue || pf.langue || '', stagiaire: fullName(CUR_GROUP.eleve), programme: progPre, mission: missionPre, lieu: lieuLabel(fc) || 'en distanciel (Visioconférence)', dateDebut: fc.dateDebut || '', dateFin: fc.dateFin || '', lieuFait: 'Nice', dateFait: new Date().toLocaleDateString('fr-FR') };
+    var intro = '<p class="ds-empty" style="margin:0 0 14px">L\'introduction et l\'article 1 sont préremplis depuis les fiches. Précisez le programme global et la mission (article 1 — seules les heures synchrones sont sous-traitées), puis les modalités financières (article 6).</p>' +
       '<h4 class="gen-h">Sous-traitant (formateur)</h4><div class="gf-grid">' +
       gi('ct-stnom', 'Nom du sous-traitant', pre.stnom) + gi('ct-naissance', 'Né(e) le', pre.stNaissance) +
       gi('ct-nationalite', 'Nationalité', pre.stNationalite) + gi('ct-adresse', 'Adresse', pre.stAdresse) +
       gi('ct-siret', 'SIRET', pre.stSiret) + gi('ct-nda', 'NDA', pre.stNda) + '</div>';
     var art1 = '<h4 class="gen-h">Article 1 — objet</h4><div class="gf-grid">' +
       gi('ct-intitule', 'Formation', pre.intitule) + gi('ct-langue', 'Langue', pre.langue) +
-      gi('ct-stagiaire', 'Stagiaire', pre.stagiaire) + gi('ct-duree', 'Durée', pre.duree) +
-      gi('ct-debut', 'Date de début', pre.dateDebut) + gi('ct-fin', 'Date de fin', pre.dateFin) +
-      gi('ct-lieu', 'Lieu de la formation', pre.lieu) + '<span></span></div>';
-    var art5 = '<h4 class="gen-h">Article 5 — modalités financières</h4><div class="gf-grid">' +
-      gi('ct-taux', 'Taux horaire (ex : 25,00€)', '') + gi('ct-montant', 'Montant total perçu (ex : 1 000,00€)', '') + '</div>' +
+      gi('ct-stagiaire', 'Stagiaire', pre.stagiaire) + gi('ct-lieu', 'Lieu de la formation', pre.lieu) +
+      gi('ct-debut', 'Date de début', pre.dateDebut) + gi('ct-fin', 'Date de fin', pre.dateFin) + '</div>' +
+      '<div class="gf-grid">' + ga('ct-programme', 'Programme global de l\'action (pour information — ex : 60H00 dont 40h00 synchrones en distanciel, 20H00 Elearning et la certification TOEIC)', pre.programme) +
+      ga('ct-mission', 'Mission confiée au Sous-traitant (remplacez …h00 par le volume synchrone)', pre.mission) + '</div>';
+    var art6 = '<h4 class="gen-h">Article 6 — modalités financières</h4><div class="gf-grid">' +
+      gi('ct-taux', 'Taux horaire HT par heure synchrone (ex : 25,00 €)', '') + gi('ct-montant', 'Montant total HT (ex : 1 000,00 €)', '') + '</div>' +
+      '<div class="gf-grid">' + gi('ct-heuressync', 'Volume d\'heures synchrones (ex : 40h00)', '') + '<span></span></div>' +
       '<div class="gf-grid">' + gi('ct-lieufait', 'Fait à', pre.lieuFait) + gi('ct-datefait', 'Le', pre.dateFait) + '</div>';
     var footer = '<label class="gen-chan">Format <select id="ct-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label><button class="btn btn-primary ct-gen" type="button" style="padding:11px 22px">Générer le document →</button>';
-    var m = buildFsModal('ct-modal', 'Contrat de sous-traitance', intro + art1 + art5, footer);
+    var m = buildFsModal('ct-modal', 'Contrat de sous-traitance', intro + art1 + art6, footer);
     m.querySelector('.ct-gen').onclick = function () {
-      var fields = { stnom: val('ct-stnom'), stNaissance: val('ct-naissance'), stNationalite: val('ct-nationalite'), stAdresse: val('ct-adresse'), stSiret: val('ct-siret'), stNda: val('ct-nda'), intitule: val('ct-intitule'), langue: val('ct-langue'), stagiaire: val('ct-stagiaire'), duree: val('ct-duree'), lieu: val('ct-lieu'), dateDebut: val('ct-debut'), dateFin: val('ct-fin'), tauxHoraire: val('ct-taux'), montantTotal: val('ct-montant'), lieuFait: val('ct-lieufait'), dateFait: val('ct-datefait') };
+      var fields = { stnom: val('ct-stnom'), stNaissance: val('ct-naissance'), stNationalite: val('ct-nationalite'), stAdresse: val('ct-adresse'), stSiret: val('ct-siret'), stNda: val('ct-nda'), intitule: val('ct-intitule'), langue: val('ct-langue'), stagiaire: val('ct-stagiaire'), programme: val('ct-programme'), mission: val('ct-mission'), lieu: val('ct-lieu'), dateDebut: val('ct-debut'), dateFin: val('ct-fin'), tauxHoraire: val('ct-taux'), montantTotal: val('ct-montant'), heuresSync: val('ct-heuressync'), lieuFait: val('ct-lieufait'), dateFait: val('ct-datefait') };
       downloadDoc(m, '.ct-gen', '/api/contrat/generate', { group: selected, fields: fields, format: document.getElementById('ct-format').value }, '7 - Contrat de sous-traitance - ' + (fields.stnom || 'formateur'));
     };
   }
