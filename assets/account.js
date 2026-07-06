@@ -46,8 +46,8 @@
     var mount = document.getElementById('ls-account');
     if (!mount) return;
     if (!ME) {
-      mount.innerHTML = '<a class="acct-link" href="espace-documents.html">Se connecter</a>' +
-        '<a class="acct-link acct-cta" href="espace-documents.html#creer">Créer un compte</a>';
+      // déconnecté : un seul bouton « Espace documents » (pilule encre, comme « Faire le test de niveau »)
+      mount.innerHTML = '<a class="header-cta acct-espace" href="espace-documents.html">Espace documents</a>';
       syncMobileMenu();
       return;
     }

@@ -12,7 +12,8 @@
     { href: 'financement.html',    label: 'Financement' },
     { href: 'entreprises.html',    label: 'Entreprises' },
     { href: 'a-propos.html',       label: 'À propos' },
-    { href: 'blog.html',           label: 'Blog' }
+    { href: 'blog.html',           label: 'Blog' },
+    { href: 'contact.html',        label: 'Contact' }
   ];
 
   function logo() {
@@ -47,7 +48,6 @@
       '<div class="nav-links" id="nav-links">' + navLinksHTML + '</div>' +
       '<div class="header-actions">' +
         '<a href="test-de-niveau.html" class="header-cta header-cta-accent">Faire le test</a>' +
-        '<a href="contact.html" class="header-cta">Nous contacter</a>' +
         langSelHTML +
         '<div id="ls-account" class="ls-account"></div>' +
       '</div>' +
@@ -65,7 +65,6 @@
       '<div class="mm-lang"><span class="mm-title">Langue</span><div class="mm-lang-grid">' + langOptsHTML + '</div></div>' +
       '<div class="mm-cta">' +
         '<a href="test-de-niveau.html" class="header-cta header-cta-accent">Faire le test</a>' +
-        '<a href="contact.html" class="header-cta">Nous contacter</a>' +
       '</div>' +
     '</aside>';
 
@@ -148,7 +147,7 @@
   if (menu) menu.addEventListener('click', function (e) { if (e.target.tagName === 'A') setMenu(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
   // si on repasse en desktop (fenêtre agrandie), on ferme le menu mobile (sinon le flou reste)
-  window.addEventListener('resize', function () { if (window.innerWidth > 880) setMenu(false); });
+  window.addEventListener('resize', function () { if (window.innerWidth > 1080) setMenu(false); });
 
   // sélecteur de langue : ouverture/fermeture du menu + choix (l'i18n applique)
   var langSel = document.getElementById('lang-sel');
