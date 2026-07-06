@@ -26,6 +26,21 @@
     return '<a href="' + n.href + '"' + active + '>' + n.label + '</a>';
   }).join('');
 
+  // sélecteur de langue du site (les libellés restent dans leur propre langue)
+  var LANGS = [['fr', 'Français'], ['en', 'English'], ['es', 'Español'], ['it', 'Italiano'], ['ru', 'Русский'], ['zh', '中文']];
+  var langOptsHTML = LANGS.map(function (l) {
+    return '<button type="button" role="option" data-lang="' + l[0] + '">' + l[1] + '</button>';
+  }).join('');
+  var langSelHTML =
+    '<div class="lang-sel" id="lang-sel">' +
+      '<button class="lang-btn" id="lang-btn" type="button" aria-haspopup="listbox" aria-label="Choisir la langue du site">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.6 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.6-4-9s1.4-6.6 4-9z"/></svg>' +
+        '<span class="lang-cur">FR</span>' +
+        '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>' +
+      '</button>' +
+      '<div class="lang-menu" id="lang-menu" role="listbox">' + langOptsHTML + '</div>' +
+    '</div>';
+
   var navHTML =
     '<nav class="site-header" id="site-header">' +
       logo() +
@@ -33,6 +48,7 @@
       '<div class="header-actions">' +
         '<a href="test-de-niveau.html" class="header-cta header-cta-accent">Faire le test</a>' +
         '<a href="contact.html" class="header-cta">Nous contacter</a>' +
+        langSelHTML +
         '<div id="ls-account" class="ls-account"></div>' +
       '</div>' +
       '<button class="nav-burger" id="nav-burger" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>' +
@@ -46,6 +62,7 @@
         '<a href="espace-documents.html#creer" class="header-cta">Créer un compte</a>' +
       '</div>' +
       '<nav class="mm-links">' + navLinksHTML + '</nav>' +
+      '<div class="mm-lang"><span class="mm-title">Langue</span><div class="mm-lang-grid">' + langOptsHTML + '</div></div>' +
       '<div class="mm-cta">' +
         '<a href="test-de-niveau.html" class="header-cta header-cta-accent">Faire le test</a>' +
         '<a href="contact.html" class="header-cta">Nous contacter</a>' +
@@ -100,7 +117,7 @@
           '<div class="row"><span>Association Loi 1901</span><span>·</span><span>SIRET 881 226 641 00028</span><span>·</span><span>RNA W061014363</span><span>·</span><span>APE 8559A</span><span>·</span><span>TVA FR31881226641</span></div>' +
           '<div class="row"><span>Déclaration d\'activité enregistrée sous le n° 93 060 886 106 auprès du Préfet de la région PACA. Cet enregistrement ne vaut pas agrément de l\'État.</span></div>' +
           '<div class="row"><a href="cgv.html">Conditions générales</a><a href="confidentialite.html">Politique de confidentialité</a><a href="reglement-interieur.html">Règlement intérieur</a><a href="mentions-legales.html">Mentions légales</a></div>' +
-          '<div class="row" style="color:#6f6253">© ' + new Date().getFullYear() + ' Languages &amp; Success. Tous droits réservés.</div>' +
+          '<div class="row" style="color:#6f6253"><span>© ' + new Date().getFullYear() + ' Languages &amp; Success.</span> <span>Tous droits réservés.</span></div>' +
         '</div>' +
       '</div>' +
     '</footer>';
@@ -132,6 +149,29 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
   // si on repasse en desktop (fenêtre agrandie), on ferme le menu mobile (sinon le flou reste)
   window.addEventListener('resize', function () { if (window.innerWidth > 880) setMenu(false); });
+
+  // sélecteur de langue : ouverture/fermeture du menu + choix (l'i18n applique)
+  var langSel = document.getElementById('lang-sel');
+  var langBtn = document.getElementById('lang-btn');
+  if (langBtn) langBtn.addEventListener('click', function (e) { e.stopPropagation(); langSel.classList.toggle('open'); });
+  document.addEventListener('click', function (e) {
+    if (langSel && !e.target.closest('#lang-sel')) langSel.classList.remove('open');
+    var opt = e.target.closest('[data-lang]');
+    if (!opt) return;
+    var L = opt.getAttribute('data-lang');
+    if (window.__lsI18N) window.__lsI18N.set(L);
+    else { try { localStorage.setItem('ls-lang', L); } catch (err) {} } // moteur pas encore chargé : appliqué à son boot
+    if (langSel) langSel.classList.remove('open');
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && langSel) langSel.classList.remove('open'); });
+
+  // moteur i18n (traduction du site selon la langue choisie) sur toutes les pages
+  if (!window.__lsI18nLoaded) {
+    window.__lsI18nLoaded = true;
+    var i18 = document.createElement('script');
+    i18.src = 'assets/i18n.js?v=' + Date.now(); // même stratégie anti-cache qu'account.js
+    document.body.appendChild(i18);
+  }
 
   // moteur de l'espace documents (compte + notifications) sur toutes les pages
   if (!window.__lsAccountLoaded) {

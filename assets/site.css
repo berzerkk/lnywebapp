@@ -54,6 +54,24 @@ a{color:inherit;text-decoration:none}
 .header-cta-accent:hover{background:#a85c44;border-color:#a85c44;color:#fff}
 .header-cta-accent::after{content:'';position:absolute;top:-60%;left:-65%;width:42%;height:220%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);transform:skewX(-20deg);opacity:0;pointer-events:none}
 .header-cta-accent:hover::after{animation:btn-shimmer 1.15s ease-in-out infinite}
+/* sélecteur de langue du site (pastille + menu déroulant) */
+.lang-sel{position:relative;display:flex;align-items:center}
+.lang-btn{display:inline-flex;align-items:center;gap:7px;background:none;border:1.5px solid var(--line);border-radius:999px;padding:9px 13px;font-family:var(--ff-body);font-weight:600;font-size:12px;letter-spacing:.06em;color:var(--ink);cursor:pointer;transition:border-color .15s}
+.lang-btn:hover{border-color:var(--ink)}
+.lang-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.lang-btn .chev{width:10px;height:10px;stroke-width:2;transition:transform .18s}
+.lang-sel.open .chev{transform:rotate(180deg)}
+.lang-menu{position:absolute;top:calc(100% + 10px);right:0;min-width:170px;background:var(--bg-card);border:1px solid var(--line);border-radius:14px;box-shadow:0 22px 50px -20px rgba(42,33,24,.45);padding:7px;opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .18s,transform .18s,visibility 0s linear .18s;z-index:300}
+.lang-sel.open .lang-menu{opacity:1;visibility:visible;transform:none;transition:opacity .18s,transform .18s}
+.lang-menu button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:9px;padding:9px 12px;font-family:var(--ff-body);font-size:14px;color:var(--ink);cursor:pointer;transition:background .12s}
+.lang-menu button:hover{background:rgba(190,110,84,.1)}
+.lang-menu button.active{color:var(--accent);font-weight:600}
+.lang-menu button.active::after{content:'✓';font-size:12px}
+/* drawer mobile : choix de langue en grille */
+.mm-lang{padding-top:20px;border-top:1px solid var(--line)}
+.mm-lang-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.mm-lang-grid button{background:none;border:1.5px solid var(--line);border-radius:999px;padding:8px 4px;font-family:var(--ff-body);font-size:13px;color:var(--ink);cursor:pointer;transition:border-color .15s,color .15s}
+.mm-lang-grid button.active{border-color:var(--accent);color:var(--accent);font-weight:600}
 .nav-burger{display:none;background:none;border:0;cursor:pointer;flex-direction:column;gap:5px;padding:6px}
 .nav-burger span{display:block;width:24px;height:2px;background:var(--ink);transition:.2s}
 /* menu mobile : backdrop flou + drawer complet */
@@ -72,6 +90,7 @@ a{color:inherit;text-decoration:none}
 body.menu-open{overflow:hidden}
 @media(max-width:880px){
   .nav-links{display:none}
+  .lang-sel{display:none} /* en mobile la langue se choisit dans le drawer */
   .site-header .header-actions .header-cta{display:none}
   .site-header .header-actions{margin-left:auto}
   .nav-burger{display:flex;margin-left:16px}
