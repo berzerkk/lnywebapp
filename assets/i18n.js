@@ -29,7 +29,12 @@
     var src = node.__lsSrc != null ? node.__lsSrc : node.nodeValue;
     if (cur === 'fr') { if (node.__lsSrc != null) node.nodeValue = node.__lsSrc; return; }
     var t = D[cur] && D[cur][norm(src)];
-    if (t != null) { if (node.__lsSrc == null) node.__lsSrc = node.nodeValue; node.nodeValue = t; }
+    if (t != null) {
+      if (node.__lsSrc == null) node.__lsSrc = node.nodeValue;
+      // on préserve les espaces de bord du nœud d'origine (ex. « <b>Audit</b>␣et suite… » :
+      // sans ça l'espace après la balise saute et les mots se collent)
+      node.nodeValue = src.match(/^\s*/)[0] + t + src.match(/\s*$/)[0];
+    }
     else if (node.__lsSrc != null) { node.nodeValue = node.__lsSrc; }
   }
   function trAttrs(el) {
