@@ -246,7 +246,8 @@
   function testLangFor(name){ return name==='Français (FLE)' ? 'Français' : name; }
   function open(name){ var disp=LABELS[name]||name.toLowerCase(); wordEl.textContent=name; langEl.textContent=disp; if(testEl) testEl.href='test-de-niveau.html?lang='+encodeURIComponent(testLangFor(name)); modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; }
   function close(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
-  document.querySelectorAll('#langues .lang-item').forEach(function(a){ a.addEventListener('click',function(e){ e.preventDefault(); open(a.textContent.trim()); }); });
+  /* on capture le nom FRANÇAIS au chargement (avant toute traduction i18n) : le lien du test doit rester ?lang={nom FR} */
+  document.querySelectorAll('#langues .lang-item').forEach(function(a){ var fr=a.textContent.trim(); a.addEventListener('click',function(e){ e.preventDefault(); open(fr); }); });
   closeBtn.addEventListener('click',close);
   modal.addEventListener('click',function(e){ if(!e.target.closest('.lm-card')) close(); });
   document.addEventListener('keydown',function(e){ if(e.key==='Escape' && modal.classList.contains('open')) close(); });
