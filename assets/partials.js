@@ -39,7 +39,8 @@
         '<span class="lang-cur">FR</span>' +
         '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>' +
       '</button>' +
-      '<div class="lang-menu" id="lang-menu" role="listbox">' + langOptsHTML + '</div>' +
+      // data-i18n-skip : les noms de langues sont des auto-libellés (chacun dans sa langue), jamais traduits
+      '<div class="lang-menu" id="lang-menu" role="listbox" data-i18n-skip>' + langOptsHTML + '</div>' +
     '</div>';
 
   var navHTML =
@@ -62,7 +63,7 @@
         '<a href="espace-documents.html#creer" class="header-cta">Créer un compte</a>' +
       '</div>' +
       '<nav class="mm-links">' + navLinksHTML + '</nav>' +
-      '<div class="mm-lang"><span class="mm-title">Langue</span><div class="mm-lang-grid">' + langOptsHTML + '</div></div>' +
+      '<div class="mm-lang"><span class="mm-title">Langue</span><div class="mm-lang-grid" data-i18n-skip>' + langOptsHTML + '</div></div>' +
       '<div class="mm-cta">' +
         '<a href="test-de-niveau.html" class="header-cta header-cta-accent">Faire le test</a>' +
       '</div>' +
