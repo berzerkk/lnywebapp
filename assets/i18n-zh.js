@@ -146,7 +146,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "40 questions, sur trois textes en version Academic.": "40 道题，Academic 版含三篇文本。",
   "Un entretien oral avec un examinateur, en trois temps.": "与考官的口语面试，分三个环节。",
   "Deux rédactions, d'environ 150 et 250 mots.": "两篇写作，约 150 词和 250 词。",
-  "BL Anglais — Éligible CPF · RS 6663": "BL 英语 — 可用 CPF · RS 6663", "BL Français langue étrangère — Éligible CPF · RS 6481": "BL 对外法语 — 可用 CPF · RS 6481",
+  "BL Anglais": "BL 英语", "— Éligible CPF · RS 6663": "— 可用 CPF · RS 6663", "BL Français langue étrangère": "BL 对外法语", "— Éligible CPF · RS 6481": "— 可用 CPF · RS 6481",
   "60 questions sur des extraits audio.": "基于音频片段的 60 道题。",
   "QCM en ligne de 60 questions.": "60 道在线选择题。",
   "En visioconférence : se présenter et exposer ses objectifs.": "视频进行：自我介绍并阐述目标。",

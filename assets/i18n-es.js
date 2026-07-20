@@ -145,7 +145,7 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "40 questions, sur trois textes en version Academic.": "40 preguntas, sobre tres textos en la versión Academic.",
   "Un entretien oral avec un examinateur, en trois temps.": "Una entrevista oral con un examinador, en tres partes.",
   "Deux rédactions, d'environ 150 et 250 mots.": "Dos redacciones, de unas 150 y 250 palabras.",
-  "BL Anglais — Éligible CPF · RS 6663": "BL Inglés — Elegible CPF · RS 6663", "BL Français langue étrangère — Éligible CPF · RS 6481": "BL Francés lengua extranjera — Elegible CPF · RS 6481",
+  "BL Anglais": "BL Inglés", "— Éligible CPF · RS 6663": "— Elegible CPF · RS 6663", "BL Français langue étrangère": "BL Francés lengua extranjera", "— Éligible CPF · RS 6481": "— Elegible CPF · RS 6481",
   "60 questions sur des extraits audio.": "60 preguntas sobre extractos de audio.",
   "QCM en ligne de 60 questions.": "Test en línea de 60 preguntas tipo test.",
   "En visioconférence : se présenter et exposer ses objectifs.": "Por videollamada: presentarse y exponer sus objetivos.",

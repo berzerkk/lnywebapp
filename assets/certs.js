@@ -64,7 +64,7 @@
     if(b.type==='stats') return '<div class="cm-stats">'+b.items.map(function(s){return '<div class="cm-stat'+(s.nw?' nw':'')+'"><div class="cm-stat-n">'+esc(s.n)+'</div><div class="cm-stat-l">'+esc(s.l)+'</div></div>';}).join('')+'</div>';
     if(b.type==='points') return '<ul class="cm-list">'+b.items.map(function(p){return '<li>'+esc(p)+'</li>';}).join('')+'</ul>';
     if(b.type==='callout') return '<div class="cm-callout'+(b.cpf?' cpf':'')+'">'+esc(b.text)+'</div>';
-    if(b.type==='badges') return '<div class="cm-badrow">'+b.items.map(function(x){return '<div class="cm-badbox">'+esc(x)+'</div>';}).join('')+'</div>';
+    if(b.type==='badges') return '<div class="cm-badrow">'+b.items.map(function(x){var i=x.indexOf(' — ');var h=i>-1?esc(x.slice(0,i))+'<br/>'+esc('— '+x.slice(i+3)):esc(x);return '<div class="cm-badbox">'+h+'</div>';}).join('')+'</div>';
     if(b.type==='note') return '<p class="cm-note">'+esc(b.text)+'</p>';
     if(b.type==='subhead') return '<div class="cm-subhead">'+esc(b.text)+'</div>';
     if(b.type==='cards'){

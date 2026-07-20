@@ -145,7 +145,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "40 questions, sur trois textes en version Academic.": "40 вопросов по трём текстам в версии Academic.",
   "Un entretien oral avec un examinateur, en trois temps.": "Устное собеседование с экзаменатором в три этапа.",
   "Deux rédactions, d'environ 150 et 250 mots.": "Две письменные работы, примерно 150 и 250 слов.",
-  "BL Anglais — Éligible CPF · RS 6663": "BL Английский — Доступен по CPF · RS 6663", "BL Français langue étrangère — Éligible CPF · RS 6481": "BL Французский как иностранный — Доступен по CPF · RS 6481",
+  "BL Anglais": "BL Английский", "— Éligible CPF · RS 6663": "— Доступен по CPF · RS 6663", "BL Français langue étrangère": "BL Французский как иностранный", "— Éligible CPF · RS 6481": "— Доступен по CPF · RS 6481",
   "60 questions sur des extraits audio.": "60 вопросов по аудиофрагментам.",
   "QCM en ligne de 60 questions.": "Онлайн-тест из 60 вопросов с выбором ответа.",
   "En visioconférence : se présenter et exposer ses objectifs.": "По видеосвязи: представиться и изложить свои цели.",
