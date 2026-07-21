@@ -184,24 +184,30 @@ const mailer = (MAIL && nodemailer) ? nodemailer.createTransport({ host: MAIL.ho
 console.log(mailer ? '✉ e-mails activés via ' + MAIL.host + ' (expéditeur : ' + MAIL.from + ')' : '✉ e-mails désactivés (pas de config SMTP dans data/smtp.json ni en variables d\'env)');
 const SITE_URL = (MAIL && MAIL.siteUrl) || 'https://languagesandsuccess.com';
 // envoi « fire and forget » : ne bloque jamais la réponse API, ne fait jamais planter le flux
+const MAIL_LOGO = path.join(__dirname, 'assets', 'ls-logo.png');
 function sendMailSafe(to, subject, text, html) {
   if (!mailer || !to || !/@/.test(to)) return;
   if (/@ls\.fr$/i.test(to)) return; // adresses fictives des comptes démo — jamais d'envoi réel
-  mailer.sendMail({ from: MAIL.from, to, subject, text, html }, (err) => {
+  const msg = { from: MAIL.from, to, subject, text, html };
+  if (html && html.indexOf('cid:lslogo') !== -1 && fs.existsSync(MAIL_LOGO)) msg.attachments = [{ filename: 'ls-logo.png', path: MAIL_LOGO, cid: 'lslogo' }];
+  mailer.sendMail(msg, (err) => {
     if (err) console.error('✉ échec envoi à ' + to + ' :', err.message);
     else console.log('✉ mail envoyé à ' + to + ' — ' + subject);
   });
 }
-// gabarit HTML sobre aux couleurs du site (fallback texte fourni à côté)
+// gabarit HTML : carte type « modal » (fond crème du site, case claire arrondie),
+// logo en pièce inline (cid:lslogo, attaché par sendMailSafe), wordmark avec seul le & en accent
 function mailHtml(title, lines, ctaLabel, ctaUrl) {
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:28px 24px;color:#2a241d">'
-    + '<div style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#be6e54;font-weight:bold;margin-bottom:14px">Languages &amp; Success</div>'
+  return '<div style="background:#f8f2e7;padding:36px 16px">'
+    + '<div style="max-width:540px;margin:0 auto;background:#fffaf0;border:1px solid #e6dccb;border-radius:18px;padding:34px 30px;font-family:Arial,Helvetica,sans-serif;color:#2a241d">'
+    + '<div style="text-align:center;margin-bottom:14px"><img src="cid:lslogo" width="56" height="56" alt="Languages & Success" style="display:inline-block;border:0"/></div>'
+    + '<div style="text-align:center;font-size:13px;letter-spacing:.18em;text-transform:uppercase;font-weight:bold;color:#2a241d;margin-bottom:24px">Languages <span style="color:#be6e54;font-style:italic">&amp;</span> Success</div>'
     + '<h2 style="font-size:20px;margin:0 0 14px">' + esc(title) + '</h2>'
     + lines.map(l => '<p style="font-size:14px;line-height:1.6;margin:0 0 12px">' + esc(l) + '</p>').join('')
-    + (ctaUrl ? '<p style="margin:22px 0"><a href="' + ctaUrl + '" style="background:#be6e54;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:bold;display:inline-block">' + esc(ctaLabel) + '</a></p>' : '')
-    + '<p style="font-size:12px;color:#6b6055;margin-top:26px">Languages &amp; Success — organisme de formation en langues, Nice.<br/>Vous recevez cet e-mail car une action vous concerne dans l\'espace documents.</p>'
-    + '</div>';
+    + (ctaUrl ? '<p style="margin:24px 0 8px"><a href="' + ctaUrl + '" style="background:#be6e54;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:bold;display:inline-block">' + esc(ctaLabel) + '</a></p>' : '')
+    + '<p style="font-size:12px;color:#6b6055;margin-top:24px;margin-bottom:0">Vous recevez cet e-mail car une action vous concerne dans l\'espace documents.</p>'
+    + '</div></div>';
 }
 
 const ROLES = ['admin', 'eleve', 'prof'];
