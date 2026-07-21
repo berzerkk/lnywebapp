@@ -162,6 +162,47 @@ let db = loadDB();
 backupDB();                                   // snapshot au démarrage
 setInterval(backupDB, 6 * 60 * 60 * 1000);    // + toutes les 6 h
 
+// ---- e-mails de notification (SMTP) ----------------------------------------
+// Config HORS Git : fichier data/smtp.json {host,port,secure,user,pass,from,siteUrl}
+// ou variables d'env SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/MAIL_FROM/SITE_URL.
+// Sans config (ou sans module nodemailer), les e-mails sont simplement désactivés :
+// le site et l'espace documents fonctionnent normalement.
+let nodemailer = null; try { nodemailer = require('nodemailer'); } catch (e) { }
+const MAIL_FILE = path.join(DATA_DIR, 'smtp.json');
+function mailConfig() {
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return { host: process.env.SMTP_HOST, port: +(process.env.SMTP_PORT || 465), secure: process.env.SMTP_SECURE !== 'false', user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: process.env.MAIL_FROM || process.env.SMTP_USER, siteUrl: process.env.SITE_URL || 'https://languagesandsuccess.com' };
+  }
+  try {
+    const c = JSON.parse(fs.readFileSync(MAIL_FILE, 'utf8'));
+    if (c && c.host && c.user && c.pass) return { host: c.host, port: +(c.port || 465), secure: c.secure !== false, user: c.user, pass: c.pass, from: c.from || c.user, siteUrl: c.siteUrl || 'https://languagesandsuccess.com' };
+  } catch (e) { }
+  return null;
+}
+const MAIL = mailConfig();
+const mailer = (MAIL && nodemailer) ? nodemailer.createTransport({ host: MAIL.host, port: MAIL.port, secure: MAIL.secure, auth: { user: MAIL.user, pass: MAIL.pass } }) : null;
+console.log(mailer ? '✉ e-mails activés via ' + MAIL.host + ' (expéditeur : ' + MAIL.from + ')' : '✉ e-mails désactivés (pas de config SMTP dans data/smtp.json ni en variables d\'env)');
+const SITE_URL = (MAIL && MAIL.siteUrl) || 'https://languagesandsuccess.com';
+// envoi « fire and forget » : ne bloque jamais la réponse API, ne fait jamais planter le flux
+function sendMailSafe(to, subject, text, html) {
+  if (!mailer || !to || !/@/.test(to)) return;
+  mailer.sendMail({ from: MAIL.from, to, subject, text, html }, (err) => {
+    if (err) console.error('✉ échec envoi à ' + to + ' :', err.message);
+    else console.log('✉ mail envoyé à ' + to + ' — ' + subject);
+  });
+}
+// gabarit HTML sobre aux couleurs du site (fallback texte fourni à côté)
+function mailHtml(title, lines, ctaLabel, ctaUrl) {
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:28px 24px;color:#2a241d">'
+    + '<div style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#be6e54;font-weight:bold;margin-bottom:14px">Languages &amp; Success</div>'
+    + '<h2 style="font-size:20px;margin:0 0 14px">' + esc(title) + '</h2>'
+    + lines.map(l => '<p style="font-size:14px;line-height:1.6;margin:0 0 12px">' + esc(l) + '</p>').join('')
+    + (ctaUrl ? '<p style="margin:22px 0"><a href="' + ctaUrl + '" style="background:#be6e54;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:bold;display:inline-block">' + esc(ctaLabel) + '</a></p>' : '')
+    + '<p style="font-size:12px;color:#6b6055;margin-top:26px">Languages &amp; Success — organisme de formation en langues, Nice.<br/>Vous recevez cet e-mail car une action vous concerne dans l\'espace documents.</p>'
+    + '</div>';
+}
+
 const ROLES = ['admin', 'eleve', 'prof'];
 const ROLE_LABEL = { admin: 'Administrateur', eleve: 'Apprenant', prof: 'Formateur' };
 const ADMIN_ID = 'admins';
@@ -1643,6 +1684,17 @@ app.post('/api/presence/send', auth, (req, res) => {
   db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'commun', from: req.user.id, fromAdmin: req.user.role === 'admin', kind: 'presence', presenceId: p.id, text: 'Feuille de présence à signer : ' + tpl.title, date: Date.now() });
   notify(g.eleve, `${senderDisplay(req.user)} vous demande de signer une feuille de présence (${tpl.title}).`);
   db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé une feuille de présence à signer (${tpl.title}).`));
+  // e-mail à l'apprenant : un document l'attend pour signature
+  const eleveU = db.users.find(u => u.id === g.eleve);
+  if (eleveU) {
+    const url = SITE_URL + '/espace-documents.html';
+    sendMailSafe(eleveU.email,
+      'Un document à signer vous attend — Languages & Success',
+      'Bonjour ' + eleveU.prenom + ',\n\n' + senderDisplay(req.user) + ' vous a envoyé une feuille de présence à signer (' + tpl.title + ').\n\nConnectez-vous à votre espace documents pour la signer :\n' + url + '\n\nLanguages & Success',
+      mailHtml('Un document à signer vous attend',
+        ['Bonjour ' + eleveU.prenom + ',', senderDisplay(req.user) + ' vous a envoyé une feuille de présence à signer (' + tpl.title + ').', 'Connectez-vous à votre espace documents pour la signer.'],
+        'Signer le document', url));
+  }
   save();
   res.json({ ok: true, id: p.id });
 });
@@ -1669,6 +1721,17 @@ app.post('/api/presence/:id/sign', auth, async (req, res) => {
   p.docId = doc.id;
   recordDocgen(g, byUser, { kind: 'presence', tpl: 'presence', title: (PRESENCE_TEMPLATES[p.type] || {}).title, format: 'pdf', apprenant: (p.fields && p.fields.apprenant) || 'apprenant' });
   notifyChannel(g, 'commun', req.user, `${senderDisplay(req.user)} a signé la feuille de présence — document déposé dans le dossier.`);
+  // e-mail au formateur (l'envoyeur) : le document signé est prêt
+  if (byUser && byUser.id !== req.user.id) {
+    const urlS = SITE_URL + '/espace-documents.html';
+    const tplTitle = (PRESENCE_TEMPLATES[p.type] || {}).title || 'Feuille de présence';
+    sendMailSafe(byUser.email,
+      'Document signé par ' + senderDisplay(req.user) + ' — Languages & Success',
+      'Bonjour ' + byUser.prenom + ',\n\n' + senderDisplay(req.user) + ' a signé la feuille de présence (' + tplTitle + ').\nLe document final avec les deux signatures est déposé dans le canal commun du dossier.\n\n' + urlS + '\n\nLanguages & Success',
+      mailHtml('Le document est signé ✓',
+        ['Bonjour ' + byUser.prenom + ',', senderDisplay(req.user) + ' a signé la feuille de présence (' + tplTitle + ').', 'Le document final avec les deux signatures est déposé dans le canal commun du dossier.'],
+        'Voir le document', urlS));
+  }
   save();
   res.json({ ok: true, doc: docPub(doc) });
 });
