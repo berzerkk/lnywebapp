@@ -186,6 +186,7 @@ const SITE_URL = (MAIL && MAIL.siteUrl) || 'https://languagesandsuccess.com';
 // envoi « fire and forget » : ne bloque jamais la réponse API, ne fait jamais planter le flux
 function sendMailSafe(to, subject, text, html) {
   if (!mailer || !to || !/@/.test(to)) return;
+  if (/@ls\.fr$/i.test(to)) return; // adresses fictives des comptes démo — jamais d'envoi réel
   mailer.sendMail({ from: MAIL.from, to, subject, text, html }, (err) => {
     if (err) console.error('✉ échec envoi à ' + to + ' :', err.message);
     else console.log('✉ mail envoyé à ' + to + ' — ' + subject);
