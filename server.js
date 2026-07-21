@@ -171,11 +171,11 @@ let nodemailer = null; try { nodemailer = require('nodemailer'); } catch (e) { }
 const MAIL_FILE = path.join(DATA_DIR, 'smtp.json');
 function mailConfig() {
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    return { host: process.env.SMTP_HOST, port: +(process.env.SMTP_PORT || 465), secure: process.env.SMTP_SECURE !== 'false', user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: process.env.MAIL_FROM || process.env.SMTP_USER, siteUrl: process.env.SITE_URL || 'https://languagesandsuccess.com' };
+    return { host: process.env.SMTP_HOST, port: +(process.env.SMTP_PORT || 465), secure: process.env.SMTP_SECURE !== 'false', user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: process.env.MAIL_FROM || '"Languages & Success" <' + process.env.SMTP_USER + '>', siteUrl: process.env.SITE_URL || 'https://languagesandsuccess.com' };
   }
   try {
     const c = JSON.parse(fs.readFileSync(MAIL_FILE, 'utf8'));
-    if (c && c.host && c.user && c.pass) return { host: c.host, port: +(c.port || 465), secure: c.secure !== false, user: c.user, pass: c.pass, from: c.from || c.user, siteUrl: c.siteUrl || 'https://languagesandsuccess.com' };
+    if (c && c.host && c.user && c.pass) return { host: c.host, port: +(c.port || 465), secure: c.secure !== false, user: c.user, pass: c.pass, from: c.from || '"Languages & Success" <' + c.user + '>', siteUrl: c.siteUrl || 'https://languagesandsuccess.com' };
   } catch (e) { }
   return null;
 }

@@ -7,9 +7,23 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      # SMTP (e-mails de notification) : valeurs injectées depuis le .env
+      # (secret GitHub ENV_FILE). Vides = e-mails désactivés proprement.
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - MAIL_FROM=${MAIL_FROM:-}
+      - SITE_URL=${SITE_URL:-https://languagesandsuccess.com}
+    volumes:
+      # Données persistantes (db.json, uploads, backups) : SURVIVENT aux déploiements.
+      - ls-data:/app/data
 
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: cloudflare-tunnel
     restart: always
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+
+volumes:
+  ls-data:
