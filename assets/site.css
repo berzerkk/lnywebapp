@@ -248,8 +248,8 @@ body.menu-open{overflow:hidden}
 @media(max-width:760px){.lm-inner{grid-template-columns:1fr;gap:24px;padding:24px;align-content:center}.lm-word{font-size:clamp(40px,15vw,76px);transform:translateY(-20px)}.lang-modal.open .lm-word{transform:none}.lm-card{padding:34px 26px}}
 
 /* Certifications préparées — bulles cliquables (TOEIC/TOEFL/IELTS) + modal détail */
-#cert-chips .chip.c-link{cursor:pointer;transition:transform .18s ease,box-shadow .2s ease,background .18s ease,color .18s ease}
-#cert-chips .chip.c-link:hover{transform:translateY(-3px);box-shadow:0 10px 22px -10px rgba(42,33,24,.45)}
+.chip.c-link{cursor:pointer;transition:transform .18s ease,box-shadow .2s ease,background .18s ease,color .18s ease}
+.chip.c-link:hover{transform:translateY(-3px);box-shadow:0 10px 22px -10px rgba(42,33,24,.45)}
 #cert-chips .chip.feat .skz{margin-left:7px;font-size:10px;font-weight:600;letter-spacing:.4px;background:var(--accent);color:#fff8ef;border-radius:999px;padding:2px 8px}
 .cert-modal{position:fixed;inset:0;z-index:1200;visibility:hidden;pointer-events:none;transition:visibility 0s linear .5s}
 .cert-modal.open{visibility:visible;pointer-events:auto;transition:visibility 0s}
