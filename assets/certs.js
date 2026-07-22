@@ -180,6 +180,103 @@
         {type:"subhead",text:"2ᵉ partie · 10 min"},
         {type:"note",text:"Entretien vidéo (non évalué) · Échantillon d'écriture (non évalué)."}
       ]
+    },
+    "A2 Key":{
+      eyebrow:"Certification · Anglais",
+      name:"A2 Key", fullname:"Key English Test (KET)",
+      intro:"Centre de préparation aux examens Cambridge English. La première marche du parcours Cambridge : valider les bases de l'anglais du quotidien.",
+      blocks:[
+        {type:"stats",items:[{n:"≈ 1 h 50",l:"durée totale"},{n:"Présentiel",l:"passage · papier ou ordinateur"},{n:"CECRL A1–B1",nw:true,l:"score sur 150"},{n:"À vie",l:"validité"}]},
+        {type:"cards",title:"Les 4 compétences évaluées",items:[
+          {title:"Listening",sub:"Compréhension orale",meta:"≈ 30 min",desc:"Courts enregistrements du quotidien : QCM et phrases à compléter."},
+          {title:"Reading",sub:"Compréhension écrite",desc:"Panneaux, messages et textes simples à comprendre (épreuve commune avec l'écrit : 1 h)."},
+          {title:"Speaking",sub:"Expression orale · en binôme",meta:"8–10 min",desc:"Répondre à des questions sur soi, puis dialoguer avec l'autre candidat."},
+          {title:"Writing",sub:"Expression écrite",desc:"Compléter des phrases, rédiger un message court et une histoire simple."}
+        ]}
+      ]
+    },
+    "B1 Preliminary":{
+      eyebrow:"Certification · Anglais",
+      name:"B1 Preliminary", fullname:"Preliminary English Test (PET)",
+      intro:"Centre de préparation aux examens Cambridge English. L'examen du niveau intermédiaire : un anglais pratique pour voyager, travailler et étudier.",
+      blocks:[
+        {type:"stats",items:[{n:"≈ 2 h 20",l:"durée totale"},{n:"Présentiel",l:"passage · papier ou ordinateur"},{n:"CECRL A2–B2",nw:true,l:"score sur 170"},{n:"À vie",l:"validité"}]},
+        {type:"cards",title:"Les 4 compétences évaluées",items:[
+          {title:"Listening",sub:"Compréhension orale",meta:"≈ 30 min",desc:"Conversations et annonces de la vie courante."},
+          {title:"Reading",sub:"Compréhension écrite",meta:"45 min",desc:"Textes variés : QCM, appariements et textes à compléter."},
+          {title:"Speaking",sub:"Expression orale · en binôme",meta:"12–17 min",desc:"Se présenter, décrire une image, discuter d'un sujet."},
+          {title:"Writing",sub:"Expression écrite",meta:"45 min",desc:"Rédiger un e-mail, puis un article ou une histoire d'environ 100 mots."}
+        ]}
+      ]
+    },
+    "B2 First":{
+      eyebrow:"Certification · Anglais",
+      name:"B2 First", fullname:"First Certificate in English (FCE)",
+      intro:"Centre de préparation aux examens Cambridge English. La certification Cambridge la plus répandue : un anglais opérationnel pour travailler ou étudier en milieu anglophone.",
+      blocks:[
+        {type:"stats",items:[{n:"≈ 3 h 30",l:"durée totale"},{n:"Présentiel",l:"passage · papier ou ordinateur"},{n:"CECRL B1–C1",nw:true,l:"score sur 190"},{n:"À vie",l:"validité"}]},
+        {type:"cards",title:"Les 4 compétences évaluées",items:[
+          {title:"Listening",sub:"Compréhension orale",meta:"≈ 40 min",desc:"Interviews, conversations et exposés."},
+          {title:"Reading and Use of English",sub:"Compréhension écrite, grammaire & vocabulaire",meta:"1 h 15",desc:"Textes longs et exercices de maîtrise de la langue."},
+          {title:"Speaking",sub:"Expression orale · en binôme",meta:"14 min",desc:"Entretien, comparaison de photos, tâche collaborative et discussion."},
+          {title:"Writing",sub:"Expression écrite",meta:"1 h 20",desc:"Un essai obligatoire, puis un texte au choix (article, e-mail, critique…)."}
+        ]}
+      ]
+    },
+    "C1 Advanced":{
+      eyebrow:"Certification · Anglais",
+      name:"C1 Advanced", fullname:"Certificate in Advanced English (CAE)",
+      intro:"Centre de préparation aux examens Cambridge English. La référence des universités et des employeurs : un anglais de haut niveau pour les études supérieures et la carrière.",
+      blocks:[
+        {type:"stats",items:[{n:"≈ 4 h",l:"durée totale"},{n:"Présentiel",l:"passage · papier ou ordinateur"},{n:"CECRL B2–C2",nw:true,l:"score sur 210"},{n:"À vie",l:"validité"}]},
+        {type:"cards",title:"Les 4 compétences évaluées",items:[
+          {title:"Listening",sub:"Compréhension orale",meta:"≈ 40 min",desc:"Documents authentiques variés : débats, interviews, conférences."},
+          {title:"Reading and Use of English",sub:"Compréhension écrite, grammaire & vocabulaire",meta:"1 h 30",desc:"Textes exigeants et maîtrise fine du lexique."},
+          {title:"Speaking",sub:"Expression orale · en binôme",meta:"15 min",desc:"Entretien, présentation à partir d'images, tâche collaborative."},
+          {title:"Writing",sub:"Expression écrite",meta:"1 h 30",desc:"Un essai, puis un texte au choix (rapport, proposition, critique…)."}
+        ]}
+      ]
+    },
+    "C2 Proficiency":{
+      eyebrow:"Certification · Anglais",
+      name:"C2 Proficiency", fullname:"Certificate of Proficiency in English (CPE)",
+      intro:"Centre de préparation aux examens Cambridge English. Le plus haut niveau Cambridge : une maîtrise de l'anglais proche de celle d'un locuteur natif.",
+      blocks:[
+        {type:"stats",items:[{n:"≈ 4 h",l:"durée totale"},{n:"Présentiel",l:"passage · papier ou ordinateur"},{n:"CECRL C1–C2",nw:true,l:"score sur 230"},{n:"À vie",l:"validité"}]},
+        {type:"cards",title:"Les 4 compétences évaluées",items:[
+          {title:"Listening",sub:"Compréhension orale",meta:"≈ 40 min",desc:"Documents complexes, accents et registres variés."},
+          {title:"Reading and Use of English",sub:"Compréhension écrite, grammaire & vocabulaire",meta:"1 h 30",desc:"Textes littéraires et journalistiques, transformations grammaticales."},
+          {title:"Speaking",sub:"Expression orale · en binôme",meta:"16 min",desc:"Entretien, tâche collaborative et exposé développé."},
+          {title:"Writing",sub:"Expression écrite",meta:"1 h 30",desc:"Essai de synthèse à partir de deux textes, puis un texte au choix."}
+        ]}
+      ]
+    },
+    "TKT":{
+      eyebrow:"Certification · Enseignement de l'anglais",
+      name:"TKT", fullname:"Teaching Knowledge Test",
+      intro:"Centre de préparation au TKT. La certification Cambridge des connaissances en pédagogie de l'anglais, pour enseignants en poste ou en devenir.",
+      blocks:[
+        {type:"stats",items:[{n:"1 h 20",l:"par module"},{n:"Présentiel",l:"passage · sur papier"},{n:"Bandes 1 à 4",l:"anglais B1 minimum recommandé"},{n:"À vie",l:"validité · un certificat par module"}]},
+        {type:"cards",title:"Les 3 modules — à passer dans l'ordre de son choix",items:[
+          {title:"Module 1",ic:"read",sub:"La langue et les fondements de son apprentissage et de son enseignement",desc:"80 questions (QCM) en 1 h 20."},
+          {title:"Module 2",ic:"grid",sub:"Préparation des cours et utilisation des ressources pédagogiques",desc:"80 questions (QCM) en 1 h 20."},
+          {title:"Module 3",ic:"chat",sub:"Gestion de la classe et du processus d'apprentissage",desc:"80 questions (QCM) en 1 h 20."}
+        ]},
+        {type:"note",text:"Modules spécialisés en option — TKT CLIL & TKT Young Learners."}
+      ]
+    },
+    "CELTA":{
+      eyebrow:"Qualification · Enseignement de l'anglais",
+      name:"CELTA", fullname:"Certificate in Teaching English to Speakers of Other Languages",
+      intro:"Préparation au CELTA. La qualification initiale de référence pour enseigner l'anglais, délivrée par Cambridge et reconnue dans plus de 100 pays.",
+      blocks:[
+        {type:"stats",items:[{n:"4 à 5 semaines",l:"temps plein (≈ 120 h) · temps partiel possible"},{n:"Présentiel, en ligne ou mixte",l:"format"},{n:"Pass · Pass B · Pass A",l:"notation"},{n:"À vie",l:"validité"}]},
+        {type:"cards",title:"L'évaluation — continue, sans examen final",items:[
+          {title:"Pratique d'enseignement",ic:"speak",desc:"6 h de cours évalués avec de vrais apprenants + 6 h d'observation de classes."},
+          {title:"Travaux écrits",ic:"write",desc:"4 dossiers de 750 à 1 000 mots."}
+        ]},
+        {type:"note",text:"Prérequis — anglais niveau C1 minimum · à partir de 18 ans."}
+      ]
     }
   };
   function open(key){
@@ -200,7 +297,7 @@
     modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
   }
   function close(){modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.style.overflow='';}
-  document.querySelectorAll('#cert-chips .chip.c-link').forEach(function(ch){ch.addEventListener('click',function(){open(ch.getAttribute('data-cert'));});});
+  document.querySelectorAll('.chip.c-link[data-cert]').forEach(function(ch){ch.addEventListener('click',function(){open(ch.getAttribute('data-cert'));});});
   closeBtn.addEventListener('click',close);
   modal.addEventListener('click',function(e){if(!e.target.closest('.cm-card'))close();});
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&modal.classList.contains('open'))close();});
