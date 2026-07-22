@@ -521,6 +521,7 @@ footer a:hover{color:#fff8ef}
 
 /* étapes numérotées */
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;counter-reset:step}
+.steps-5{grid-template-columns:repeat(5,1fr)}
 .step{position:relative;padding-top:30px;border-top:2px solid var(--ink)}
 .step::before{counter-increment:step;content:"0" counter(step);position:absolute;top:-2px;left:0;transform:translateY(-130%);font-family:var(--ff-head);font-style:italic;font-size:34px;color:var(--accent)}
 .step h3{font-size:20px;margin-bottom:8px}

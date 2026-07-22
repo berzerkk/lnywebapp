@@ -130,7 +130,7 @@
       intro:"Centre de préparation et de passage agréé Bright Language, partenaire Mahoney Training Consultants (MTC).",
       blocks:[
         {type:"box",blocks:[
-          {type:"badges",items:["BL Anglais — Éligible CPF · RS 6663","BL Français langue étrangère — Éligible CPF · RS 6481"]},
+          {type:"badges",items:["BL Anglais — Éligible CPF · RS 7627","BL Français langue étrangère — Éligible CPF · RS 6481"]},
           {type:"stats",items:[{n:"2 h",l:"durée totale"},{n:"Distanciel",l:"passage"},{n:"CECRL A1–C2",nw:true,l:"score sur 5"},{n:"2 ans",l:"validité"}]},
           {type:"cards",title:"Les 5 compétences évaluées",items:[
             {title:"Listening",sub:"Compréhension orale",desc:"60 questions sur des extraits audio."},
