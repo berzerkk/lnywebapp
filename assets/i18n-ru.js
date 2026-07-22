@@ -147,7 +147,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Deux rédactions, d'environ 150 et 250 mots.": "Две письменные работы, примерно 150 и 250 слов.",
   "BL Anglais": "BL Английский", "— Éligible CPF · RS 6663": "— Доступен по CPF · RS 6663", "BL Français langue étrangère": "BL Французский как иностранный", "— Éligible CPF · RS 6481": "— Доступен по CPF · RS 6481",
   /* ---- certs : Cambridge (A2 Key → C2 Proficiency, TKT, CELTA) ---- */
-  "Certification · Enseignement de l'anglais": "Сертификация · Преподавание английского", "Qualification · Enseignement de l'anglais": "Квалификация · Преподавание английского", "Certifications Cambridge": "Сертификаты Cambridge",
+  "Certification · Enseignement de l'anglais": "Сертификация · Преподавание английского", "Qualification · Enseignement de l'anglais": "Квалификация · Преподавание английского",
   "Centre de préparation aux examens Cambridge English. La première marche du parcours Cambridge : valider les bases de l'anglais du quotidien.": "Центр подготовки к экзаменам Cambridge English. Первая ступень кембриджского пути: подтвердить основы повседневного английского.",
   "Centre de préparation aux examens Cambridge English. L'examen du niveau intermédiaire : un anglais pratique pour voyager, travailler et étudier.": "Центр подготовки к экзаменам Cambridge English. Экзамен среднего уровня: практичный английский для путешествий, работы и учёбы.",
   "Centre de préparation aux examens Cambridge English. La certification Cambridge la plus répandue : un anglais opérationnel pour travailler ou étudier en milieu anglophone.": "Центр подготовки к экзаменам Cambridge English. Самая распространённая кембриджская сертификация: рабочий английский для работы и учёбы в англоязычной среде.",

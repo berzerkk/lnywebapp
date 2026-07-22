@@ -147,7 +147,7 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Deux rédactions, d'environ 150 et 250 mots.": "Dos redacciones, de unas 150 y 250 palabras.",
   "BL Anglais": "BL Inglés", "— Éligible CPF · RS 6663": "— Elegible CPF · RS 6663", "BL Français langue étrangère": "BL Francés lengua extranjera", "— Éligible CPF · RS 6481": "— Elegible CPF · RS 6481",
   /* ---- certs : Cambridge (A2 Key → C2 Proficiency, TKT, CELTA) ---- */
-  "Certification · Enseignement de l'anglais": "Certificación · Enseñanza del inglés", "Qualification · Enseignement de l'anglais": "Cualificación · Enseñanza del inglés", "Certifications Cambridge": "Certificaciones Cambridge",
+  "Certification · Enseignement de l'anglais": "Certificación · Enseñanza del inglés", "Qualification · Enseignement de l'anglais": "Cualificación · Enseñanza del inglés",
   "Centre de préparation aux examens Cambridge English. La première marche du parcours Cambridge : valider les bases de l'anglais du quotidien.": "Centro de preparación de los exámenes Cambridge English. El primer peldaño del itinerario Cambridge: validar las bases del inglés cotidiano.",
   "Centre de préparation aux examens Cambridge English. L'examen du niveau intermédiaire : un anglais pratique pour voyager, travailler et étudier.": "Centro de preparación de los exámenes Cambridge English. El examen de nivel intermedio: un inglés práctico para viajar, trabajar y estudiar.",
   "Centre de préparation aux examens Cambridge English. La certification Cambridge la plus répandue : un anglais opérationnel pour travailler ou étudier en milieu anglophone.": "Centro de preparación de los exámenes Cambridge English. La certificación Cambridge más extendida: un inglés operativo para trabajar o estudiar en un entorno anglófono.",

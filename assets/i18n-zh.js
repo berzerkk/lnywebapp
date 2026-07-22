@@ -148,7 +148,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Deux rédactions, d'environ 150 et 250 mots.": "两篇写作，约 150 词和 250 词。",
   "BL Anglais": "BL 英语", "— Éligible CPF · RS 6663": "— 可用 CPF · RS 6663", "BL Français langue étrangère": "BL 对外法语", "— Éligible CPF · RS 6481": "— 可用 CPF · RS 6481",
   /* ---- certs : Cambridge (A2 Key → C2 Proficiency, TKT, CELTA) ---- */
-  "Certification · Enseignement de l'anglais": "证书 · 英语教学", "Qualification · Enseignement de l'anglais": "资格认证 · 英语教学", "Certifications Cambridge": "剑桥认证",
+  "Certification · Enseignement de l'anglais": "证书 · 英语教学", "Qualification · Enseignement de l'anglais": "资格认证 · 英语教学",
   "Centre de préparation aux examens Cambridge English. La première marche du parcours Cambridge : valider les bases de l'anglais du quotidien.": "剑桥英语考试备考中心。剑桥之路的第一步：夯实日常英语基础。",
   "Centre de préparation aux examens Cambridge English. L'examen du niveau intermédiaire : un anglais pratique pour voyager, travailler et étudier.": "剑桥英语考试备考中心。中级水平考试：面向旅行、工作和学习的实用英语。",
   "Centre de préparation aux examens Cambridge English. La certification Cambridge la plus répandue : un anglais opérationnel pour travailler ou étudier en milieu anglophone.": "剑桥英语考试备考中心。最普及的剑桥认证：胜任英语环境下工作与学习的实战英语。",

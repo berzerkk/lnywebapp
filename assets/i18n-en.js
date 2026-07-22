@@ -162,7 +162,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Deux rédactions, d'environ 150 et 250 mots.": "Two written pieces, of about 150 and 250 words.",
   "BL Anglais": "BL English", "— Éligible CPF · RS 6663": "— CPF eligible · RS 6663", "BL Français langue étrangère": "BL French as a foreign language", "— Éligible CPF · RS 6481": "— CPF eligible · RS 6481",
   /* ---- certs : Cambridge (A2 Key → C2 Proficiency, TKT, CELTA) ---- */
-  "Certification · Enseignement de l'anglais": "Certification · English teaching", "Qualification · Enseignement de l'anglais": "Qualification · English teaching", "Certifications Cambridge": "Cambridge certifications",
+  "Certification · Enseignement de l'anglais": "Certification · English teaching", "Qualification · Enseignement de l'anglais": "Qualification · English teaching",
   "Centre de préparation aux examens Cambridge English. La première marche du parcours Cambridge : valider les bases de l'anglais du quotidien.": "Cambridge English exam preparation centre. The first step on the Cambridge journey: validating the basics of everyday English.",
   "Centre de préparation aux examens Cambridge English. L'examen du niveau intermédiaire : un anglais pratique pour voyager, travailler et étudier.": "Cambridge English exam preparation centre. The intermediate-level exam: practical English for travelling, working and studying.",
   "Centre de préparation aux examens Cambridge English. La certification Cambridge la plus répandue : un anglais opérationnel pour travailler ou étudier en milieu anglophone.": "Cambridge English exam preparation centre. The most widely taken Cambridge certification: operational English for working or studying in an English-speaking environment.",
