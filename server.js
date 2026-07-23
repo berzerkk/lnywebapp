@@ -1734,9 +1734,9 @@ app.post('/api/presence/:id/sign', auth, async (req, res) => {
     const tplTitle = (PRESENCE_TEMPLATES[p.type] || {}).title || 'Feuille de présence';
     sendMailSafe(byUser.email,
       'Document signé par ' + senderDisplay(req.user) + ' — Languages & Success',
-      'Bonjour ' + byUser.prenom + ',\n\n' + senderDisplay(req.user) + ' a signé la feuille de présence (' + tplTitle + ').\nLe document final avec les deux signatures est déposé dans le canal commun du dossier.\n\n' + urlS + '\n\nLanguages & Success',
+      'Bonjour ' + byUser.prenom + ',\n\n' + senderDisplay(req.user) + ' a signé la feuille de présence (' + tplTitle + ').\nLe document final avec les deux signatures est disponible sur votre espace documents.\n\n' + urlS + '\n\nLanguages & Success',
       mailHtml('Le document est signé ✓',
-        ['Bonjour ' + byUser.prenom + ',', senderDisplay(req.user) + ' a signé la feuille de présence (' + tplTitle + ').', 'Le document final avec les deux signatures est déposé dans le canal commun du dossier.'],
+        ['Bonjour ' + byUser.prenom + ',', senderDisplay(req.user) + ' a signé la feuille de présence (' + tplTitle + ').', 'Le document final avec les deux signatures est disponible sur votre espace documents.'],
         'Voir le document', urlS));
   }
   save();
