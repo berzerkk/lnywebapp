@@ -12,7 +12,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "⬇ Télécharger la charte de déontologie (PDF)": "⬇ 下载职业道德章程 (PDF)",
   "Déclaration d'activité enregistrée sous le n° 93 060 886 106 auprès du Préfet de la région PACA. Cet enregistrement ne vaut pas agrément de l'État.": "培训机构已在 PACA 大区省长处登记，编号 93 060 886 106。该登记不构成国家认可。",
   "Conditions générales": "一般条款", "Politique de confidentialité": "隐私政策", "Règlement intérieur": "内部规章", "Mentions légales": "法律声明",
-  "Tous droits réservés.": "版权所有。",
+  "Tous droits réservés.": "版权所有。", "Site créé le": "网站创建于", "Dernière mise à jour le": "最后更新于",
   "Accueil": "首页", "· Nos formations": "· 我们的课程", "· Financement": "· 资助", "· Entreprises & RH": "· 企业与人力资源", "· À propos": "· 关于我们", "· Contact": "· 联系方式", "· Test de niveau": "· 水平测试", "· Espace documents": "· 文档空间", "· Blog": "· 博客",
   "Anglais": "英语", "Français": "法语", "Français (FLE)": "法语 (FLE)", "Espagnol": "西班牙语", "Allemand": "德语", "Italien": "意大利语", "Portugais": "葡萄牙语", "Russe": "俄语", "Chinois": "中文", "Japonais": "日语", "Arabe": "阿拉伯语", "Hongrois": "匈牙利语", "Serbe": "塞尔维亚语",
   "anglais": "英语", "français": "法语", "espagnol": "西班牙语", "allemand": "德语", "italien": "意大利语", "portugais": "葡萄牙语", "russe": "俄语", "chinois": "中文", "japonais": "日语", "arabe": "阿拉伯语", "hongrois": "匈牙利语", "serbe": "塞尔维亚语", "français langue étrangère (FLE)": "对外法语 (FLE)",

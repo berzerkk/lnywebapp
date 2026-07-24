@@ -14,7 +14,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "⬇ Télécharger la charte de déontologie (PDF)": "⬇ Download the code of conduct charter (PDF)",
   "Déclaration d'activité enregistrée sous le n° 93 060 886 106 auprès du Préfet de la région PACA. Cet enregistrement ne vaut pas agrément de l'État.": "Training provider registered under no. 93 060 886 106 with the Prefect of the PACA region. This registration does not constitute State approval.",
   "Conditions générales": "Terms and conditions", "Politique de confidentialité": "Privacy policy", "Règlement intérieur": "Internal regulations", "Mentions légales": "Legal notice",
-  "Tous droits réservés.": "All rights reserved.",
+  "Tous droits réservés.": "All rights reserved.", "Site créé le": "Site created on", "Dernière mise à jour le": "Last updated on",
   /* ---- fils d'Ariane ---- */
   "Accueil": "Home", "· Nos formations": "· Our courses", "· Financement": "· Funding", "· Entreprises & RH": "· Companies & HR", "· À propos": "· About us", "· Contact": "· Contact", "· Test de niveau": "· Level test", "· Espace documents": "· Document portal", "· Blog": "· Blog",
   /* ---- noms de langues ---- */
