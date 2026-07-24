@@ -11,7 +11,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Entreprises & RH": "Companies & HR", "Test de niveau": "Level test",
   "La certification qualité a été délivrée au titre de la catégorie d'action suivante : ACTIONS DE FORMATION.": "The Qualiopi quality certification was issued for the following category of activity: TRAINING ACTIVITIES.",
   "⬇ Télécharger l'attestation Qualiopi (PDF)": "⬇ Download the Qualiopi certificate (PDF)",
-  "⬇ Télécharger la charte de déontologie CPF (PDF)": "⬇ Download the CPF code of conduct charter (PDF)",
+  "⬇ Télécharger la charte de déontologie (PDF)": "⬇ Download the code of conduct charter (PDF)",
   "Déclaration d'activité enregistrée sous le n° 93 060 886 106 auprès du Préfet de la région PACA. Cet enregistrement ne vaut pas agrément de l'État.": "Training provider registered under no. 93 060 886 106 with the Prefect of the PACA region. This registration does not constitute State approval.",
   "Conditions générales": "Terms and conditions", "Politique de confidentialité": "Privacy policy", "Règlement intérieur": "Internal regulations", "Mentions légales": "Legal notice",
   "Tous droits réservés.": "All rights reserved.",

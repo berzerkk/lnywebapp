@@ -9,7 +9,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Entreprises & RH": "Компании и HR", "Test de niveau": "Тест уровня",
   "La certification qualité a été délivrée au titre de la catégorie d'action suivante : ACTIONS DE FORMATION.": "Сертификат качества Qualiopi выдан по следующей категории деятельности: ОБРАЗОВАТЕЛЬНЫЕ УСЛУГИ.",
   "⬇ Télécharger l'attestation Qualiopi (PDF)": "⬇ Скачать сертификат Qualiopi (PDF)",
-  "⬇ Télécharger la charte de déontologie CPF (PDF)": "⬇ Скачать хартию деонтологии CPF (PDF)",
+  "⬇ Télécharger la charte de déontologie (PDF)": "⬇ Скачать хартию деонтологии (PDF)",
   "Déclaration d'activité enregistrée sous le n° 93 060 886 106 auprès du Préfet de la région PACA. Cet enregistrement ne vaut pas agrément de l'État.": "Деятельность зарегистрирована под № 93 060 886 106 у префекта региона PACA. Данная регистрация не является государственной аккредитацией.",
   "Conditions générales": "Общие условия", "Politique de confidentialité": "Политика конфиденциальности", "Règlement intérieur": "Внутренний регламент", "Mentions légales": "Правовая информация",
   "Tous droits réservés.": "Все права защищены.",

@@ -111,7 +111,7 @@
           '<div class="cpf-block is-badge"><img src="assets/charte-cpf.png" alt="Entreprise de formation respectant la charte de déontologie CPF" /></div>' +
           '<div class="cpf-block"><img src="assets/datadock.png" alt="Référencé Datadock" /></div>' +
           '<a class="dl-cert" href="assets/Attestation-Qualiopi.pdf" target="_blank" rel="noopener">⬇ Télécharger l\'attestation Qualiopi (PDF)</a>' +
-          '<a class="dl-cert" href="assets/Charte-deontologie-CPF.pdf" target="_blank" rel="noopener">⬇ Télécharger la charte de déontologie CPF (PDF)</a>' +
+          '<a class="dl-cert" href="assets/Charte-deontologie-CPF.pdf" target="_blank" rel="noopener">⬇ Télécharger la charte de déontologie (PDF)</a>' +
         '</div>' +
         '<div class="legal">' +
           '<div class="row"><span>Association Loi 1901</span><span>·</span><span>SIRET 881 226 641 00028</span><span>·</span><span>RNA W061014363</span><span>·</span><span>APE 8559A</span><span>·</span><span>TVA FR31881226641</span></div>' +

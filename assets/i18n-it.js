@@ -9,7 +9,7 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Entreprises & RH": "Aziende e HR", "Test de niveau": "Test di livello",
   "La certification qualité a été délivrée au titre de la catégorie d'action suivante : ACTIONS DE FORMATION.": "La certificazione di qualità Qualiopi è stata rilasciata per la seguente categoria di azione: AZIONI DI FORMAZIONE.",
   "⬇ Télécharger l'attestation Qualiopi (PDF)": "⬇ Scarica l'attestazione Qualiopi (PDF)",
-  "⬇ Télécharger la charte de déontologie CPF (PDF)": "⬇ Scarica la carta deontologica CPF (PDF)",
+  "⬇ Télécharger la charte de déontologie (PDF)": "⬇ Scarica la carta deontologica (PDF)",
   "Déclaration d'activité enregistrée sous le n° 93 060 886 106 auprès du Préfet de la région PACA. Cet enregistrement ne vaut pas agrément de l'État.": "Dichiarazione di attività registrata con il n. 93 060 886 106 presso il Prefetto della regione PACA. Tale registrazione non costituisce approvazione statale.",
   "Conditions générales": "Condizioni generali", "Politique de confidentialité": "Informativa sulla privacy", "Règlement intérieur": "Regolamento interno", "Mentions légales": "Note legali",
   "Tous droits réservés.": "Tutti i diritti riservati.",

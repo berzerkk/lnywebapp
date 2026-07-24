@@ -9,7 +9,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Entreprises & RH": "企业与人力资源", "Test de niveau": "水平测试",
   "La certification qualité a été délivrée au titre de la catégorie d'action suivante : ACTIONS DE FORMATION.": "Qualiopi 质量认证颁发类别：培训活动。",
   "⬇ Télécharger l'attestation Qualiopi (PDF)": "⬇ 下载 Qualiopi 认证证书 (PDF)",
-  "⬇ Télécharger la charte de déontologie CPF (PDF)": "⬇ 下载 CPF 职业道德章程 (PDF)",
+  "⬇ Télécharger la charte de déontologie (PDF)": "⬇ 下载职业道德章程 (PDF)",
   "Déclaration d'activité enregistrée sous le n° 93 060 886 106 auprès du Préfet de la région PACA. Cet enregistrement ne vaut pas agrément de l'État.": "培训机构已在 PACA 大区省长处登记，编号 93 060 886 106。该登记不构成国家认可。",
   "Conditions générales": "一般条款", "Politique de confidentialité": "隐私政策", "Règlement intérieur": "内部规章", "Mentions légales": "法律声明",
   "Tous droits réservés.": "版权所有。",
