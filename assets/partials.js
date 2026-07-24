@@ -10,8 +10,8 @@
   // Date de dernière mise à jour du site = date de build du serveur (reconstruit à CHAQUE
   // déploiement, donc à chaque push). Elle est encodée dans le ?v= de ce script
   // (ASSET_VER = Date.now() en base36 côté serveur) → on la redécode ici. Aucune saisie manuelle.
-  var MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-  function dateFr(d) { var j = d.getDate(); return (j === 1 ? '1er' : j) + ' ' + MOIS_FR[d.getMonth()] + ' ' + d.getFullYear(); }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function dateNum(d) { return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear(); }
   function buildDate() {
     try {
       var sc = document.getElementsByTagName('script');
@@ -133,7 +133,7 @@
           '<div class="row"><span>Association Loi 1901</span><span>·</span><span>SIRET 881 226 641 00028</span><span>·</span><span>RNA W061014363</span><span>·</span><span>APE 8559A</span><span>·</span><span>TVA FR31881226641</span></div>' +
           '<div class="row"><span>Déclaration d\'activité enregistrée sous le n° 93 060 886 106 auprès du Préfet de la région PACA. Cet enregistrement ne vaut pas agrément de l\'État.</span></div>' +
           '<div class="row"><a href="cgv.html">Conditions générales</a><a href="confidentialite.html">Politique de confidentialité</a><a href="reglement-interieur.html">Règlement intérieur</a><a href="mentions-legales.html">Mentions légales</a></div>' +
-          '<div class="row" style="color:#6f6253"><span>Site créé le <span data-i18n-skip>1er juin 2026</span></span><span>·</span><span>Dernière mise à jour le <span data-i18n-skip>' + dateFr(buildDate()) + '</span></span></div>' +
+          '<div class="row" style="color:#6f6253"><span>Site créé le <span data-i18n-skip>01/06/2026</span></span><span>·</span><span>Dernière mise à jour le <span data-i18n-skip>' + dateNum(buildDate()) + '</span></span></div>' +
           '<div class="row" style="color:#6f6253"><span>© ' + new Date().getFullYear() + ' Languages &amp; Success.</span> <span>Tous droits réservés.</span></div>' +
         '</div>' +
       '</div>' +
