@@ -116,7 +116,7 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
-const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], contratRefs: [], secret: crypto.randomBytes(32).toString('hex') });
+const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], contratRefs: [], logins: [], secret: crypto.randomBytes(32).toString('hex') });
 function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys(def)) { if (d[k] == null) d[k] = def[k]; } return d; }
 
 function loadDB() {
@@ -280,22 +280,57 @@ function auth(req, res, next) {
 }
 
 // ---- comptes ---------------------------------------------------------------
-app.post('/api/signup', async (req, res) => {
+// L'inscription publique est fermée : les comptes sont créés par l'administration
+// (POST /api/admin/users ci-dessous). Les comptes démo restent seedés côté serveur.
+app.post('/api/signup', (req, res) => {
+  res.status(403).json({ error: 'Les inscriptions se font par l\'administration Languages & Success.' });
+});
+// création d'un compte (apprenant ou formateur) PAR un admin + e-mail de bienvenue
+app.post('/api/admin/users', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
   const { prenom, nom, email, password, role, profile } = req.body || {};
   if (!prenom || !nom || !email || !password) return res.status(400).json({ error: 'Champs manquants.' });
-  if (!ROLES.includes(role)) return res.status(400).json({ error: 'Rôle invalide.' });
+  if (!['eleve', 'prof'].includes(role)) return res.status(400).json({ error: 'Rôle invalide (apprenant ou formateur).' });
+  if (String(password).length < 6) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 6 caractères.' });
   const mail = String(email).trim().toLowerCase();
   if (db.users.some(u => u.email === mail)) return res.status(409).json({ error: 'Un compte existe déjà avec cet e-mail.' });
   const user = { id: crypto.randomUUID(), prenom: prenom.trim(), nom: nom.trim(), email: mail, passwordHash: await bcrypt.hash(password, 10), role, profile: cleanProfile(role, profile) };
   db.users.push(user); save();
-  res.json({ token: sign(user), user: pubFull(user) });
+  // e-mail de bienvenue : « votre compte est prêt »
+  const urlW = SITE_URL + '/espace-documents.html';
+  sendMailSafe(mail,
+    'Votre compte espace documents est prêt — Languages & Success',
+    'Bonjour ' + user.prenom + ',\n\nVotre compte sur l\'espace documents Languages & Success est prêt.\nIdentifiant : ' + mail + '\n\nConnectez-vous ici :\n' + urlW + '\n\nLanguages & Success',
+    mailHtml('Votre compte est prêt ✓',
+      ['Bonjour ' + user.prenom + ',', 'Votre compte sur l\'espace documents Languages & Success est prêt.', 'Identifiant : ' + mail],
+      'Se connecter', urlW));
+  res.json({ ok: true, user: pubFull(user) });
 });
+// IP réelle du visiteur (derrière le tunnel Cloudflare en prod, direct en local)
+function clientIp(req) {
+  return String(req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+}
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body || {};
   const mail = String(email || '').trim().toLowerCase();
   const user = db.users.find(u => u.email === mail);
   if (!user || !(await bcrypt.compare(password || '', user.passwordHash))) return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });
+  // historique de connexions (borné aux 1000 dernières entrées)
+  db.logins.push({ id: crypto.randomUUID(), user: user.id, email: user.email, ip: clientIp(req), date: Date.now() });
+  if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
+  save();
   res.json({ token: sign(user), user: pubFull(user) });
+});
+// historique de connexions (admin) — global ou filtré par compte (?user=<id>)
+app.get('/api/admin/logins', auth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
+  let list = db.logins.slice();
+  if (req.query.user) list = list.filter(l => l.user === req.query.user);
+  list = list.sort((a, b) => b.date - a.date).slice(0, 200).map(l => {
+    const u = realUser(l.user);
+    return { id: l.id, userId: l.user, name: u ? `${u.prenom} ${u.nom}` : '(compte supprimé)', email: l.email, ip: l.ip, date: l.date };
+  });
+  res.json({ logins: list });
 });
 app.get('/api/me', auth, (req, res) => res.json({ user: pubFull(req.user) }));
 app.get('/api/users', auth, (req, res) => {
@@ -1797,8 +1832,15 @@ const DEMO_ACCOUNTS = [
   { email: 'prof@ls.fr', prenom: 'Paul', nom: 'Formateur', role: 'prof', profile: { langue: 'Anglais', siret: '881 226 641 00028', nda: '93 060 886 106', adresse: '57 route de Grenoble, 06200 Nice', tel: '06 12 34 56 78', dateNaissance: '12/04/1985', nationalite: 'Française' } },
   { email: 'eleve@ls.fr', prenom: 'Léa', nom: 'Apprenante', role: 'eleve', profile: { tel: '06 98 76 54 32', societe: 'ACME SAS', heuresTotal: '40 h', heuresDetail: '20 h en visioconférence + 20 h en présentiel', intitule: 'Anglais professionnel', langue: 'Anglais', dateDebut: '15/09/2026', dateFin: '20/12/2026', lieu: 'distanciel', lieuAdresse: '', certification: 'oui', certificationText: 'Certification LINGUASKILL (Cambridge)' } }
 ];
+// compte administrateur permanent (mot de passe surchargeable via ADMIN_PASSWORD ;
+// jamais réécrasé s'il existe déjà — un changement de mot de passe ultérieur est conservé)
+const ADMIN_EMAIL = 'admin@languagesandsuccess.com';
 async function ensureDemo() {
   let changed = false;
+  if (!db.users.some(u => u.email === ADMIN_EMAIL)) {
+    db.users.push({ id: crypto.randomUUID(), prenom: 'Administration', nom: 'L&S', email: ADMIN_EMAIL, passwordHash: await bcrypt.hash(process.env.ADMIN_PASSWORD || 'changez-ce-mot-de-passe', 10), role: 'admin', profile: {} });
+    changed = true;
+  }
   for (const d of DEMO_ACCOUNTS) {
     if (!db.users.some(u => u.email === d.email)) {
       db.users.push({ id: crypto.randomUUID(), prenom: d.prenom, nom: d.nom, email: d.email, passwordHash: await bcrypt.hash(DEMO_PASSWORD, 10), role: d.role, profile: d.profile });

@@ -65,8 +65,7 @@
     var mm = document.querySelector('.mm-account'); if (!mm) return;
     if (!ME) {
       mm.innerHTML = '<span class="mm-title">Espace documents</span>' +
-        '<a href="espace-documents.html" class="header-cta header-cta-accent">Se connecter</a>' +
-        '<a href="espace-documents.html#creer" class="header-cta">Créer un compte</a>';
+        '<a href="espace-documents.html" class="header-cta header-cta-accent">Se connecter</a>';
     } else {
       mm.innerHTML = '<span class="mm-title">Espace documents</span>' +
         '<a href="espace-documents.html" class="header-cta header-cta-accent">Mon espace · ' + esc(ME.prenom) + '</a>' +
@@ -115,7 +114,6 @@
 
   // ---- boot ---------------------------------------------------------------
   function boot() {
-    if (location.hash === '#creer') authTab = 'signup';
     if (!token()) { ME = null; renderHeader(); if (app()) renderAuth(); return; }
     api('/api/me').then(function (r) {
       if (!r.ok) { setToken(null); ME = null; renderHeader(); if (app()) renderAuth(); return; }
@@ -137,14 +135,12 @@
     }, 20000);
   }
 
-  // ---- connexion / inscription -------------------------------------------
+  // ---- connexion (l'inscription publique est fermée : comptes créés par l'admin)
   function renderAuth() {
     var el = app(); if (!el) return;
     el.innerHTML = '<div class="auth-wrap"><div class="auth-tabs">' +
-      '<button class="auth-tab' + (authTab === 'login' ? ' on' : '') + '" data-tab="login">Se connecter</button>' +
-      '<button class="auth-tab' + (authTab === 'signup' ? ' on' : '') + '" data-tab="signup">Créer un compte</button></div>' +
-      (authTab === 'login' ? loginForm() : signupForm()) + '</div>';
-    el.querySelectorAll('.auth-tab').forEach(function (b) { b.onclick = function () { authTab = b.getAttribute('data-tab'); renderAuth(); }; });
+      '<button class="auth-tab on" type="button">Se connecter</button></div>' +
+      loginForm() + '</div>';
     wireEyes(el);
     var lf = document.getElementById('login-form');
     if (lf) lf.onsubmit = function (e) {
@@ -155,42 +151,15 @@
       });
     };
     // comptes démo (page de connexion)
-    if (authTab === 'login') {
-      if (DEMO === null) { api('/api/demo-accounts').then(function (r) { DEMO = (r.ok && r.data.accounts) || []; if (app() && authTab === 'login') renderAuth(); }); }
-      el.querySelectorAll('.demo-login').forEach(function (b) {
-        b.onclick = function () {
-          apiJSON('/api/login', 'POST', { email: b.getAttribute('data-email'), password: b.getAttribute('data-pwd') }).then(function (r) {
-            if (!r.ok) { err('login-err', (r.data && r.data.error) || 'Connexion impossible.'); return; }
-            setToken(r.data.token); ME = r.data.user; selected = null; afterAuth();
-          });
-        };
-      });
-    }
-    var sf = document.getElementById('signup-form');
-    if (sf) {
-      var roleSel = document.getElementById('su-role');
-      var applyRole = function () {
-        var r = roleSel.value;
-        document.getElementById('su-eleve-fields').style.display = r === 'eleve' ? '' : 'none';
-        document.getElementById('su-prof-fields').style.display = r === 'prof' ? '' : 'none';
-      };
-      roleSel.onchange = applyRole; applyRole();
-      var certSel = document.getElementById('su-certif');
-      if (certSel) { var ct = function () { document.getElementById('su-certif-wrap').style.display = certSel.value === 'oui' ? '' : 'none'; }; certSel.onchange = ct; ct(); }
-      var lieuSel = document.getElementById('su-lieu');
-      if (lieuSel) { var lt = function () { document.getElementById('su-lieu-wrap').style.display = (lieuSel.value === 'presentiel' || lieuSel.value === 'mixte') ? '' : 'none'; }; lieuSel.onchange = lt; lt(); }
-      sf.onsubmit = function (e) {
-        e.preventDefault();
-        var p1 = val('su-pwd'), p2 = val('su-pwd2');
-        if (p1.length < 6) { err('signup-err', 'Le mot de passe doit faire au moins 6 caractères.'); return; }
-        if (p1 !== p2) { err('signup-err', 'Les mots de passe ne correspondent pas.'); return; }
-        var role = val('su-role');
-        apiJSON('/api/signup', 'POST', { prenom: val('su-prenom'), nom: val('su-nom'), email: val('su-email'), password: p1, role: role, profile: collectProfile(role) }).then(function (r) {
-          if (!r.ok) { err('signup-err', r.data.error || 'Création impossible.'); return; }
+    if (DEMO === null) { api('/api/demo-accounts').then(function (r) { DEMO = (r.ok && r.data.accounts) || []; if (app() && !ME) renderAuth(); }); }
+    el.querySelectorAll('.demo-login').forEach(function (b) {
+      b.onclick = function () {
+        apiJSON('/api/login', 'POST', { email: b.getAttribute('data-email'), password: b.getAttribute('data-pwd') }).then(function (r) {
+          if (!r.ok) { err('login-err', (r.data && r.data.error) || 'Connexion impossible.'); return; }
           setToken(r.data.token); ME = r.data.user; selected = null; afterAuth();
         });
       };
-    }
+    });
   }
   function collectProfile(role) {
     if (role === 'eleve') return { tel: val('su-tel'), societe: val('su-societe'), heuresTotal: val('su-heures'), heuresDetail: val('su-heures-detail'), intitule: val('su-intitule'), langue: val('su-langue'), dateDebut: val('su-date-debut'), dateFin: val('su-date-fin'), lieu: val('su-lieu'), lieuAdresse: val('su-lieu-adresse'), certification: val('su-certif'), certificationText: val('su-certif-text') };
@@ -208,10 +177,11 @@
     return '<form class="form auth-form" id="login-form" style="max-width:none">' + field('li-email', 'E-mail', 'email') + pwdField('li-pwd', 'Mot de passe') +
       '<p class="auth-err" id="login-err"></p><button class="btn btn-primary" type="submit" style="justify-self:center">Se connecter →</button></form>' + demoBoxHTML();
   }
-  function signupForm() {
-    return '<form class="form auth-form" id="signup-form" style="max-width:none"><div class="row2">' + field('su-prenom', 'Prénom', 'text') + field('su-nom', 'Nom', 'text') + '</div>' + field('su-email', 'E-mail', 'email') +
+  // corps du formulaire de création de compte (utilisé par la modale admin « Créer un compte »)
+  function accountFieldsHTML() {
+    return '<div class="form auth-form" id="signup-form" style="max-width:none"><div class="row2">' + field('su-prenom', 'Prénom', 'text') + field('su-nom', 'Nom', 'text') + '</div>' + field('su-email', 'E-mail', 'email') +
       '<div class="row2">' + pwdField('su-pwd', 'Mot de passe') + pwdField('su-pwd2', 'Confirmer le mot de passe') + '</div>' +
-      '<div class="field"><label for="su-role">Type de compte</label><select id="su-role" name="role"><option value="eleve">Apprenant</option><option value="prof">Formateur</option><option value="admin">Administrateur</option></select></div>' +
+      '<div class="field"><label for="su-role">Type de compte</label><select id="su-role" name="role"><option value="eleve">Apprenant</option><option value="prof">Formateur</option></select></div>' +
       '<div id="su-eleve-fields" class="su-profile"><h4 class="su-fiche-h">Fiche apprenant</h4>' +
         '<div class="row2">' + ofield('su-tel', 'Téléphone', 'tel') + ofield('su-societe', 'Société', 'text') + '</div>' +
         '<div class="row2">' + ofield('su-langue', 'Langue', 'text') + ofield('su-intitule', 'Intitulé de la formation', 'text') + '</div>' +
@@ -229,7 +199,7 @@
         ofield('su-adresse', 'Adresse physique', 'text') +
         '<div class="row2">' + ofield('su-naissance', 'Date de naissance', 'text') + ofield('su-nationalite', 'Nationalité', 'text') + '</div>' +
       '</div>' +
-      '<p class="auth-err" id="signup-err"></p><button class="btn btn-primary" type="submit" style="justify-self:center">Créer mon compte →</button></form>';
+      '<p class="auth-err" id="signup-err"></p></div>';
   }
   function ofield(id, label, type) { return '<div class="field"><label for="' + id + '">' + label + '</label><input id="' + id + '" type="' + (type || 'text') + '" /></div>'; }
   function oarea(id, label) { return '<div class="field"><label for="' + id + '">' + label + '</label><textarea id="' + id + '" rows="2"></textarea></div>'; }
@@ -626,7 +596,9 @@
     function chip(key, label, count) { return '<button class="adm-chip' + (adminShow[key] ? ' on' : '') + '" type="button" data-k="' + key + '">' + label + ' (' + count + ')</button>'; }
     var bar = '<div class="ds-card-h"><h3>Administration — vue globale</h3><span class="role-chip role-admin">Accès total · partagé</span></div>' +
       '<div class="adm-bar"><div class="adm-toggle">' + chip('dossiers', 'Dossiers', groups.length) + chip('comptes', 'Comptes', users.length) + chip('fichiers', 'Fichiers', docs.length) +
-      '</div><input id="adm-search" class="adm-search" placeholder="Filtrer par nom, e-mail, fichier…" value="' + esc(adminQuery) + '" /></div>';
+      '</div><input id="adm-search" class="adm-search" placeholder="Filtrer par nom, e-mail, fichier…" value="' + esc(adminQuery) + '" />' +
+      '<button class="btn-mini adm-new" type="button">+ Créer un compte</button>' +
+      '<button class="btn-mini adm-logins" type="button">🕐 Historique de connexions</button></div>';
     var sections = '';
     if (adminShow.dossiers) {
       var gs = groups.filter(function (g) { return !q || norm(g.prof + ' ' + g.eleve).indexOf(q) >= 0; });
@@ -644,6 +616,7 @@
         var canDel = u.id !== ME.id, canEdit = u.role === 'eleve' || u.role === 'prof';
         return '<li><span class="avatar">' + esc(initials(fullName(u))) + '</span><span class="c-name">' + esc(fullName(u)) + '<small>' + esc(u.email || '') + '</small>' +
           '<small class="adm-contacts">' + (ds.length ? 'Dossiers : ' + ds.map(esc).join(', ') : 'Aucun dossier') + '</small></span><span class="role-chip role-' + u.role + '">' + ROLES[u.role] + '</span>' +
+          '<button class="adm-hist" type="button" data-id="' + u.id + '" data-name="' + esc(fullName(u)) + '" title="Historique de connexions">🕐</button>' +
           (canEdit ? '<button class="adm-edit" type="button" data-id="' + u.id + '" title="Modifier la fiche">✏️</button>' : '') +
           (canDel ? '<button class="adm-del" type="button" data-del="user" data-id="' + u.id + '" data-label="' + esc(fullName(u)) + '" title="Supprimer ce compte">🗑</button>' : '') + '</li>';
       }).join('') + '</ul>' : '<p class="ds-empty">Aucun compte trouvé.</p>') + '</div>';
@@ -658,6 +631,11 @@
   function wireAdmin() {
     document.querySelectorAll('.adm-chip').forEach(function (t) { t.onclick = function () { var k = t.getAttribute('data-k'); adminShow[k] = !adminShow[k]; rerenderAdmin(false); }; });
     var s = document.getElementById('adm-search'); if (s) s.oninput = function () { adminQuery = s.value; rerenderAdmin(true); };
+    var nb = document.querySelector('.adm-new'); if (nb) nb.onclick = openCreateAccount;
+    var lb = document.querySelector('.adm-logins'); if (lb) lb.onclick = function () { openLoginsModal(null, null); };
+    document.querySelectorAll('.adm-hist').forEach(function (b) {
+      b.onclick = function () { openLoginsModal(b.getAttribute('data-id'), b.getAttribute('data-name')); };
+    });
     document.querySelectorAll('.adm-edit').forEach(function (b) {
       b.onclick = function () {
         var id = b.getAttribute('data-id');
@@ -691,6 +669,49 @@
     card.replaceWith(tmp.firstChild);
     wireAdmin();
     if (keepFocus) { var s = document.getElementById('adm-search'); if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); } }
+  }
+  // ---- admin : créer un compte (apprenant ou formateur) --------------------
+  function openCreateAccount() {
+    var footer = '<p class="fe-err auth-err" id="ca-err" style="margin:0 12px 0 0"></p><button class="btn btn-primary ca-save" type="button" style="padding:11px 22px">Créer le compte</button>';
+    var m = buildFsModal('ca-modal', 'Créer un compte', accountFieldsHTML(), footer);
+    wireEyes(m);
+    var roleSel = m.querySelector('#su-role');
+    var applyRole = function () {
+      var r = roleSel.value;
+      m.querySelector('#su-eleve-fields').style.display = r === 'eleve' ? '' : 'none';
+      m.querySelector('#su-prof-fields').style.display = r === 'prof' ? '' : 'none';
+    };
+    roleSel.onchange = applyRole; applyRole();
+    var certSel = m.querySelector('#su-certif');
+    if (certSel) { var ct = function () { m.querySelector('#su-certif-wrap').style.display = certSel.value === 'oui' ? '' : 'none'; }; certSel.onchange = ct; ct(); }
+    var lieuSel = m.querySelector('#su-lieu');
+    if (lieuSel) { var lt = function () { m.querySelector('#su-lieu-wrap').style.display = (lieuSel.value === 'presentiel' || lieuSel.value === 'mixte') ? '' : 'none'; }; lieuSel.onchange = lt; lt(); }
+    m.querySelector('.ca-save').onclick = function () {
+      var p1 = val('su-pwd'), p2 = val('su-pwd2');
+      if (p1.length < 6) { err('ca-err', 'Le mot de passe doit faire au moins 6 caractères.'); return; }
+      if (p1 !== p2) { err('ca-err', 'Les mots de passe ne correspondent pas.'); return; }
+      var role = val('su-role');
+      var btn = m.querySelector('.ca-save'); btn.disabled = true; btn.textContent = 'Création…';
+      apiJSON('/api/admin/users', 'POST', { prenom: val('su-prenom'), nom: val('su-nom'), email: val('su-email'), password: p1, role: role, profile: collectProfile(role) }).then(function (r) {
+        btn.disabled = false; btn.textContent = 'Créer le compte';
+        if (!r.ok) { err('ca-err', (r.data && r.data.error) || 'Création impossible.'); return; }
+        closeFsModal('ca-modal');
+        alertDialog('Compte créé — un e-mail de bienvenue a été envoyé.');
+        api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; rerenderAdmin(false); } });
+      });
+    };
+  }
+  // ---- admin : historique de connexions (global ou par compte) -------------
+  function openLoginsModal(userId, userName) {
+    var title = userId ? 'Connexions — ' + userName : 'Historique de connexions';
+    var m = buildFsModal('lg-modal', title, '<div id="lg-holder"><p class="ds-empty">Chargement…</p></div>', '');
+    api('/api/admin/logins' + (userId ? '?user=' + encodeURIComponent(userId) : '')).then(function (r) {
+      var holder = m.querySelector('#lg-holder'); if (!holder) return;
+      var list = (r.ok && r.data.logins) || [];
+      holder.innerHTML = list.length ? '<ul class="notif-list">' + list.map(function (l) {
+        return '<li><span><b>' + esc(l.name) + '</b> · ' + esc(l.email) + ' · IP ' + esc(l.ip || '?') + '</span><time>' + fmtDate(l.date) + '</time></li>';
+      }).join('') + '</ul>' : '<p class="ds-empty">Aucune connexion enregistrée.</p>';
+    });
   }
   // ---- admin : modifier la fiche d'un apprenant / formateur ----------------
   function openFicheEdit(u) {

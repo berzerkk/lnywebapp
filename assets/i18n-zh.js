@@ -351,7 +351,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Tél apprenant": "学员电话", "Tél formateur": "培训师电话", "Mail apprenant": "学员邮箱", "Mail formateur": "培训师邮箱",
   "Mes dossiers": "我的档案夹", "Vos dossiers": "您的档案夹", "Aucune notification.": "暂无通知。", "Aucun dossier.": "暂无档案夹。", "Aucun dossier pour l'instant.": "目前还没有档案夹。",
   "Voir tout": "查看全部", "Tout supprimer": "全部删除", "Ajouter un apprenant": "添加学员", "Ajouter un formateur": "添加培训师", "🔍 Ajouter un apprenant": "🔍 添加学员", "🔍 Ajouter un formateur": "🔍 添加培训师",
-  "Administration — vue globale": "管理 — 全局视图", "Administration L&S": "L&S 管理处", "Dossiers": "档案夹", "Comptes": "账户", "Fichiers": "文件",
+  "Administration — vue globale": "管理 — 全局视图", "+ Créer un compte": "+ 创建账户", "🕐 Historique de connexions": "🕐 登录记录", "Historique de connexions": "登录记录", "Créer le compte": "创建账户", "Création…": "创建中…", "Compte créé — un e-mail de bienvenue a été envoyé.": "账户已创建 — 欢迎邮件已发送。", "Aucune connexion enregistrée.": "暂无登录记录。", "Administration L&S": "L&S 管理处", "Dossiers": "档案夹", "Comptes": "账户", "Fichiers": "文件",
   "Aucun compte trouvé.": "未找到账户。", "Aucun fichier.": "暂无文件。", "Sélectionnez au moins une catégorie à afficher.": "请至少选择一个要显示的类别。",
   "Compte": "账户", "Accès total · partagé": "完全访问 · 共享", "Apprenant + Admin": "学员 + 管理员", "Formateur + Admin": "培训师 + 管理员", "Formateur + Apprenant + Admin": "培训师 + 学员 + 管理员",
   "Sélectionnez un dossier à gauche pour voir les documents et discuter.": "在左侧选择一个档案夹，即可查看文档并交流。",

@@ -76,7 +76,6 @@
       '<div class="mm-account">' +
         '<span class="mm-title">Espace documents</span>' +
         '<a href="espace-documents.html" class="header-cta header-cta-accent">Se connecter</a>' +
-        '<a href="espace-documents.html#creer" class="header-cta">Créer un compte</a>' +
       '</div>' +
       '<nav class="mm-links">' + navLinksHTML + '</nav>' +
       '<div class="mm-lang"><span class="mm-title">Langue</span><div class="mm-lang-grid" data-i18n-skip>' + langOptsHTML + '</div></div>' +
