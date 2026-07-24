@@ -17,6 +17,8 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
+const zlib = require('zlib');
 const PDFDocument = require('pdfkit');
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType } = require('docx');
 const LOGO_PATH = path.join(__dirname, 'assets', 'ls-logo.png');
@@ -174,7 +176,7 @@ function mailConfig() {
     return { host: process.env.SMTP_HOST, port: +(process.env.SMTP_PORT || 465), secure: process.env.SMTP_SECURE !== 'false', user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: process.env.MAIL_FROM || '"Languages & Success" <' + process.env.SMTP_USER + '>', siteUrl: process.env.SITE_URL || 'https://languagesandsuccess.com' };
   }
   try {
-    const c = JSON.parse(fs.readFileSync(MAIL_FILE, 'utf8'));
+    const c = JSON.parse(fs.readFileSync(MAIL_FILE, 'utf8').replace(/^﻿/, ''));
     if (c && c.host && c.user && c.pass) return { host: c.host, port: +(c.port || 465), secure: c.secure !== false, user: c.user, pass: c.pass, from: c.from || '"Languages & Success" <' + c.user + '>', siteUrl: c.siteUrl || 'https://languagesandsuccess.com' };
   } catch (e) { }
   return null;
@@ -209,6 +211,133 @@ function mailHtml(title, lines, ctaLabel, ctaUrl) {
     + '<p style="font-size:12px;color:#6b6055;margin-top:24px;margin-bottom:0">Vous recevez cet e-mail car une action vous concerne dans l\'espace documents.</p>'
     + '</div></div>';
 }
+
+// ---- sauvegarde OFFSITE quotidienne de data/ (Backblaze B2 ou disque local) -
+// Config HORS Git : variables d'env B2_KEY_ID / B2_APP_KEY (+ B2_BUCKET_ID si la
+// clé n'est pas limitée à un bucket) ou fichier data/backup.json {keyId, appKey,
+// bucketId} — ou {local: "chemin"} pour déposer l'archive sur un disque local.
+// Sans config → désactivée proprement, le site fonctionne normalement. Tout est
+// isolé dans des try/catch : un échec de sauvegarde ne touche JAMAIS le site.
+// Archive tar.gz de data/ (db.json + uploads + smtp.json ; hors backups/ locaux
+// et db.json.tmp), ~1×/jour (robuste aux redéploiements via db.lastOffsiteBackup),
+// rétention : les 30 archives les plus récentes. Statut consultable :
+// GET /api/admin/backup-status · déclenchement manuel : POST /api/admin/backup-run.
+const BACKUP_CFG_FILE = path.join(DATA_DIR, 'backup.json');
+function backupCfg() {
+  if (process.env.B2_KEY_ID && process.env.B2_APP_KEY) return { mode: 'b2', keyId: process.env.B2_KEY_ID, appKey: process.env.B2_APP_KEY, bucketId: process.env.B2_BUCKET_ID || '' };
+  try {
+    const c = JSON.parse(fs.readFileSync(BACKUP_CFG_FILE, 'utf8').replace(/^﻿/, ''));
+    if (c && c.local) return { mode: 'local', local: String(c.local) };
+    if (c && c.keyId && c.appKey) return { mode: 'b2', keyId: c.keyId, appKey: c.appKey, bucketId: c.bucketId || '' };
+  } catch (e) { }
+  return null;
+}
+const OFFSITE = backupCfg();
+console.log(OFFSITE ? ('🗄 sauvegarde offsite activée (' + (OFFSITE.mode === 'b2' ? 'Backblaze B2' : 'disque local') + ', quotidienne)') : '🗄 sauvegarde offsite désactivée (pas de config B2 ni data/backup.json)');
+
+// mini-écrivain tar POSIX (fichiers réguliers uniquement) + flux gzip
+function tarHeader(name, size, mtimeMs) {
+  const b = Buffer.alloc(512);
+  b.write(name, 0, 100, 'utf8');
+  b.write('0000644\0', 100, 8, 'ascii');
+  b.write('0000000\0', 108, 8, 'ascii');
+  b.write('0000000\0', 116, 8, 'ascii');
+  b.write(size.toString(8).padStart(11, '0') + '\0', 124, 12, 'ascii');
+  b.write(Math.floor(mtimeMs / 1000).toString(8).padStart(11, '0') + '\0', 136, 12, 'ascii');
+  b.write('        ', 148, 8, 'ascii'); // champ checksum rempli d'espaces pour le calcul
+  b.write('0', 156, 1, 'ascii');        // fichier régulier
+  b.write('ustar', 257, 5, 'ascii');
+  b.write('00', 263, 2, 'ascii');
+  let sum = 0; for (let i = 0; i < 512; i++) sum += b[i];
+  b.write(sum.toString(8).padStart(6, '0') + '\0 ', 148, 8, 'ascii');
+  return b;
+}
+async function buildDataArchive(outPath) {
+  const gz = zlib.createGzip({ level: 6 });
+  const out = fs.createWriteStream(outPath);
+  const done = new Promise((resolve, reject) => { out.on('close', resolve); out.on('error', reject); gz.on('error', reject); });
+  gz.pipe(out);
+  const skipTop = new Set(['backups', 'db.json.tmp', 'backup.json']);
+  const wr = (buf) => (gz.write(buf) ? Promise.resolve() : new Promise(r => gz.once('drain', r)));
+  async function addFile(rel, abs, st) {
+    await wr(tarHeader(rel, st.size, st.mtimeMs));
+    await new Promise((resolve, reject) => {
+      const rs = fs.createReadStream(abs);
+      rs.on('error', reject);
+      rs.on('data', chunk => { if (!gz.write(chunk)) { rs.pause(); gz.once('drain', () => rs.resume()); } });
+      rs.on('end', resolve);
+    });
+    const pad = st.size % 512 ? 512 - (st.size % 512) : 0;
+    if (pad) await wr(Buffer.alloc(pad));
+  }
+  async function walk(dir, prefix, top) {
+    for (const name of fs.readdirSync(dir).sort()) {
+      if (top && skipTop.has(name)) continue;
+      const abs = path.join(dir, name);
+      const st = fs.statSync(abs);
+      if (st.isDirectory()) await walk(abs, prefix + name + '/', false);
+      else if (st.isFile()) await addFile(prefix + name, abs, st);
+    }
+  }
+  await walk(DATA_DIR, 'data/', true);
+  await wr(Buffer.alloc(1024)); // fin d'archive (2 blocs nuls)
+  gz.end();
+  await done;
+}
+async function b2Fetch(url, opts) {
+  const r = await fetch(url, opts);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((d && (d.message || d.code)) || ('HTTP ' + r.status));
+  return d;
+}
+async function runOffsiteBackup(reason) {
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const name = 'ls-data-' + stamp + '.tar.gz';
+  const tmp = path.join(os.tmpdir(), name);
+  try {
+    await buildDataArchive(tmp);
+    const size = fs.statSync(tmp).size;
+    if (OFFSITE.mode === 'local') {
+      fs.mkdirSync(OFFSITE.local, { recursive: true });
+      fs.copyFileSync(tmp, path.join(OFFSITE.local, name));
+    } else {
+      const body = fs.readFileSync(tmp);
+      const sha1 = crypto.createHash('sha1').update(body).digest('hex');
+      const auth = await b2Fetch('https://api.backblazeb2.com/b2api/v2/b2_authorize_account', { headers: { Authorization: 'Basic ' + Buffer.from(OFFSITE.keyId + ':' + OFFSITE.appKey).toString('base64') } });
+      const bucketId = OFFSITE.bucketId || (auth.allowed && auth.allowed.bucketId);
+      if (!bucketId) throw new Error('bucket introuvable : utiliser une clé limitée au bucket ou renseigner B2_BUCKET_ID');
+      const up = await b2Fetch(auth.apiUrl + '/b2api/v2/b2_get_upload_url', { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ bucketId }) });
+      await b2Fetch(up.uploadUrl, { method: 'POST', headers: { Authorization: up.authorizationToken, 'X-Bz-File-Name': encodeURIComponent(name), 'Content-Type': 'application/gzip', 'Content-Length': String(body.length), 'X-Bz-Content-Sha1': sha1 }, body });
+      // rétention : ne garder que les 30 archives les plus récentes
+      try {
+        const ls = await b2Fetch(auth.apiUrl + '/b2api/v2/b2_list_file_names', { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ bucketId, prefix: 'ls-data-', maxFileCount: 1000 }) });
+        const files = (ls.files || []).sort((a, b) => a.fileName.localeCompare(b.fileName));
+        while (files.length > 30) {
+          const f = files.shift();
+          await b2Fetch(auth.apiUrl + '/b2api/v2/b2_delete_file_version', { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ fileName: f.fileName, fileId: f.fileId }) });
+        }
+      } catch (e) { console.error('🗄 rétention :', e.message); }
+    }
+    db.backupStatus = { ok: true, name, size, date: Date.now(), reason: reason || 'auto' };
+    db.lastOffsiteBackup = Date.now(); save();
+    console.log('🗄 sauvegarde offsite OK : ' + name + ' (' + Math.round(size / 1024) + ' ko)');
+  } catch (e) {
+    db.backupStatus = { ok: false, error: String((e && e.message) || e), date: Date.now(), reason: reason || 'auto' };
+    try { save(); } catch (e2) { }
+    console.error('🗄 sauvegarde offsite ÉCHEC :', (e && e.message) || e);
+  } finally {
+    try { fs.unlinkSync(tmp); } catch (e) { }
+  }
+  return db.backupStatus;
+}
+let offsiteRunning = false;
+async function offsiteTick() {
+  if (!OFFSITE || offsiteRunning) return;
+  if (Date.now() - (db.lastOffsiteBackup || 0) < 22 * 60 * 60 * 1000) return; // ~1×/jour
+  offsiteRunning = true;
+  try { await runOffsiteBackup('auto'); } catch (e) { console.error('🗄', e.message); } finally { offsiteRunning = false; }
+}
+if (OFFSITE) { setTimeout(offsiteTick, 60 * 1000); setInterval(offsiteTick, 60 * 60 * 1000); }
 
 const ROLES = ['admin', 'eleve', 'prof'];
 const ROLE_LABEL = { admin: 'Administrateur', eleve: 'Apprenant', prof: 'Formateur' };
@@ -320,6 +449,19 @@ app.post('/api/login', async (req, res) => {
   if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
   save();
   res.json({ token: sign(user), user: pubFull(user) });
+});
+// sauvegarde offsite : statut (admin) + déclenchement manuel (admin)
+app.get('/api/admin/backup-status', auth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
+  res.json({ configured: !!OFFSITE, mode: OFFSITE ? OFFSITE.mode : null, status: db.backupStatus || null, last: db.lastOffsiteBackup || null });
+});
+app.post('/api/admin/backup-run', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
+  if (!OFFSITE) return res.status(400).json({ error: 'Sauvegarde non configurée.' });
+  if (offsiteRunning) return res.status(409).json({ error: 'Une sauvegarde est déjà en cours.' });
+  offsiteRunning = true;
+  try { const st = await runOffsiteBackup('manuel'); res.json({ ok: !!st.ok, status: st }); }
+  finally { offsiteRunning = false; }
 });
 // historique de connexions (admin) — global ou filtré par compte (?user=<id>)
 app.get('/api/admin/logins', auth, (req, res) => {
