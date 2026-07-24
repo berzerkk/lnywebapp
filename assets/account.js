@@ -306,7 +306,8 @@
     return '<div class="ds-card"><h3>Mes dossiers</h3>' +
       (groups.length ? '<ul class="contact-list">' + groups.map(function (g) {
         var sub = ME.role === 'admin' ? 'Formateur + Apprenant + Admin' : (ME.role === 'prof' ? 'Apprenant + Admin' : 'Formateur + Admin');
-        return '<li class="contact' + (selected === g.id ? ' on' : '') + '" data-id="' + g.id + '"><span class="avatar">' + esc(initials(groupTitle(g))) + '</span><span class="c-name">' + esc(groupTitle(g)) + '<small>' + sub + '</small></span></li>';
+        var nb = NOTIFS.filter(function (n) { return !n.read && n.group === g.id; }).length;
+        return '<li class="contact' + (selected === g.id ? ' on' : '') + (nb ? ' has-new' : '') + '" data-id="' + g.id + '"><span class="avatar">' + esc(initials(groupTitle(g))) + '</span><span class="c-name">' + esc(groupTitle(g)) + '<small>' + sub + '</small></span>' + (nb ? '<span class="contact-badge">' + (nb > 9 ? '9+' : nb) + '</span>' : '') + '</li>';
       }).join('') + '</ul>' : '<p class="ds-empty">Aucun dossier pour l\'instant.</p>') +
       (canAdd != null ? '<button class="btn-mini add-search-btn" style="margin-top:14px">🔍 ' + addLabel + '</button>' : '') + '</div>';
   }
@@ -350,7 +351,15 @@
       '</aside><main class="ds-main">' + groupView(selG, messages, docs) + '</main></div>' + (overview ? adminPanel(overview) : '');
     el.querySelector('.ds-logout').onclick = function () { logout(); };
     var sa = el.querySelector('.ds-seeall'); if (sa) sa.onclick = openNotifModal;
-    el.querySelectorAll('.contact').forEach(function (li) { li.onclick = function () { selected = li.getAttribute('data-id'); channel = 'commun'; renderDashboard(); }; });
+    el.querySelectorAll('.contact').forEach(function (li) {
+      li.onclick = function () {
+        selected = li.getAttribute('data-id'); channel = 'commun';
+        // ouvrir le dossier « consomme » ses notifications (badge + cloche)
+        if (NOTIFS.some(function (n) { return n.group === selected; })) {
+          apiJSON('/api/notifications/clear-group', 'POST', { group: selected }).then(function () { renderDashboard(); });
+        } else renderDashboard();
+      };
+    });
     var asb = el.querySelector('.add-search-btn'); if (asb) asb.onclick = openAddModal;
     el.querySelectorAll('.chan-tab').forEach(function (t) { t.onclick = function () { channel = t.getAttribute('data-ch'); renderDashboard(); }; });
     var gb = el.querySelector('.gen-btn'); if (gb) gb.onclick = openTemplatePicker;
@@ -594,7 +603,7 @@
     var users = a.users || [], groups = a.groups || [], docs = a.docs || [];
     var q = norm(adminQuery);
     function chip(key, label, count) { return '<button class="adm-chip' + (adminShow[key] ? ' on' : '') + '" type="button" data-k="' + key + '">' + label + ' (' + count + ')</button>'; }
-    var bar = '<div class="ds-card-h"><h3>Administration — vue globale</h3><span class="role-chip role-admin">Accès total · partagé</span></div>' +
+    var bar = '<div class="ds-card-h"><h3>Administration — vue globale</h3></div>' +
       '<div class="adm-bar"><div class="adm-toggle">' + chip('dossiers', 'Dossiers', groups.length) + chip('comptes', 'Comptes', users.length) + chip('fichiers', 'Fichiers', docs.length) +
       '</div><input id="adm-search" class="adm-search" placeholder="Filtrer par nom, e-mail, fichier…" value="' + esc(adminQuery) + '" />' +
       '<button class="btn-mini adm-new" type="button">+ Créer un compte</button>' +
@@ -726,9 +735,9 @@
         gi('fe-date-debut', 'Date de début', p.dateDebut) + gi('fe-date-fin', 'Date de fin', p.dateFin) +
         gi('fe-heures', "Nombre d'heures total", p.heuresTotal) + '<span></span>' +
         ga('fe-heures-detail', 'Détail des heures', p.heuresDetail) +
-        gsel('fe-lieu', 'Lieu de la formation', (function () { var l = (p.lieu || '').toLowerCase(); return (l === 'mixte' || l === 'les deux') ? 'mixte' : (l === 'presentiel' || l === 'présentiel') ? 'presentiel' : 'distanciel'; })(), [['distanciel', 'Distanciel'], ['presentiel', 'Présentiel'], ['mixte', 'Les deux (présentiel et distanciel)']]) + '<span></span>' +
+        gsel('fe-lieu', 'Lieu de la formation', (function () { var l = (p.lieu || '').toLowerCase(); return (l === 'mixte' || l === 'les deux') ? 'mixte' : (l === 'presentiel' || l === 'présentiel') ? 'presentiel' : 'distanciel'; })(), [['distanciel', 'Distanciel'], ['presentiel', 'Présentiel'], ['mixte', 'Les deux (présentiel et distanciel)']]) +
+        gsel('fe-certif', 'Certification', (p.certification === 'oui' ? 'oui' : 'non'), [['non', 'Sans certification'], ['oui', 'Avec certification']]) +
         gi('fe-lieu-adresse', 'Adresse (présentiel)', p.lieuAdresse) + '<span></span>' +
-        gsel('fe-certif', 'Certification', (p.certification === 'oui' ? 'oui' : 'non'), [['non', 'Sans certification'], ['oui', 'Avec certification']]) + '<span></span>' +
         ga('fe-certif-text', 'Détail de la certification', p.certificationText) + '</div>';
     } else if (u.role === 'prof') {
       fiche = '<h4 class="gen-h">Fiche formateur</h4><div class="gf-grid">' +

@@ -238,7 +238,7 @@ const fullName = (id) => { const u = realUser(id); return u ? `${u.prenom} ${u.n
 const senderDisplay = (u) => (u.role === 'admin' ? 'Administration L&S' : `${u.prenom} ${u.nom}`);
 const nameDate = () => new Date().toLocaleDateString('fr-FR').replace(/\//g, '-'); // date sans « / » pour les noms de fichiers
 const safeFile = (s) => String(s || '').replace(/[\\/:*?"<>|]/g, '-');
-function notify(userId, text) { db.notifs.push({ id: crypto.randomUUID(), user: userId, text, read: false, date: Date.now() }); }
+function notify(userId, text, group) { db.notifs.push({ id: crypto.randomUUID(), user: userId, text, group: group || null, read: false, date: Date.now() }); }
 
 // ---- dossiers --------------------------------------------------------------
 const groupById = (id) => db.groups.find(g => g.id === id);
@@ -256,7 +256,7 @@ function channelRecipients(g, ch, senderId) {
   ids.delete(senderId);
   return [...ids];
 }
-function notifyChannel(g, ch, sender, text) { channelRecipients(g, ch, sender.id).forEach(id => notify(id, text)); }
+function notifyChannel(g, ch, sender, text) { channelRecipients(g, ch, sender.id).forEach(id => notify(id, text, g.id)); }
 
 // ---- app -------------------------------------------------------------------
 const app = express();
@@ -354,9 +354,9 @@ app.post('/api/groups', auth, (req, res) => {
   if (!g) {
     g = { id: crypto.randomUUID(), prof, eleve, date: Date.now() };
     db.groups.push(g);
-    notify(eleve, `${fullName(prof)} (Formateur) vous a ajouté dans un dossier.`);
-    notify(prof, `Dossier ouvert avec ${fullName(eleve)} (Apprenant).`);
-    db.users.filter(u => u.role === 'admin').forEach(a => notify(a.id, `Nouveau dossier : ${fullName(prof)} (Formateur) + ${fullName(eleve)} (Apprenant).`));
+    notify(eleve, `${fullName(prof)} (Formateur) vous a ajouté dans un dossier.`, g.id);
+    notify(prof, `Dossier ouvert avec ${fullName(eleve)} (Apprenant).`, g.id);
+    db.users.filter(u => u.role === 'admin').forEach(a => notify(a.id, `Nouveau dossier : ${fullName(prof)} (Formateur) + ${fullName(eleve)} (Apprenant).`, g.id));
     save();
   }
   res.json({ ok: true, group: g.id });
@@ -479,6 +479,8 @@ app.get('/api/notifications', auth, (req, res) => res.json({ notifs: db.notifs.f
 app.post('/api/notifications/read', auth, (req, res) => { db.notifs.forEach(n => { if (n.user === req.user.id) n.read = true; }); save(); res.json({ ok: true }); });
 app.post('/api/notifications/delete', auth, (req, res) => { const id = (req.body || {}).id; db.notifs = db.notifs.filter(n => !(n.user === req.user.id && n.id === id)); save(); res.json({ ok: true }); });
 app.post('/api/notifications/clear', auth, (req, res) => { db.notifs = db.notifs.filter(n => n.user !== req.user.id); save(); res.json({ ok: true }); });
+// supprime les notifs de l'utilisateur liées à UN dossier (appelé quand il ouvre le dossier)
+app.post('/api/notifications/clear-group', auth, (req, res) => { const gid = (req.body || {}).group; db.notifs = db.notifs.filter(n => !(n.user === req.user.id && n.group === gid)); save(); res.json({ ok: true }); });
 
 // ---- vue admin globale (centralisée) ---------------------------------------
 app.get('/api/admin/overview', auth, (req, res) => {
@@ -1345,8 +1347,8 @@ app.post('/api/qs/send', auth, (req, res) => {
   const qs = { id: crypto.randomUUID(), group: g.id, type, header: header || {}, answers: {}, status: 'pending', docId: null, by: req.user.id, date: Date.now() };
   db.qs.push(qs);
   db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'commun', from: req.user.id, fromAdmin: req.user.role === 'admin', kind: 'qs', qsId: qs.id, qsType: type, text: 'Demande de remplissage : ' + tpl.title, date: Date.now() });
-  notify(g.eleve, `${senderDisplay(req.user)} vous demande de remplir : ${tpl.title}`);
-  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé un questionnaire à remplir (${tpl.title}).`));
+  notify(g.eleve, `${senderDisplay(req.user)} vous demande de remplir : ${tpl.title}`, g.id);
+  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé un questionnaire à remplir (${tpl.title}).`, g.id));
   save();
   res.json({ ok: true, id: qs.id });
 });
@@ -1381,7 +1383,7 @@ app.post('/api/qs/:id/cancel', auth, (req, res) => {
   const g = groupById(qs.group);
   db.qs = db.qs.filter(x => x.id !== qs.id);
   db.messages = db.messages.filter(m => !(m.kind === 'qs' && m.qsId === qs.id));
-  if (g) notify(g.eleve, `${senderDisplay(req.user)} a annulé une demande de questionnaire.`);
+  if (g) notify(g.eleve, `${senderDisplay(req.user)} a annulé une demande de questionnaire.`, g.id);
   save();
   res.json({ ok: true });
 });
@@ -1724,8 +1726,8 @@ app.post('/api/presence/send', auth, (req, res) => {
   const p = { id: crypto.randomUUID(), group: g.id, type, fields: fields || {}, formateurSig, apprenantSig: null, status: 'pending', docId: null, by: req.user.id, date: Date.now() };
   db.presences.push(p);
   db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'commun', from: req.user.id, fromAdmin: req.user.role === 'admin', kind: 'presence', presenceId: p.id, text: 'Feuille de présence à signer : ' + tpl.title, date: Date.now() });
-  notify(g.eleve, `${senderDisplay(req.user)} vous demande de signer une feuille de présence (${tpl.title}).`);
-  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé une feuille de présence à signer (${tpl.title}).`));
+  notify(g.eleve, `${senderDisplay(req.user)} vous demande de signer une feuille de présence (${tpl.title}).`, g.id);
+  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé une feuille de présence à signer (${tpl.title}).`, g.id));
   // e-mail à l'apprenant : un document l'attend pour signature
   const eleveU = db.users.find(u => u.id === g.eleve);
   if (eleveU) {
@@ -1786,7 +1788,7 @@ app.post('/api/presence/:id/cancel', auth, (req, res) => {
   const g = groupById(p.group);
   db.presences = db.presences.filter(x => x.id !== p.id);
   db.messages = db.messages.filter(m => !(m.kind === 'presence' && m.presenceId === p.id));
-  if (g) notify(g.eleve, `${senderDisplay(req.user)} a annulé une demande de signature.`);
+  if (g) notify(g.eleve, `${senderDisplay(req.user)} a annulé une demande de signature.`, g.id);
   save();
   res.json({ ok: true });
 });

@@ -306,6 +306,7 @@ body.menu-open{overflow:hidden}
 .cm-box>*:last-child{margin-bottom:0}
 .cm-box .cm-group{margin-bottom:0}
 .cm-boxhead{font-family:var(--ff-head);font-size:16px;font-weight:600;color:var(--accent);margin:0 0 14px}
+.cm-boxhead a,.cm-badbox a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 .cm-stat.nw .cm-stat-n{white-space:nowrap}
 .cm-c.tint-a{background:rgba(190,110,84,.13);border-color:rgba(190,110,84,.32)}
 .cm-c.tint-b{background:rgba(243,173,153,.2);border-color:rgba(243,173,153,.55)}
@@ -521,7 +522,8 @@ footer a:hover{color:#fff8ef}
 
 /* étapes numérotées */
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;counter-reset:step}
-.steps-5{grid-template-columns:repeat(5,1fr)}
+.steps-5{grid-template-columns:repeat(5,minmax(0,1fr))} /* colonnes strictement égales (l'e-mail long du bloc 03 ne doit pas élargir sa colonne) */
+.steps-5 .step p{overflow-wrap:anywhere}
 .step{position:relative;padding-top:30px;border-top:2px solid var(--ink)}
 .step::before{counter-increment:step;content:"0" counter(step);position:absolute;top:-2px;left:0;transform:translateY(-130%);font-family:var(--ff-head);font-style:italic;font-size:34px;color:var(--accent)}
 .step h3{font-size:20px;margin-bottom:8px}
@@ -645,6 +647,9 @@ footer a:hover{color:#fff8ef}
 .contact{display:flex;align-items:center;gap:11px;padding:9px 10px;border:1px solid var(--line);border-radius:11px;cursor:pointer;transition:.15s}
 .contact:hover{border-color:var(--accent)}
 .contact.on{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 8%,#fff)}
+/* dossier avec nouveautés non consultées : pastille compteur + fond accentué */
+.contact.has-new:not(.on){border-color:var(--accent);background:color-mix(in oklab,var(--accent) 12%,var(--bg-card))}
+.contact-badge{margin-left:auto;flex:none;min-width:20px;height:20px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;border-radius:999px;font-size:11.5px;font-weight:700}
 .avatar{flex:none;width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;text-transform:uppercase}
 .c-name{display:flex;flex-direction:column;line-height:1.25;font-weight:600;font-size:14.5px}
 .c-name small{font-weight:500;color:var(--ink-soft);font-size:12px}

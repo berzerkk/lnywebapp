@@ -26,6 +26,8 @@
   var modal=document.getElementById('cert-modal'); if(!modal) return;
   var elEye=document.getElementById('cm-eyebrow'),elName=document.getElementById('cm-title'),elFull=document.getElementById('cm-fullname'),elIntro=document.getElementById('cm-intro'),elBlocks=document.getElementById('cm-blocks'),closeBtn=document.getElementById('cm-close');
   function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  /* « RS 1234 » → lien vers la fiche France Compétences correspondante */
+  function rsLink(h){return h.replace(/RS (\d{4})/g,'<a href="https://www.francecompetences.fr/recherche/rs/$1/" target="_blank" rel="noopener">RS $1</a>');}
   /* pictos SVG (trait accent) : compétences + carrés de stats */
   var IC={
     listen:'<path d="M4 18v-5a8 8 0 0 1 16 0v5"/><rect x="2.8" y="13.6" width="4.4" height="6" rx="2.1"/><rect x="16.8" y="13.6" width="4.4" height="6" rx="2.1"/>',
@@ -60,11 +62,11 @@
     return '<div class="cm-c'+(cd.tint?' tint-'+cd.tint:'')+'"><div class="cm-ctop">'+(ic?'<span class="cm-cic">'+svg(IC[ic])+'</span>':'')+'<div class="cm-ctitle">'+esc(cd.title)+'</div>'+meta+'</div>'+sub+desc+'</div>';
   }
   function block(b){
-    if(b.type==='box') return '<div class="cm-box">'+(b.head?'<div class="cm-boxhead">'+esc(b.head)+'</div>':'')+(b.blocks||[]).map(block).join('')+'</div>';
+    if(b.type==='box') return '<div class="cm-box">'+(b.head?'<div class="cm-boxhead">'+rsLink(esc(b.head))+'</div>':'')+(b.blocks||[]).map(block).join('')+'</div>';
     if(b.type==='stats') return '<div class="cm-stats">'+b.items.map(function(s){return '<div class="cm-stat'+(s.nw?' nw':'')+'"><div class="cm-stat-n">'+esc(s.n)+'</div><div class="cm-stat-l">'+esc(s.l)+'</div></div>';}).join('')+'</div>';
     if(b.type==='points') return '<ul class="cm-list">'+b.items.map(function(p){return '<li>'+esc(p)+'</li>';}).join('')+'</ul>';
     if(b.type==='callout') return '<div class="cm-callout'+(b.cpf?' cpf':'')+'">'+esc(b.text)+'</div>';
-    if(b.type==='badges') return '<div class="cm-badrow">'+b.items.map(function(x){var i=x.indexOf(' — ');var h=i>-1?esc(x.slice(0,i))+'<br/>'+esc('— '+x.slice(i+3)):esc(x);return '<div class="cm-badbox">'+h+'</div>';}).join('')+'</div>';
+    if(b.type==='badges') return '<div class="cm-badrow">'+b.items.map(function(x){var i=x.indexOf(' — ');var h=i>-1?esc(x.slice(0,i))+'<br/>'+esc('— '+x.slice(i+3)):esc(x);return '<div class="cm-badbox">'+rsLink(h)+'</div>';}).join('')+'</div>';
     if(b.type==='note') return '<p class="cm-note">'+esc(b.text)+'</p>';
     if(b.type==='subhead') return '<div class="cm-subhead">'+esc(b.text)+'</div>';
     if(b.type==='cards'){
