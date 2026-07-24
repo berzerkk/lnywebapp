@@ -213,9 +213,10 @@ function mailHtml(title, lines, ctaLabel, ctaUrl) {
 }
 
 // ---- sauvegarde OFFSITE quotidienne de data/ (Backblaze B2 ou disque local) -
-// Config HORS Git : variables d'env B2_KEY_ID / B2_APP_KEY (+ B2_BUCKET_ID si la
-// clé n'est pas limitée à un bucket) ou fichier data/backup.json {keyId, appKey,
-// bucketId} — ou {local: "chemin"} pour déposer l'archive sur un disque local.
+// Config HORS Git : variables d'env B2_KEY_ID / B2_APP_KEY (le bucket est trouvé
+// tout seul : clé limitée à un bucket, ou bucket unique du compte ; sinon préciser
+// B2_BUCKET = nom, ou B2_BUCKET_ID) ou fichier data/backup.json {keyId, appKey,
+// bucket|bucketId} — ou {local: "chemin"} pour déposer l'archive sur un disque local.
 // Sans config → désactivée proprement, le site fonctionne normalement. Tout est
 // isolé dans des try/catch : un échec de sauvegarde ne touche JAMAIS le site.
 // Archive tar.gz de data/ (db.json + uploads + smtp.json ; hors backups/ locaux
@@ -224,11 +225,11 @@ function mailHtml(title, lines, ctaLabel, ctaUrl) {
 // GET /api/admin/backup-status · déclenchement manuel : POST /api/admin/backup-run.
 const BACKUP_CFG_FILE = path.join(DATA_DIR, 'backup.json');
 function backupCfg() {
-  if (process.env.B2_KEY_ID && process.env.B2_APP_KEY) return { mode: 'b2', keyId: process.env.B2_KEY_ID, appKey: process.env.B2_APP_KEY, bucketId: process.env.B2_BUCKET_ID || '' };
+  if (process.env.B2_KEY_ID && process.env.B2_APP_KEY) return { mode: 'b2', keyId: process.env.B2_KEY_ID, appKey: process.env.B2_APP_KEY, bucketId: process.env.B2_BUCKET_ID || '', bucket: process.env.B2_BUCKET || '' };
   try {
     const c = JSON.parse(fs.readFileSync(BACKUP_CFG_FILE, 'utf8').replace(/^﻿/, ''));
     if (c && c.local) return { mode: 'local', local: String(c.local) };
-    if (c && c.keyId && c.appKey) return { mode: 'b2', keyId: c.keyId, appKey: c.appKey, bucketId: c.bucketId || '' };
+    if (c && c.keyId && c.appKey) return { mode: 'b2', keyId: c.keyId, appKey: c.appKey, bucketId: c.bucketId || '', bucket: c.bucket || '' };
   } catch (e) { }
   return null;
 }
@@ -304,8 +305,18 @@ async function runOffsiteBackup(reason) {
       const body = fs.readFileSync(tmp);
       const sha1 = crypto.createHash('sha1').update(body).digest('hex');
       const auth = await b2Fetch('https://api.backblazeb2.com/b2api/v2/b2_authorize_account', { headers: { Authorization: 'Basic ' + Buffer.from(OFFSITE.keyId + ':' + OFFSITE.appKey).toString('base64') } });
-      const bucketId = OFFSITE.bucketId || (auth.allowed && auth.allowed.bucketId);
-      if (!bucketId) throw new Error('bucket introuvable : utiliser une clé limitée au bucket ou renseigner B2_BUCKET_ID');
+      // bucket cible : id explicite → bucket de la clé (clé limitée) → recherche par nom
+      // → bucket unique du compte. Sinon on liste les noms disponibles dans l'erreur.
+      let bucketId = OFFSITE.bucketId || (auth.allowed && auth.allowed.bucketId);
+      if (!bucketId) {
+        const body = { accountId: auth.accountId };
+        if (OFFSITE.bucket) body.bucketName = OFFSITE.bucket;
+        const bl = await b2Fetch(auth.apiUrl + '/b2api/v2/b2_list_buckets', { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const buckets = bl.buckets || [];
+        if (buckets.length === 1) bucketId = buckets[0].bucketId;
+        else if (!buckets.length) throw new Error(OFFSITE.bucket ? ('aucun bucket nommé « ' + OFFSITE.bucket +' »') : 'aucun bucket dans ce compte B2 — en créer un (privé)');
+        else throw new Error('plusieurs buckets B2 (' + buckets.map(b => b.bucketName).join(', ') + ') : préciser lequel via B2_BUCKET');
+      }
       const up = await b2Fetch(auth.apiUrl + '/b2api/v2/b2_get_upload_url', { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ bucketId }) });
       await b2Fetch(up.uploadUrl, { method: 'POST', headers: { Authorization: up.authorizationToken, 'X-Bz-File-Name': encodeURIComponent(name), 'Content-Type': 'application/gzip', 'Content-Length': String(body.length), 'X-Bz-Content-Sha1': sha1 }, body });
       // rétention : ne garder que les 30 archives les plus récentes

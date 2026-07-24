@@ -19,6 +19,7 @@ services:
       # le .env (secret GitHub ENV_FILE). Vides = sauvegarde désactivée proprement.
       - B2_KEY_ID=${B2_KEY_ID:-}
       - B2_APP_KEY=${B2_APP_KEY:-}
+      - B2_BUCKET=${B2_BUCKET:-}
       - B2_BUCKET_ID=${B2_BUCKET_ID:-}
     volumes:
       # Données persistantes (db.json, uploads, backups) : SURVIVENT aux déploiements.
