@@ -8,7 +8,9 @@
   var stage = document.getElementById('medallion-stage');
   if (!stage) return;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Densité d'écran plafonnée à 1,5 : au-delà, le nombre de pixels à peindre explose
+  // (×1,8 entre 1,5 et 2) pour un gain visuel imperceptible sur une animation floue.
+  var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 
   var canvas = document.createElement('canvas');
   canvas.className = 'morph-canvas';
@@ -71,8 +73,35 @@
   var t0=0, sceneStart=0, SCENE_MS=4400;
   var rx=[],ry=[],rz=[],sx=[],sy=[],ff=[],order=[];
 
+  // --- fluidité du défilement -------------------------------------------------
+  // Le rendu (particules + halos + bloom) coûte plusieurs millisecondes par image.
+  // Pendant un défilement, le navigateur doit en plus peindre la page : la concurrence
+  // provoque des saccades. On met donc l'animation en pause tant que l'utilisateur
+  // fait défiler, et on la plafonne à 30 images/seconde le reste du temps (le mouvement
+  // est lent : la différence est invisible, le coût est divisé par deux).
+  var FRAME_MS = 1000/30, lastDraw = 0, pausedAt = 0, scrolling = false, scrollTimer = null;
+  window.addEventListener('scroll', function(){
+    scrolling = true;
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(function(){ scrolling = false; }, 180);
+  }, { passive:true });
+
   function frame(now){
     if(!t0){ t0=now; sceneStart=now; }
+    // en pause (défilement en cours) : on rend la main au navigateur
+    if(scrolling){
+      if(!pausedAt) pausedAt=now;
+      if(visible) requestAnimationFrame(frame); else running=false;
+      return;
+    }
+    // reprise : on décale l'origine du temps pour repartir exactement où l'on s'était
+    // arrêté (sinon l'animation ferait un saut proportionnel à la durée de la pause)
+    if(pausedAt){ var gap=now-pausedAt; t0+=gap; sceneStart+=gap; pausedAt=0; }
+    if(now-lastDraw < FRAME_MS-1){
+      if(visible) requestAnimationFrame(frame); else running=false;
+      return;
+    }
+    lastDraw=now;
     var t=(now-t0)/1000;
     if(now-sceneStart>SCENE_MS){ si=(si+1)%META.length; sceneStart=now; }
     var meta=META[si], pts=scenes[si];
@@ -218,8 +247,11 @@
   if(!reduce && 'IntersectionObserver' in window){
     var io=new IntersectionObserver(function(es){
       visible=es[0].isIntersecting;
-      if(visible && !running){ running=true; requestAnimationFrame(frame); }
-    }, { threshold:0.01 });
+      // seuil à 12 % : l'animation s'arrête dès que le héros quitte vraiment l'écran,
+      // au lieu de tourner encore alors qu'il n'en reste qu'un liseré visible
+      if(visible){ if(!running){ running=true; requestAnimationFrame(frame); } }
+      else if(!pausedAt) pausedAt=performance.now();
+    }, { threshold:0.12 });
     io.observe(stage);
   }
 
