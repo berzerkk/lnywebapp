@@ -379,9 +379,22 @@ async function runOffsiteBackup(reason, force) {
         if (buckets[0].bucketType && buckets[0].bucketType !== 'allPrivate') throw new Error('le bucket B2 « ' + buckets[0].bucketName + ' » est PUBLIC : la sauvegarde contient des données personnelles, le passer en privé');
         bucketId = buckets[0].bucketId;
       }
-      const up = await api('b2_get_upload_url', { bucketId });
+      // B2 impose de redemander une URL d'envoi et de réessayer sur les erreurs
+      // transitoires (503, jeton expiré, « no tomes available ») : 4 tentatives espacées.
       const archive = fs.readFileSync(tmp);
-      await b2Fetch(up.uploadUrl, { method: 'POST', headers: { Authorization: up.authorizationToken, 'X-Bz-File-Name': encodeURIComponent(name), 'Content-Type': 'application/gzip', 'Content-Length': String(archive.length), 'X-Bz-Content-Sha1': sha1 }, body: archive }, 600000);
+      let sent = false, lastErr = null;
+      for (let attempt = 1; attempt <= 4 && !sent; attempt++) {
+        try {
+          const up = await api('b2_get_upload_url', { bucketId });
+          await b2Fetch(up.uploadUrl, { method: 'POST', headers: { Authorization: up.authorizationToken, 'X-Bz-File-Name': encodeURIComponent(name), 'Content-Type': 'application/gzip', 'Content-Length': String(archive.length), 'X-Bz-Content-Sha1': sha1 }, body: archive }, 600000);
+          sent = true;
+        } catch (e) {
+          lastErr = e;
+          console.error('🗄 envoi B2 tentative ' + attempt + '/4 : ' + e.message);
+          if (attempt < 4) await new Promise(r => setTimeout(r, attempt * 3000));
+        }
+      }
+      if (!sent) throw lastErr || new Error('envoi B2 impossible');
       // ---- rétention : toutes les archives des 3 derniers jours + la dernière de chaque
       // jour sur 30 jours. Ne touche QUE les noms au format exact généré ici, et garde
       // toujours les 5 plus récentes quoi qu'il arrive (garde-fou anti-effacement).
