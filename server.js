@@ -220,9 +220,11 @@ function mailHtml(title, lines, ctaLabel, ctaUrl) {
 // Sans config → désactivée proprement, le site fonctionne normalement. Tout est
 // isolé dans des try/catch : un échec de sauvegarde ne touche JAMAIS le site.
 // Archive tar.gz de data/ (db.json + uploads + smtp.json ; hors backups/ locaux
-// et db.json.tmp), ~1×/jour (robuste aux redéploiements via db.lastOffsiteBackup),
-// rétention : les 30 archives les plus récentes. Statut consultable :
+// et db.json.tmp). Cadence : 4×/jour à 8/12/16/20 h heure de Paris (robuste aux
+// redéploiements via db.lastOffsiteBackup). Rétention : toutes les archives des
+// 3 derniers jours + la dernière de chaque jour sur 30 jours. Statut consultable :
 // GET /api/admin/backup-status · déclenchement manuel : POST /api/admin/backup-run.
+// Un échec envoie une alerte e-mail à l'administration (au plus 1 par 24 h).
 const BACKUP_CFG_FILE = path.join(DATA_DIR, 'backup.json');
 function backupCfg() {
   if (process.env.B2_KEY_ID && process.env.B2_APP_KEY) return { mode: 'b2', keyId: process.env.B2_KEY_ID, appKey: process.env.B2_APP_KEY, bucketId: process.env.B2_BUCKET_ID || '', bucket: process.env.B2_BUCKET || '' };
@@ -234,12 +236,23 @@ function backupCfg() {
   return null;
 }
 const OFFSITE = backupCfg();
-console.log(OFFSITE ? ('🗄 sauvegarde offsite activée (' + (OFFSITE.mode === 'b2' ? 'Backblaze B2' : 'disque local') + ', quotidienne)') : '🗄 sauvegarde offsite désactivée (pas de config B2 ni data/backup.json)');
+console.log(OFFSITE ? ('🗄 sauvegarde offsite activée (' + (OFFSITE.mode === 'b2' ? 'Backblaze B2' : 'disque local') + ', 4×/jour à 8/12/16/20 h Paris)') : '🗄 sauvegarde offsite désactivée (pas de config B2 ni data/backup.json)');
 
 // mini-écrivain tar POSIX (fichiers réguliers uniquement) + flux gzip
+// ⚠️ le champ « name » ne fait que 100 octets : au-delà on utilise le champ « prefix »
+// ustar (155 octets), et si le nom reste trop long on ÉCHOUE plutôt que de tronquer
+// en silence (un nom tronqué = document irrécupérable à la restauration).
 function tarHeader(name, size, mtimeMs) {
   const b = Buffer.alloc(512);
+  let prefix = '';
+  if (Buffer.byteLength(name) > 100) {
+    const cut = name.lastIndexOf('/', name.length - 1);
+    if (cut > 0 && Buffer.byteLength(name.slice(0, cut)) <= 155 && Buffer.byteLength(name.slice(cut + 1)) <= 100) {
+      prefix = name.slice(0, cut); name = name.slice(cut + 1);
+    } else throw new Error('nom de fichier trop long pour le format tar : ' + name);
+  }
   b.write(name, 0, 100, 'utf8');
+  if (prefix) b.write(prefix, 345, 155, 'utf8');
   b.write('0000644\0', 100, 8, 'ascii');
   b.write('0000000\0', 108, 8, 'ascii');
   b.write('0000000\0', 116, 8, 'ascii');
@@ -256,18 +269,38 @@ function tarHeader(name, size, mtimeMs) {
 async function buildDataArchive(outPath) {
   const gz = zlib.createGzip({ level: 6 });
   const out = fs.createWriteStream(outPath);
-  const done = new Promise((resolve, reject) => { out.on('close', resolve); out.on('error', reject); gz.on('error', reject); });
+  let streamErr = null;
+  const fail = (e) => { if (!streamErr) streamErr = e; };
+  const done = new Promise((resolve, reject) => {
+    out.on('close', resolve);
+    out.on('error', e => { fail(e); reject(e); });
+    gz.on('error', e => { fail(e); reject(e); });
+  });
+  done.catch(() => { }); // le rejet est traité via streamErr : jamais de rejet orphelin (qui tuerait le process)
   gz.pipe(out);
   const skipTop = new Set(['backups', 'db.json.tmp', 'backup.json']);
-  const wr = (buf) => (gz.write(buf) ? Promise.resolve() : new Promise(r => gz.once('drain', r)));
+  const wr = (buf) => { if (streamErr) throw streamErr; return gz.write(buf) ? Promise.resolve() : new Promise(r => gz.once('drain', r)); };
+  // ⚠️ Un fichier peut CHANGER pendant sa lecture (multer écrit les téléversements
+  // directement à leur emplacement final, et save() réécrit db.json) : si on écrivait
+  // plus ou moins d'octets que la taille annoncée dans l'en-tête, le flux tar serait
+  // désynchronisé et TOUS les fichiers suivants deviendraient illisibles — en silence.
+  // On borne donc la lecture à la taille annoncée et on complète au besoin par des zéros.
   async function addFile(rel, abs, st) {
     await wr(tarHeader(rel, st.size, st.mtimeMs));
-    await new Promise((resolve, reject) => {
-      const rs = fs.createReadStream(abs);
-      rs.on('error', reject);
-      rs.on('data', chunk => { if (!gz.write(chunk)) { rs.pause(); gz.once('drain', () => rs.resume()); } });
-      rs.on('end', resolve);
-    });
+    let written = 0;
+    if (st.size > 0) {
+      await new Promise((resolve, reject) => {
+        const rs = fs.createReadStream(abs, { start: 0, end: st.size - 1 });
+        rs.on('error', reject);
+        rs.on('data', chunk => {
+          if (streamErr) { rs.destroy(); return reject(streamErr); }
+          written += chunk.length;
+          if (!gz.write(chunk)) { rs.pause(); gz.once('drain', () => rs.resume()); }
+        });
+        rs.on('end', resolve);
+      });
+    }
+    if (written < st.size) await wr(Buffer.alloc(st.size - written)); // fichier tronqué entre-temps
     const pad = st.size % 512 ? 512 - (st.size % 512) : 0;
     if (pad) await wr(Buffer.alloc(pad));
   }
@@ -275,80 +308,157 @@ async function buildDataArchive(outPath) {
     for (const name of fs.readdirSync(dir).sort()) {
       if (top && skipTop.has(name)) continue;
       const abs = path.join(dir, name);
-      const st = fs.statSync(abs);
+      let st; try { st = fs.statSync(abs); } catch (e) { continue; } // fichier disparu entre-temps
       if (st.isDirectory()) await walk(abs, prefix + name + '/', false);
       else if (st.isFile()) await addFile(prefix + name, abs, st);
     }
   }
-  await walk(DATA_DIR, 'data/', true);
-  await wr(Buffer.alloc(1024)); // fin d'archive (2 blocs nuls)
-  gz.end();
-  await done;
+  try {
+    await walk(DATA_DIR, 'data/', true);
+    await wr(Buffer.alloc(1024)); // fin d'archive (2 blocs nuls)
+    gz.end();
+    await done;
+  } catch (e) {
+    try { gz.destroy(); out.destroy(); } catch (e2) { } // pas de descripteur ni de flux qui fuit
+    throw e;
+  }
 }
-async function b2Fetch(url, opts) {
-  const r = await fetch(url, opts);
+async function b2Fetch(url, opts, timeoutMs) {
+  const r = await fetch(url, Object.assign({ signal: AbortSignal.timeout(timeoutMs || 120000) }, opts));
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((d && (d.message || d.code)) || ('HTTP ' + r.status));
   return d;
 }
-async function runOffsiteBackup(reason) {
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+// nom d'archive UNIQUE (secondes + suffixe aléatoire) : deux sauvegardes rapprochées
+// ne doivent pas écrire le même objet, sinon la version masquée échappe à la rétention.
+const ARCHIVE_RE = /^ls-data-(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})(?:-(\d{2})-[0-9a-f]{4})?\.tar\.gz$/;
+function archiveDate(fileName) {
+  const m = ARCHIVE_RE.exec(fileName);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)) : null;
+}
+const MAX_BUFFER = 350 * 1024 * 1024; // au-delà, refus explicite plutôt qu'un OOM du conteneur
+async function runOffsiteBackup(reason, force) {
+  const d = new Date();
+  const p2 = n => String(n).padStart(2, '0');
+  const stamp = d.getUTCFullYear() + '-' + p2(d.getUTCMonth() + 1) + '-' + p2(d.getUTCDate()) + '-' + p2(d.getUTCHours()) + '-' + p2(d.getUTCMinutes()) + '-' + p2(d.getUTCSeconds()) + '-' + crypto.randomBytes(2).toString('hex');
   const name = 'ls-data-' + stamp + '.tar.gz';
   const tmp = path.join(os.tmpdir(), name);
+  const users = (db.users || []).length, docs = (db.docs || []).length;
   try {
+    // Garde-fou anti-« sauvegarde d'une base vide » : si le volume de données n'était pas
+    // monté, on archiverait une base neuve et la rétention finirait par effacer les bonnes
+    // archives. On refuse dès que le contenu s'effondre par rapport à la dernière réussie.
+    const prev = db.backupStatus && db.backupStatus.ok ? db.backupStatus : null;
+    if (!force && prev && prev.users > 2 && users < Math.ceil(prev.users / 2)) {
+      throw new Error('contenu anormalement réduit (' + users + ' comptes contre ' + prev.users + ' à la dernière sauvegarde) — sauvegarde refusée, relancer avec force si c\'est voulu');
+    }
     await buildDataArchive(tmp);
     const size = fs.statSync(tmp).size;
     if (OFFSITE.mode === 'local') {
       fs.mkdirSync(OFFSITE.local, { recursive: true });
       fs.copyFileSync(tmp, path.join(OFFSITE.local, name));
     } else {
-      const body = fs.readFileSync(tmp);
-      const sha1 = crypto.createHash('sha1').update(body).digest('hex');
+      if (size > MAX_BUFFER) throw new Error('archive de ' + Math.round(size / 1048576) + ' Mo : au-delà de ' + Math.round(MAX_BUFFER / 1048576) + ' Mo il faut passer à l\'envoi par morceaux (API large-file B2)');
+      const sha1 = await new Promise((res, rej) => { // SHA1 en flux : pas de 2e copie en mémoire
+        const h = crypto.createHash('sha1'), rs = fs.createReadStream(tmp);
+        rs.on('error', rej); rs.on('data', c => h.update(c)); rs.on('end', () => res(h.digest('hex')));
+      });
       const auth = await b2Fetch('https://api.backblazeb2.com/b2api/v2/b2_authorize_account', { headers: { Authorization: 'Basic ' + Buffer.from(OFFSITE.keyId + ':' + OFFSITE.appKey).toString('base64') } });
+      const api = (path_, payload, t) => b2Fetch(auth.apiUrl + '/b2api/v2/' + path_, { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }, t);
       // bucket cible : id explicite → bucket de la clé (clé limitée) → recherche par nom
       // → bucket unique du compte. Sinon on liste les noms disponibles dans l'erreur.
       let bucketId = OFFSITE.bucketId || (auth.allowed && auth.allowed.bucketId);
       if (!bucketId) {
-        const body = { accountId: auth.accountId };
-        if (OFFSITE.bucket) body.bucketName = OFFSITE.bucket;
-        const bl = await b2Fetch(auth.apiUrl + '/b2api/v2/b2_list_buckets', { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const q = { accountId: auth.accountId };
+        if (OFFSITE.bucket) q.bucketName = OFFSITE.bucket;
+        const bl = await api('b2_list_buckets', q);
         const buckets = bl.buckets || [];
-        if (buckets.length === 1) bucketId = buckets[0].bucketId;
-        else if (!buckets.length) throw new Error(OFFSITE.bucket ? ('aucun bucket nommé « ' + OFFSITE.bucket +' »') : 'aucun bucket dans ce compte B2 — en créer un (privé)');
-        else throw new Error('plusieurs buckets B2 (' + buckets.map(b => b.bucketName).join(', ') + ') : préciser lequel via B2_BUCKET');
+        if (!buckets.length) throw new Error(OFFSITE.bucket ? ('aucun bucket nommé « ' + OFFSITE.bucket + ' »') : 'aucun bucket dans ce compte B2 — en créer un (privé)');
+        if (buckets.length > 1) throw new Error('plusieurs buckets B2 (' + buckets.map(b => b.bucketName).join(', ') + ') : préciser lequel via B2_BUCKET');
+        // l'archive contient des données personnelles + des secrets : jamais dans un bucket public
+        if (buckets[0].bucketType && buckets[0].bucketType !== 'allPrivate') throw new Error('le bucket B2 « ' + buckets[0].bucketName + ' » est PUBLIC : la sauvegarde contient des données personnelles, le passer en privé');
+        bucketId = buckets[0].bucketId;
       }
-      const up = await b2Fetch(auth.apiUrl + '/b2api/v2/b2_get_upload_url', { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ bucketId }) });
-      await b2Fetch(up.uploadUrl, { method: 'POST', headers: { Authorization: up.authorizationToken, 'X-Bz-File-Name': encodeURIComponent(name), 'Content-Type': 'application/gzip', 'Content-Length': String(body.length), 'X-Bz-Content-Sha1': sha1 }, body });
-      // rétention : ne garder que les 30 archives les plus récentes
+      const up = await api('b2_get_upload_url', { bucketId });
+      const archive = fs.readFileSync(tmp);
+      await b2Fetch(up.uploadUrl, { method: 'POST', headers: { Authorization: up.authorizationToken, 'X-Bz-File-Name': encodeURIComponent(name), 'Content-Type': 'application/gzip', 'Content-Length': String(archive.length), 'X-Bz-Content-Sha1': sha1 }, body: archive }, 600000);
+      // ---- rétention : toutes les archives des 3 derniers jours + la dernière de chaque
+      // jour sur 30 jours. Ne touche QUE les noms au format exact généré ici, et garde
+      // toujours les 5 plus récentes quoi qu'il arrive (garde-fou anti-effacement).
       try {
-        const ls = await b2Fetch(auth.apiUrl + '/b2api/v2/b2_list_file_names', { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ bucketId, prefix: 'ls-data-', maxFileCount: 1000 }) });
-        const files = (ls.files || []).sort((a, b) => a.fileName.localeCompare(b.fileName));
-        while (files.length > 30) {
-          const f = files.shift();
-          await b2Fetch(auth.apiUrl + '/b2api/v2/b2_delete_file_version', { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ fileName: f.fileName, fileId: f.fileId }) });
+        let all = [], start = null;
+        for (let page = 0; page < 20; page++) {
+          const ls = await api('b2_list_file_names', { bucketId, prefix: 'ls-data-', maxFileCount: 1000, startFileName: start || undefined });
+          all = all.concat(ls.files || []);
+          if (!ls.nextFileName) break;
+          start = ls.nextFileName;
+        }
+        const arch = all.map(f => ({ f, ts: archiveDate(f.fileName) })).filter(x => x.ts).sort((a, b) => a.ts - b.ts);
+        const now = Date.now(), DAY = 86400000, keep = new Set();
+        arch.forEach(x => { if (now - x.ts < 3 * DAY) keep.add(x.f.fileName); });
+        const lastOfDay = new Map();
+        arch.forEach(x => { if (now - x.ts < 30 * DAY) lastOfDay.set(x.f.fileName.slice(8, 18), x.f.fileName); });
+        lastOfDay.forEach(n => keep.add(n));
+        arch.slice(-5).forEach(x => keep.add(x.f.fileName));
+        for (const x of arch) {
+          if (keep.has(x.f.fileName)) continue;
+          await api('b2_delete_file_version', { fileName: x.f.fileName, fileId: x.f.fileId });
         }
       } catch (e) { console.error('🗄 rétention :', e.message); }
     }
-    db.backupStatus = { ok: true, name, size, date: Date.now(), reason: reason || 'auto' };
+    db.backupStatus = { ok: true, name, size, users, docs, date: Date.now(), reason: reason || 'auto' };
     db.lastOffsiteBackup = Date.now(); save();
-    console.log('🗄 sauvegarde offsite OK : ' + name + ' (' + Math.round(size / 1024) + ' ko)');
+    console.log('🗄 sauvegarde offsite OK : ' + name + ' (' + Math.round(size / 1024) + ' ko, ' + users + ' comptes, ' + docs + ' documents)');
   } catch (e) {
-    db.backupStatus = { ok: false, error: String((e && e.message) || e), date: Date.now(), reason: reason || 'auto' };
+    db.backupStatus = { ok: false, error: String((e && e.message) || e), users, docs, date: Date.now(), reason: reason || 'auto' };
     try { save(); } catch (e2) { }
     console.error('🗄 sauvegarde offsite ÉCHEC :', (e && e.message) || e);
+    alertBackupFailure();
   } finally {
     try { fs.unlinkSync(tmp); } catch (e) { }
   }
   return db.backupStatus;
 }
+// alerte e-mail à l'administration en cas d'échec (au plus 1 par 24 h) : une sauvegarde
+// morte en silence est le pire scénario — il faut que quelqu'un l'apprenne tout de suite.
+function alertBackupFailure() {
+  try {
+    if (Date.now() - (db.lastBackupAlert || 0) < 24 * 60 * 60 * 1000) return;
+    const to = ((db.users || []).find(u => u.role === 'admin') || {}).email || (MAIL && MAIL.user);
+    if (!to) return;
+    const st = db.backupStatus || {}, last = db.lastOffsiteBackup ? new Date(db.lastOffsiteBackup).toLocaleString('fr-FR') : 'jamais';
+    db.lastBackupAlert = Date.now(); save();
+    sendMailSafe(to, 'Alerte : la sauvegarde du site a échoué — Languages & Success',
+      'La sauvegarde automatique des données a échoué.\n\nErreur : ' + (st.error || '?') + '\nDernière sauvegarde réussie : ' + last + '\n\nLanguages & Success',
+      mailHtml('La sauvegarde a échoué', ['La sauvegarde automatique des données de l\'espace documents a échoué.', 'Erreur : ' + (st.error || '?'), 'Dernière sauvegarde réussie : ' + last], null, null));
+  } catch (e) { }
+}
 let offsiteRunning = false;
+// 4 sauvegardes par jour, à 8 h / 12 h / 16 h / 20 h HEURE DE PARIS (le conteneur est en
+// UTC : on lit donc l'heure de Paris explicitement, changement d'heure compris).
+const BACKUP_SLOTS = [8, 12, 16, 20];
+const parisHour = (d) => +new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', hour12: false }).format(d);
 async function offsiteTick() {
   if (!OFFSITE || offsiteRunning) return;
-  if (Date.now() - (db.lastOffsiteBackup || 0) < 22 * 60 * 60 * 1000) return; // ~1×/jour
+  const now = Date.now();
+  // alerte si plus aucune sauvegarde réussie depuis 48 h (panne silencieuse)
+  if (db.lastOffsiteBackup && now - db.lastOffsiteBackup > 48 * 60 * 60 * 1000) alertBackupFailure();
+  if (BACKUP_SLOTS.indexOf(parisHour(new Date(now))) < 0) return;
+  if (now - (db.lastOffsiteBackup || 0) < 3.5 * 60 * 60 * 1000) return; // 1 seule fois par créneau
   offsiteRunning = true;
   try { await runOffsiteBackup('auto'); } catch (e) { console.error('🗄', e.message); } finally { offsiteRunning = false; }
 }
-if (OFFSITE) { setTimeout(offsiteTick, 60 * 1000); setInterval(offsiteTick, 60 * 60 * 1000); }
+if (OFFSITE) {
+  // une destination locale placée DANS data/ ferait s'auto-archiver les archives
+  if (OFFSITE.mode === 'local' && path.resolve(OFFSITE.local).startsWith(path.resolve(DATA_DIR))) {
+    console.error('🗄 destination locale interdite (dans data/) — sauvegarde désactivée');
+  } else {
+    // ménage des archives temporaires laissées par un arrêt brutal
+    try { fs.readdirSync(os.tmpdir()).forEach(f => { if (/^ls-data-.*\.tar\.gz$/.test(f)) { try { fs.unlinkSync(path.join(os.tmpdir(), f)); } catch (e) { } } }); } catch (e) { }
+    setTimeout(offsiteTick, 60 * 1000);
+    setInterval(offsiteTick, 15 * 60 * 1000);
+  }
+}
 
 const ROLES = ['admin', 'eleve', 'prof'];
 const ROLE_LABEL = { admin: 'Administrateur', eleve: 'Apprenant', prof: 'Formateur' };
@@ -471,7 +581,7 @@ app.post('/api/admin/backup-run', auth, async (req, res) => {
   if (!OFFSITE) return res.status(400).json({ error: 'Sauvegarde non configurée.' });
   if (offsiteRunning) return res.status(409).json({ error: 'Une sauvegarde est déjà en cours.' });
   offsiteRunning = true;
-  try { const st = await runOffsiteBackup('manuel'); res.json({ ok: !!st.ok, status: st }); }
+  try { const st = await runOffsiteBackup('manuel', !!(req.body || {}).force); res.json({ ok: !!st.ok, status: st }); }
   finally { offsiteRunning = false; }
 });
 // historique de connexions (admin) — global ou filtré par compte (?user=<id>)
