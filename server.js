@@ -164,6 +164,33 @@ let db = loadDB();
 backupDB();                                   // snapshot au démarrage
 setInterval(backupDB, 6 * 60 * 60 * 1000);    // + toutes les 6 h
 
+// Un envoi de fichier interrompu (coupure réseau, mise à jour du serveur, onglet fermé)
+// laisse un fichier partiel dans uploads/ qu'aucun document ne référence : invisible
+// dans l'interface, mais il occuperait le disque et grossirait chaque sauvegarde.
+// TROIS GARDE-FOUS, car on supprime des fichiers : (1) rien si la base ne contient
+// aucun document (cas d'une base neuve ou d'un volume non monté : on ne veut surtout
+// pas effacer de vrais fichiers) ; (2) uniquement ce qui n'est référencé par AUCUN
+// document ; (3) uniquement les fichiers de plus de 24 h, jamais un envoi récent.
+function cleanupOrphanUploads() {
+  try {
+    if (!db.docs || !db.docs.length) return;
+    const known = new Set(db.docs.map(d => d.stored));
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    let removed = 0, freed = 0;
+    for (const f of fs.readdirSync(UPLOADS_DIR)) {
+      if (known.has(f)) continue;
+      const p = path.join(UPLOADS_DIR, f);
+      try {
+        const st = fs.statSync(p);
+        if (!st.isFile() || st.mtimeMs > cutoff) continue;
+        freed += st.size; fs.unlinkSync(p); removed++;
+      } catch (e) { }
+    }
+    if (removed) console.log('🧹 ' + removed + ' fichier(s) orphelin(s) d\'envois interrompus supprimé(s) (' + Math.round(freed / 1024) + ' ko libérés)');
+  } catch (e) { console.error('🧹 nettoyage des orphelins :', e.message); }
+}
+cleanupOrphanUploads();
+
 // ---- e-mails de notification (SMTP) ----------------------------------------
 // Config HORS Git : fichier data/smtp.json {host,port,secure,user,pass,from,siteUrl}
 // ou variables d'env SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/MAIL_FROM/SITE_URL.

@@ -595,12 +595,17 @@
     var input = document.getElementById('doc-input'); if (!input) return;
     input.onchange = function () {
       var files = Array.prototype.slice.call(input.files || []); if (!files.length) return; var done = 0;
+      // on vide la sélection tout de suite : sans ça, re-choisir LE MÊME fichier après
+      // un échec ne déclenche aucun événement et l'utilisateur croit l'espace bloqué
+      input.value = '';
       files.forEach(function (file) {
         var fd = new FormData(); fd.append('group', selected); fd.append('channel', channel); fd.append('file', file);
         fetch('/api/documents', { method: 'POST', headers: { Authorization: 'Bearer ' + token() }, body: fd })
-          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }); })
-          .then(function (r) { if (!r.ok) alertDialog((r.data && r.data.error) || 'Envoi impossible.'); })
-          .catch(function () { alertDialog('Envoi impossible.'); })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }).catch(function () { return { ok: r.ok, data: {} }; }); })
+          .then(function (r) { if (!r.ok) alertDialog((r.data && r.data.error) || ('« ' + file.name + ' » n\'a pas été envoyé. Réessayez.')); })
+          // coupure réseau (serveur en cours de mise à jour, wifi perdu) : on le dit
+          // clairement et on précise que le fichier peut simplement être renvoyé
+          .catch(function () { alertDialog('« ' + file.name + ' » n\'a pas été envoyé : connexion au serveur interrompue. Vous pouvez le renvoyer.'); })
           .then(function () { if (++done === files.length) renderDashboard(); });
       });
     };
