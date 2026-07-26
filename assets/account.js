@@ -17,6 +17,11 @@
     return fetch(path, opts).then(function (r) {
       return r.json().then(function (j) { return { ok: r.ok, status: r.status, data: j }; })
         .catch(function () { return { ok: r.ok, status: r.status, data: {} }; });
+    // Coupure réseau (serveur en cours de redémarrage lors d'une mise à jour, wifi
+    // perdu…) : on ne laisse JAMAIS la promesse échouer, sinon la suite du code ne
+    // s'exécute pas du tout et l'interface reste figée sans rien dire à l'utilisateur.
+    }).catch(function () {
+      return { ok: false, status: 0, offline: true, data: { error: 'Connexion au serveur interrompue. Réessayez dans un instant.' } };
     });
   }
   function apiJSON(path, method, body) { return api(path, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
@@ -574,7 +579,16 @@
     f.onsubmit = function (e) {
       e.preventDefault();
       var inp = document.getElementById('chat-input'); var txt = inp.value.trim(); if (!txt) return; inp.value = ''; inp.disabled = true;
-      apiJSON('/api/messages', 'POST', { group: selected, channel: channel, text: txt }).then(function (r) { if (!r.ok && r.data && r.data.error) alertDialog(r.data.error); renderDashboard(); });
+      apiJSON('/api/messages', 'POST', { group: selected, channel: channel, text: txt }).then(function (r) {
+        // échec (serveur indisponible, message refusé…) : on REND le texte à l'utilisateur
+        // et on réactive le champ, au lieu de perdre son message en silence
+        if (!r.ok) {
+          inp.disabled = false; inp.value = txt; inp.focus();
+          alertDialog((r.data && r.data.error) || 'Message non envoyé. Votre texte a été conservé, réessayez.');
+          return;
+        }
+        renderDashboard();
+      });
     };
   }
   function wireUpload() {
