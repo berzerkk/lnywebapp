@@ -190,14 +190,14 @@
       renderHeader();
       wrap.innerHTML = '<div class="auth-tabs"><button class="auth-tab on" type="button">Bienvenue ' + esc(r.data.prenom) + '</button></div>' +
         '<form class="form auth-form" id="act-form" style="max-width:none">' +
-        '<p class="chan-note" style="margin:0 0 4px">Votre compte <b>' + esc(r.data.email) + '</b> est prêt. Choisissez le mot de passe qui vous servira à vous connecter (8 caractères minimum).</p>' +
+        '<p class="chan-note" style="margin:0 0 4px">Votre compte <b>' + esc(r.data.email) + '</b> est prêt. Choisissez le mot de passe qui vous servira à vous connecter (6 caractères minimum).</p>' +
         pwdField('ac-pwd', 'Votre mot de passe') + pwdField('ac-pwd2', 'Confirmer le mot de passe') +
         '<p class="auth-err" id="act-err"></p><button class="btn btn-primary" type="submit" style="justify-self:center">Valider et accéder à mon espace →</button></form>';
       wireEyes(wrap);
       wrap.querySelector('#act-form').onsubmit = function (e) {
         e.preventDefault();
         var p1 = val('ac-pwd'), p2 = val('ac-pwd2');
-        if (p1.length < 8) { err('act-err', 'Le mot de passe doit faire au moins 8 caractères.'); return; }
+        if (p1.length < 6) { err('act-err', 'Le mot de passe doit faire au moins 6 caractères.'); return; }
         if (p1 !== p2) { err('act-err', 'Les deux mots de passe ne correspondent pas.'); return; }
         var btn = wrap.querySelector('#act-form button[type=submit]'); btn.disabled = true;
         apiJSON('/api/activate', 'POST', { token: tok, password: p1 }).then(function (r2) {

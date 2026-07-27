@@ -620,7 +620,7 @@ app.post('/api/activate', async (req, res) => {
   const { token, password } = req.body || {};
   const u = activationOf(token);
   if (!u) return res.status(404).json({ error: 'Ce lien est invalide ou a expiré. Demandez-en un nouveau à l\'administration.' });
-  if (String(password || '').length < 8) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères.' });
+  if (String(password || '').length < 6) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 6 caractères.' });
   u.passwordHash = await bcrypt.hash(String(password), 10);
   delete u.activation;                       // usage unique
   delete u.mustActivate;
