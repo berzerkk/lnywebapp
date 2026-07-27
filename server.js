@@ -510,7 +510,7 @@ const pubFull = (u) => u ? Object.assign(pub(u), { profile: u.profile || {} }) :
 const sTrim = (v) => String(v == null ? '' : v).trim();
 function cleanProfile(role, p) {
   p = p || {};
-  if (role === 'eleve') return { tel: sTrim(p.tel), societe: sTrim(p.societe), heuresTotal: sTrim(p.heuresTotal), heuresDetail: sTrim(p.heuresDetail), intitule: sTrim(p.intitule), langue: sTrim(p.langue), dateDebut: sTrim(p.dateDebut), dateFin: sTrim(p.dateFin), lieu: sTrim(p.lieu), lieuAdresse: sTrim(p.lieuAdresse), certification: sTrim(p.certification), certificationText: sTrim(p.certificationText) };
+  if (role === 'eleve') return { tel: sTrim(p.tel), societe: sTrim(p.societe), refProposition: sTrim(p.refProposition), heuresTotal: sTrim(p.heuresTotal), heuresDetail: sTrim(p.heuresDetail), intitule: sTrim(p.intitule), langue: sTrim(p.langue), dateDebut: sTrim(p.dateDebut), dateFin: sTrim(p.dateFin), lieu: sTrim(p.lieu), lieuAdresse: sTrim(p.lieuAdresse), certification: sTrim(p.certification), certificationText: sTrim(p.certificationText) };
   if (role === 'prof') return { langue: sTrim(p.langue), siret: sTrim(p.siret), nda: sTrim(p.nda), adresse: sTrim(p.adresse), tel: sTrim(p.tel), dateNaissance: sTrim(p.dateNaissance), nationalite: sTrim(p.nationalite) };
   return {};
 }

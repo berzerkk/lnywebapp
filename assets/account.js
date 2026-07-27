@@ -169,7 +169,7 @@
     });
   }
   function collectProfile(role) {
-    if (role === 'eleve') return { tel: val('su-tel'), societe: val('su-societe'), heuresTotal: val('su-heures'), heuresDetail: val('su-heures-detail'), intitule: val('su-intitule'), langue: val('su-langue'), dateDebut: val('su-date-debut'), dateFin: val('su-date-fin'), lieu: val('su-lieu'), lieuAdresse: val('su-lieu-adresse'), certification: val('su-certif'), certificationText: val('su-certif-text') };
+    if (role === 'eleve') return { tel: val('su-tel'), societe: val('su-societe'), refProposition: val('su-ref'), heuresTotal: val('su-heures'), heuresDetail: val('su-heures-detail'), intitule: val('su-intitule'), langue: val('su-langue'), dateDebut: val('su-date-debut'), dateFin: val('su-date-fin'), lieu: val('su-lieu'), lieuAdresse: val('su-lieu-adresse'), certification: val('su-certif'), certificationText: val('su-certif-text') };
     if (role === 'prof') return { langue: val('su-p-langue'), siret: val('su-siret'), nda: val('su-nda'), adresse: val('su-adresse'), tel: val('su-p-tel'), dateNaissance: val('su-naissance'), nationalite: val('su-nationalite') };
     return {};
   }
@@ -191,6 +191,7 @@
       '<div class="field"><label for="su-role">Type de compte</label><select id="su-role" name="role"><option value="eleve">Apprenant</option><option value="prof">Formateur</option></select></div>' +
       '<div id="su-eleve-fields" class="su-profile"><h4 class="su-fiche-h">Fiche apprenant</h4>' +
         '<div class="row2">' + ofield('su-tel', 'Téléphone', 'tel') + ofield('su-societe', 'Société', 'text') + '</div>' +
+        '<div class="row2">' + ofield('su-ref', 'Réf. proposition', 'text') + '<span></span></div>' +
         '<div class="row2">' + ofield('su-langue', 'Langue', 'text') + ofield('su-intitule', 'Intitulé de la formation', 'text') + '</div>' +
         '<div class="row2">' + ofield('su-date-debut', 'Date de début', 'text') + ofield('su-date-fin', 'Date de fin', 'text') + '</div>' +
         '<div class="row2">' + ofield('su-heures', "Nombre d'heures total", 'text') + '<span></span></div>' +
@@ -806,6 +807,7 @@
     if (u.role === 'eleve') {
       fiche = '<h4 class="gen-h">Fiche apprenant</h4><div class="gf-grid">' +
         gi('fe-tel', 'Téléphone', p.tel) + gi('fe-societe', 'Société', p.societe) +
+        gi('fe-ref', 'Réf. proposition', p.refProposition) + '<span></span>' +
         gi('fe-langue', 'Langue', p.langue) + gi('fe-intitule', "Intitulé de la formation", p.intitule) +
         gi('fe-date-debut', 'Date de début', p.dateDebut) + gi('fe-date-fin', 'Date de fin', p.dateFin) +
         gi('fe-heures', "Nombre d'heures total", p.heuresTotal) + '<span></span>' +
@@ -829,7 +831,7 @@
     }
     m.querySelector('.fe-save').onclick = function () {
       var profile = {};
-      if (u.role === 'eleve') profile = { tel: val('fe-tel'), societe: val('fe-societe'), heuresTotal: val('fe-heures'), heuresDetail: val('fe-heures-detail'), intitule: val('fe-intitule'), langue: val('fe-langue'), dateDebut: val('fe-date-debut'), dateFin: val('fe-date-fin'), lieu: val('fe-lieu'), lieuAdresse: val('fe-lieu-adresse'), certification: val('fe-certif'), certificationText: val('fe-certif-text') };
+      if (u.role === 'eleve') profile = { tel: val('fe-tel'), societe: val('fe-societe'), refProposition: val('fe-ref'), heuresTotal: val('fe-heures'), heuresDetail: val('fe-heures-detail'), intitule: val('fe-intitule'), langue: val('fe-langue'), dateDebut: val('fe-date-debut'), dateFin: val('fe-date-fin'), lieu: val('fe-lieu'), lieuAdresse: val('fe-lieu-adresse'), certification: val('fe-certif'), certificationText: val('fe-certif-text') };
       else if (u.role === 'prof') profile = { langue: val('fe-langue'), siret: val('fe-siret'), nda: val('fe-nda'), adresse: val('fe-adresse'), tel: val('fe-tel'), dateNaissance: val('fe-naissance'), nationalite: val('fe-nationalite') };
       var btn = m.querySelector('.fe-save'); btn.disabled = true; btn.textContent = 'Enregistrement…';
       apiJSON('/api/users/' + encodeURIComponent(u.id), 'PATCH', { prenom: val('fe-prenom'), nom: val('fe-nom'), email: val('fe-email'), profile: profile }).then(function (r) {
@@ -1227,10 +1229,12 @@
       var moisNow = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); moisNow = moisNow.charAt(0).toUpperCase() + moisNow.slice(1);
       var lieuTxt = (function () { var l = (fc.lieu || '').toLowerCase(); if (l === 'presentiel' || l === 'présentiel') return 'Présentiel'; if (l === 'distanciel') return 'Distanciel'; return ''; })();
       var pre = {
-        mois: moisNow, formateur: fullName(CUR_GROUP.prof), apprenant: fullName(CUR_GROUP.eleve), compte: fc.societe || '', ref: '',
+        mois: moisNow, formateur: fullName(CUR_GROUP.prof), apprenant: fullName(CUR_GROUP.eleve), compte: fc.societe || '',
+        // « Ref proposition » et « Formation » viennent de la fiche apprenant
+        ref: fc.refProposition || '', formation: fc.intitule || '',
         langue: fc.langue || '', debut: fc.dateDebut || '', fin: fc.dateFin || '', lieu: lieuTxt, ville: '',
         dureePrevue: fc.heuresTotal ? (fc.heuresTotal + (/h/i.test(fc.heuresTotal) ? '' : 'H00')) : '', dateRapport: new Date().toLocaleDateString('fr-FR'),
-        heuresPrevues: fc.heuresTotal || '', formation: { elearning: 'Elearning', presentiel: '', test: '' }
+        heuresPrevues: fc.heuresTotal || ''
       };
       var curType = 'presentiel', sessions = [];
       var PR_TIMES = ['0:30', '1:00', '1:30', '2:00', '2:30', '3:00', '3:30', '4:00', '4:30', '5:00', '5:30', '6:00', '6:30', '7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00'];
@@ -1244,7 +1248,7 @@
       function lieuSelect(id, v) { return '<label class="gf">Lieu<select id="' + id + '"><option value="">—</option><option value="Présentiel"' + (v === 'Présentiel' ? ' selected' : '') + '>Présentiel</option><option value="Distanciel"' + (v === 'Distanciel' ? ' selected' : '') + '>Distanciel</option></select></label>'; }
       function headerHTML(tpl) {
         return '<h4 class="gen-h">En-tête</h4><div class="gf-grid">' + tpl.headerRows.map(function (row) {
-          return row.map(function (pair) { if (!pair) return ''; if (pair[0] === 'lieu') return lieuSelect('pr-' + pair[0], pre.lieu); var dv = pair[0] === 'formation' ? (pre.formation[curType] || '') : (pre[pair[0]] || ''); return gi('pr-' + pair[0], pair[1], dv); }).join('');
+          return row.map(function (pair) { if (!pair) return ''; if (pair[0] === 'lieu') return lieuSelect('pr-' + pair[0], pre.lieu); return gi('pr-' + pair[0], pair[1], pre[pair[0]] || ''); }).join('');
         }).join('') + '</div>';
       }
       function sessionRowHTML(s) {
