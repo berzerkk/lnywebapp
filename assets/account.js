@@ -121,6 +121,9 @@
 
   // ---- boot ---------------------------------------------------------------
   function boot() {
+    // lien d'activation reçu par e-mail : la personne choisit elle-même son mot de passe
+    var act = /[#&]activation=([a-f0-9]{16,})/i.exec(location.hash || '');
+    if (act && app()) { ME = null; renderHeader(); renderActivate(act[1]); return; }
     if (!token()) { ME = null; renderHeader(); if (app()) renderAuth(); return; }
     api('/api/me').then(function (r) {
       if (!r.ok) { setToken(null); ME = null; renderHeader(); if (app()) renderAuth(); return; }
@@ -168,6 +171,44 @@
       };
     });
   }
+  // ---- première connexion : la personne définit son mot de passe -----------
+  function renderActivate(tok) {
+    var el = app(); if (!el) return;
+    el.innerHTML = '<div class="auth-wrap"><div class="auth-tabs"><button class="auth-tab on" type="button">Première connexion</button></div>' +
+      '<p class="ds-empty" id="act-load">Vérification de votre lien…</p></div>';
+    api('/api/activate/' + encodeURIComponent(tok)).then(function (r) {
+      var wrap = el.querySelector('.auth-wrap'); if (!wrap) return;
+      if (!r.ok) {
+        wrap.innerHTML = '<div class="auth-tabs"><button class="auth-tab on" type="button">Lien expiré</button></div>' +
+          '<p class="auth-err" style="display:block;text-align:center">' + esc((r.data && r.data.error) || 'Ce lien est invalide ou a expiré.') + '</p>' +
+          '<p class="chan-note" style="text-align:center">Écrivez à <a href="mailto:admin@languagesandsuccess.com">admin@languagesandsuccess.com</a> pour recevoir un nouveau lien.</p>' +
+          '<p style="text-align:center;margin-top:6px"><button class="btn btn-ghost act-back" type="button">Retour à la connexion</button></p>';
+        wrap.querySelector('.act-back').onclick = function () { location.replace(location.pathname + location.search); };
+        return;
+      }
+      setToken(null);   // le lien vaut pour SON destinataire : on ferme la session en cours (poste partagé)
+      renderHeader();
+      wrap.innerHTML = '<div class="auth-tabs"><button class="auth-tab on" type="button">Bienvenue ' + esc(r.data.prenom) + '</button></div>' +
+        '<form class="form auth-form" id="act-form" style="max-width:none">' +
+        '<p class="chan-note" style="margin:0 0 4px">Votre compte <b>' + esc(r.data.email) + '</b> est prêt. Choisissez le mot de passe qui vous servira à vous connecter (8 caractères minimum).</p>' +
+        pwdField('ac-pwd', 'Votre mot de passe') + pwdField('ac-pwd2', 'Confirmer le mot de passe') +
+        '<p class="auth-err" id="act-err"></p><button class="btn btn-primary" type="submit" style="justify-self:center">Valider et accéder à mon espace →</button></form>';
+      wireEyes(wrap);
+      wrap.querySelector('#act-form').onsubmit = function (e) {
+        e.preventDefault();
+        var p1 = val('ac-pwd'), p2 = val('ac-pwd2');
+        if (p1.length < 8) { err('act-err', 'Le mot de passe doit faire au moins 8 caractères.'); return; }
+        if (p1 !== p2) { err('act-err', 'Les deux mots de passe ne correspondent pas.'); return; }
+        var btn = wrap.querySelector('#act-form button[type=submit]'); btn.disabled = true;
+        apiJSON('/api/activate', 'POST', { token: tok, password: p1 }).then(function (r2) {
+          btn.disabled = false;
+          if (!r2.ok) { err('act-err', (r2.data && r2.data.error) || 'Activation impossible.'); return; }
+          history.replaceState(null, '', location.pathname + location.search); // le jeton disparaît de l'URL
+          setToken(r2.data.token); ME = r2.data.user; selected = null; afterAuth();
+        });
+      };
+    });
+  }
   function collectProfile(role) {
     if (role === 'eleve') return { tel: val('su-tel'), societe: val('su-societe'), refProposition: val('su-ref'), heuresTotal: val('su-heures'), heuresDetail: val('su-heures-detail'), intitule: val('su-intitule'), langue: val('su-langue'), dateDebut: val('su-date-debut'), dateFin: val('su-date-fin'), lieu: val('su-lieu'), lieuAdresse: val('su-lieu-adresse'), certification: val('su-certif'), certificationText: val('su-certif-text') };
     if (role === 'prof') return { langue: val('su-p-langue'), siret: val('su-siret'), nda: val('su-nda'), adresse: val('su-adresse'), tel: val('su-p-tel'), dateNaissance: val('su-naissance'), nationalite: val('su-nationalite') };
@@ -187,7 +228,7 @@
   // corps du formulaire de création de compte (utilisé par la modale admin « Créer un compte »)
   function accountFieldsHTML() {
     return '<div class="form auth-form" id="signup-form" style="max-width:none"><div class="row2">' + field('su-prenom', 'Prénom', 'text') + field('su-nom', 'Nom', 'text') + '</div>' + field('su-email', 'E-mail', 'email') +
-      '<div class="row2">' + pwdField('su-pwd', 'Mot de passe') + pwdField('su-pwd2', 'Confirmer le mot de passe') + '</div>' +
+      '<p class="chan-note" style="margin:2px 0 14px">Un e-mail est envoyé à cette adresse avec un lien personnel pour que la personne <b>choisisse elle-même son mot de passe</b>. Vous n\'avez pas de mot de passe à définir ni à transmettre.</p>' +
       '<div class="field"><label for="su-role">Type de compte</label><select id="su-role" name="role"><option value="eleve">Apprenant</option><option value="prof">Formateur</option></select></div>' +
       '<div id="su-eleve-fields" class="su-profile"><h4 class="su-fiche-h">Fiche apprenant</h4>' +
         '<div class="row2">' + ofield('su-tel', 'Téléphone', 'tel') + ofield('su-societe', 'Société', 'text') + '</div>' +
@@ -686,7 +727,10 @@
         var ds = groups.filter(function (g) { return g.profId === u.id || g.eleveId === u.id; }).map(function (g) { return u.id === g.profId ? g.eleve : g.prof; });
         var canDel = u.id !== ME.id, canEdit = u.role === 'eleve' || u.role === 'prof';
         return '<li><span class="avatar">' + esc(initials(fullName(u))) + '</span><span class="c-name">' + esc(fullName(u)) + '<small>' + esc(u.email || '') + '</small>' +
-          '<small class="adm-contacts">' + (ds.length ? 'Dossiers : ' + ds.map(esc).join(', ') : 'Aucun dossier') + '</small></span><span class="role-chip role-' + u.role + '">' + ROLES[u.role] + '</span>' +
+          '<small class="adm-contacts">' + (ds.length ? 'Dossiers : ' + ds.map(esc).join(', ') : 'Aucun dossier') + '</small></span>' +
+          (u.pending ? '<span class="pend-chip" title="Le compte a été créé, la personne n\'a pas encore choisi son mot de passe">⏳ En attente</span>' : '') +
+          '<span class="role-chip role-' + u.role + '">' + ROLES[u.role] + '</span>' +
+          (canEdit ? '<button class="adm-reinv" type="button" data-id="' + u.id + '" data-label="' + esc(u.email || '') + '" title="Renvoyer le lien de première connexion">✉️</button>' : '') +
           '<button class="adm-hist" type="button" data-id="' + u.id + '" data-name="' + esc(fullName(u)) + '" title="Historique de connexions">🕐</button>' +
           (canEdit ? '<button class="adm-edit" type="button" data-id="' + u.id + '" title="Modifier la fiche">✏️</button>' : '') +
           (canDel ? '<button class="adm-del" type="button" data-del="user" data-id="' + u.id + '" data-label="' + esc(fullName(u)) + '" title="Supprimer ce compte">🗑</button>' : '') + '</li>';
@@ -707,6 +751,23 @@
     var lb = document.querySelector('.adm-logins'); if (lb) lb.onclick = function () { openLoginsModal(null, null); };
     document.querySelectorAll('.adm-hist').forEach(function (b) {
       b.onclick = function () { openLoginsModal(b.getAttribute('data-id'), b.getAttribute('data-name')); };
+    });
+    document.querySelectorAll('.adm-reinv').forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-id'), mail = b.getAttribute('data-label');
+        confirmDialog({
+          title: 'Renvoyer le lien de première connexion ?',
+          message: 'Un nouveau lien sera envoyé à ' + mail + ' pour choisir un mot de passe. L\'ancien lien cessera de fonctionner. Si la personne s\'est déjà connectée, son mot de passe actuel restera valable tant qu\'elle n\'utilise pas ce nouveau lien.',
+          confirm: 'Envoyer', cancel: 'Annuler',
+          onConfirm: function () {
+            apiJSON('/api/admin/users/' + encodeURIComponent(id) + '/reinvite', 'POST', {}).then(function (r) {
+              if (!r.ok) { alertDialog((r.data && r.data.error) || 'Envoi impossible.'); return; }
+              alertDialog('Lien envoyé à ' + mail + '.');
+              api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; rerenderAdmin(false); } });
+            });
+          }
+        });
+      };
     });
     document.querySelectorAll('.adm-edit').forEach(function (b) {
       b.onclick = function () {
@@ -759,16 +820,14 @@
     var lieuSel = m.querySelector('#su-lieu');
     if (lieuSel) { var lt = function () { m.querySelector('#su-lieu-wrap').style.display = (lieuSel.value === 'presentiel' || lieuSel.value === 'mixte') ? '' : 'none'; }; lieuSel.onchange = lt; lt(); }
     m.querySelector('.ca-save').onclick = function () {
-      var p1 = val('su-pwd'), p2 = val('su-pwd2');
-      if (p1.length < 6) { err('ca-err', 'Le mot de passe doit faire au moins 6 caractères.'); return; }
-      if (p1 !== p2) { err('ca-err', 'Les mots de passe ne correspondent pas.'); return; }
+      if (!val('su-prenom') || !val('su-nom') || !val('su-email')) { err('ca-err', 'Prénom, nom et e-mail sont obligatoires.'); return; }
       var role = val('su-role');
       var btn = m.querySelector('.ca-save'); btn.disabled = true; btn.textContent = 'Création…';
-      apiJSON('/api/admin/users', 'POST', { prenom: val('su-prenom'), nom: val('su-nom'), email: val('su-email'), password: p1, role: role, profile: collectProfile(role) }).then(function (r) {
+      apiJSON('/api/admin/users', 'POST', { prenom: val('su-prenom'), nom: val('su-nom'), email: val('su-email'), role: role, profile: collectProfile(role) }).then(function (r) {
         btn.disabled = false; btn.textContent = 'Créer le compte';
         if (!r.ok) { err('ca-err', (r.data && r.data.error) || 'Création impossible.'); return; }
         closeFsModal('ca-modal');
-        alertDialog('Compte créé — un e-mail de bienvenue a été envoyé.');
+        alertDialog('Compte créé. Un e-mail vient d\'être envoyé à ' + val('su-email') + ' avec un lien personnel pour choisir le mot de passe.');
         api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; rerenderAdmin(false); } });
       });
     };

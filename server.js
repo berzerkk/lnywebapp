@@ -578,23 +578,66 @@ app.post('/api/signup', (req, res) => {
 // création d'un compte (apprenant ou formateur) PAR un admin + e-mail de bienvenue
 app.post('/api/admin/users', auth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
-  const { prenom, nom, email, password, role, profile } = req.body || {};
-  if (!prenom || !nom || !email || !password) return res.status(400).json({ error: 'Champs manquants.' });
+  const { prenom, nom, email, role, profile } = req.body || {};
+  if (!prenom || !nom || !email) return res.status(400).json({ error: 'Champs manquants.' });
   if (!['eleve', 'prof'].includes(role)) return res.status(400).json({ error: 'Rôle invalide (apprenant ou formateur).' });
-  if (String(password).length < 6) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 6 caractères.' });
   const mail = String(email).trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) return res.status(400).json({ error: 'Adresse e-mail invalide.' });
   if (db.users.some(u => u.email === mail)) return res.status(409).json({ error: 'Un compte existe déjà avec cet e-mail.' });
-  const user = { id: crypto.randomUUID(), prenom: prenom.trim(), nom: nom.trim(), email: mail, passwordHash: await bcrypt.hash(password, 10), role, profile: cleanProfile(role, profile) };
+  // L'administration ne choisit PAS le mot de passe : le compte est créé sans mot de passe
+  // utilisable, et la personne définit le sien via un lien d'activation à usage unique.
+  const user = {
+    id: crypto.randomUUID(), prenom: prenom.trim(), nom: nom.trim(), email: mail, role,
+    passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10), // inutilisable
+    activation: newActivation(), mustActivate: true, profile: cleanProfile(role, profile)
+  };
   db.users.push(user); save();
-  // e-mail de bienvenue : « votre compte est prêt »
-  const urlW = SITE_URL + '/espace-documents.html';
-  sendMailSafe(mail,
-    'Votre compte espace documents est prêt — Languages & Success',
-    'Bonjour ' + user.prenom + ',\n\nVotre compte sur l\'espace documents Languages & Success est prêt.\nIdentifiant : ' + mail + '\n\nConnectez-vous ici :\n' + urlW + '\n\nLanguages & Success',
-    mailHtml('Votre compte est prêt ✓',
-      ['Bonjour ' + user.prenom + ',', 'Votre compte sur l\'espace documents Languages & Success est prêt.', 'Identifiant : ' + mail],
-      'Se connecter', urlW));
+  sendActivationMail(user, req.user);
   res.json({ ok: true, user: pubFull(user) });
+});
+// lien d'activation : jeton aléatoire, à usage unique, valable 14 jours
+function newActivation() { return { token: crypto.randomBytes(32).toString('hex'), exp: Date.now() + 14 * 24 * 60 * 60 * 1000 }; }
+function sendActivationMail(user, byUser) {
+  const url = SITE_URL + '/espace-documents.html#activation=' + user.activation.token;
+  const par = byUser ? (' par ' + senderDisplay(byUser)) : '';
+  sendMailSafe(user.email,
+    'Votre compte espace documents est prêt — Languages & Success',
+    'Bonjour ' + user.prenom + ',\n\nUn compte vient d\'être créé pour vous' + par + ' sur l\'espace documents Languages & Success.\nIdentifiant : ' + user.email + '\n\nChoisissez votre mot de passe (lien valable 14 jours) :\n' + url + '\n\nCe lien est personnel : ne le transmettez à personne.\n\nLanguages & Success',
+    mailHtml('Votre compte est prêt ✓',
+      ['Bonjour ' + user.prenom + ',', 'Un compte vient d\'être créé pour vous' + par + ' sur l\'espace documents Languages & Success.',
+       'Identifiant : ' + user.email, 'Il ne reste qu\'à choisir votre mot de passe. Ce lien est personnel et valable 14 jours.'],
+      'Choisir mon mot de passe', url));
+}
+const activationOf = (t) => db.users.find(u => u.activation && u.activation.token === t && u.activation.exp > Date.now());
+// vérifie le lien avant d'afficher le formulaire (nom affiché, pas de fuite d'information)
+app.get('/api/activate/:token', (req, res) => {
+  const u = activationOf(req.params.token);
+  if (!u) return res.status(404).json({ error: 'Ce lien est invalide ou a expiré. Demandez-en un nouveau à l\'administration.' });
+  res.json({ ok: true, prenom: u.prenom, email: u.email });
+});
+// la personne choisit son mot de passe : le jeton est consommé et elle est connectée
+app.post('/api/activate', async (req, res) => {
+  const { token, password } = req.body || {};
+  const u = activationOf(token);
+  if (!u) return res.status(404).json({ error: 'Ce lien est invalide ou a expiré. Demandez-en un nouveau à l\'administration.' });
+  if (String(password || '').length < 8) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères.' });
+  u.passwordHash = await bcrypt.hash(String(password), 10);
+  delete u.activation;                       // usage unique
+  delete u.mustActivate;
+  db.logins.push({ id: crypto.randomUUID(), user: u.id, email: u.email, ip: clientIp(req), date: Date.now() });
+  if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
+  save();
+  res.json({ token: sign(u), user: pubFull(u) });
+});
+// l'administration renvoie le lien (perdu, expiré, adresse corrigée)
+app.post('/api/admin/users/:id/reinvite', auth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
+  const u = realUser(req.params.id);
+  if (!u) return res.status(404).json({ error: 'Compte introuvable.' });
+  if (u.role === 'admin') return res.status(400).json({ error: 'Compte administrateur : non concerné.' });
+  u.activation = newActivation(); save();
+  sendActivationMail(u, req.user);
+  res.json({ ok: true });
 });
 // IP réelle du visiteur (derrière le tunnel Cloudflare en prod, direct en local)
 function clientIp(req) {
@@ -604,6 +647,16 @@ app.post('/api/login', async (req, res) => {
   const { email, password } = req.body || {};
   const mail = String(email || '').trim().toLowerCase();
   const user = db.users.find(u => u.email === mail);
+  // compte créé mais jamais activé : on l'explique au lieu du sec « mot de passe incorrect »
+  // (un lien renvoyé à quelqu'un qui a DÉJÀ son mot de passe ne le bloque pas : mustActivate absent)
+  if (user && user.mustActivate) {
+    const vivant = user.activation && user.activation.exp > Date.now();
+    return res.status(403).json({
+      error: vivant
+        ? 'Ce compte n\'est pas encore activé : utilisez le lien « Choisir mon mot de passe » reçu par e-mail.'
+        : 'Ce compte n\'est pas encore activé et votre lien a expiré. Écrivez à admin@languagesandsuccess.com pour en recevoir un nouveau.'
+    });
+  }
   if (!user || !(await bcrypt.compare(password || '', user.passwordHash))) return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });
   // historique de connexions (borné aux 1000 dernières entrées)
   db.logins.push({ id: crypto.randomUUID(), user: user.id, email: user.email, ip: clientIp(req), date: Date.now() });
@@ -819,7 +872,9 @@ app.get('/api/admin/overview', auth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
   const groups = db.groups.slice().sort((a, b) => b.date - a.date).map(g => ({ id: g.id, prof: fullName(g.prof), eleve: fullName(g.eleve), profId: g.prof, eleveId: g.eleve, docs: db.docs.filter(d => d.group === g.id).length, date: g.date }));
   const docs = db.docs.slice().sort((a, b) => b.date - a.date).map(d => { const g = groupById(d.group); return Object.assign(docPub(d), { groupLabel: g ? `${fullName(g.prof)} / ${fullName(g.eleve)}` : '—' }); });
-  res.json({ users: db.users.map(pubFull), groups, docs });
+  // `pending` = compte créé mais mot de passe pas encore choisi (jamais le jeton lui-même)
+  const users = db.users.map(u => Object.assign(pubFull(u), { pending: !!u.mustActivate }));
+  res.json({ users, groups, docs });
 });
 
 // ---- génération de documents : Interactive Worksheet -----------------------

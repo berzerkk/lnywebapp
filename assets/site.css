@@ -689,9 +689,13 @@ footer a:hover{color:#fff8ef}
 .adm-del{flex:none;border:0;background:color-mix(in oklab,#c0392b 9%,#fff);color:#c0392b;font-size:15px;width:30px;height:30px;border-radius:9px;cursor:pointer;transition:.15s;line-height:1}
 .adm-del:hover{background:#c0392b;color:#fff}
 .admin-users li .adm-del{margin-left:8px}
-.adm-edit{flex:none;border:1px solid var(--line);background:var(--bg-card);font-size:14px;width:30px;height:30px;border-radius:9px;cursor:pointer;transition:.15s;line-height:1}
-.adm-edit:hover{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 10%,#fff)}
+.adm-edit,.adm-hist,.adm-reinv{flex:none;border:1px solid var(--line);background:var(--bg-card);font-size:14px;width:30px;height:30px;border-radius:9px;cursor:pointer;transition:.15s;line-height:1;padding:0}
+.adm-edit:hover,.adm-hist:hover,.adm-reinv:hover{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 10%,#fff)}
 .admin-users li .adm-edit{margin-left:8px}
+/* compte créé, mot de passe pas encore choisi */
+.pend-chip{flex:none;font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;color:#9a6b12;border:1px solid #efdcb4;background:#fdf6e6}
+.admin-users li .pend-chip{margin-left:auto}
+.admin-users li .pend-chip+.role-chip{margin-left:0}
 /* comptes démo (connexion) */
 .demo-box{margin-top:18px;border:1px dashed var(--line);border-radius:14px;padding:14px;background:var(--bg)}
 .demo-box-h{font-weight:600;font-size:13px;color:var(--accent);margin-bottom:10px}
