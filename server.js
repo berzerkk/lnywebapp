@@ -647,12 +647,22 @@ app.get('/api/groups', auth, (req, res) => {
   res.json({ groups: groupsForUser(req.user).sort((a, b) => b.date - a.date).map(groupView) });
 });
 app.post('/api/groups', auth, (req, res) => {
-  const target = realUser((req.body || {}).targetId);
-  if (!target) return res.status(404).json({ error: 'Utilisateur introuvable.' });
+  const b = req.body || {};
   let prof, eleve;
-  if (req.user.role === 'prof' && target.role === 'eleve') { prof = req.user.id; eleve = target.id; }
-  else if (req.user.role === 'eleve' && target.role === 'prof') { prof = target.id; eleve = req.user.id; }
-  else return res.status(400).json({ error: 'Un formateur ajoute un apprenant (ou inversement).' });
+  if (req.user.role === 'admin') {
+    // l'administration constitue le dossier en désignant les DEUX personnes
+    const p = realUser(b.profId), e = realUser(b.eleveId);
+    if (!p || p.role !== 'prof') return res.status(400).json({ error: 'Formateur invalide.' });
+    if (!e || e.role !== 'eleve') return res.status(400).json({ error: 'Apprenant invalide.' });
+    prof = p.id; eleve = e.id;
+  } else if (req.user.role === 'prof') {
+    const target = realUser(b.targetId);
+    if (!target || target.role !== 'eleve') return res.status(400).json({ error: 'Apprenant introuvable.' });
+    prof = req.user.id; eleve = target.id;
+  } else {
+    // un apprenant ne constitue plus de dossier lui-même
+    return res.status(403).json({ error: 'Les dossiers sont créés par l\'administration ou votre formateur.' });
+  }
   let g = db.groups.find(x => x.prof === prof && x.eleve === eleve);
   if (!g) {
     g = { id: crypto.randomUUID(), prof, eleve, date: Date.now() };
@@ -758,6 +768,24 @@ app.post('/api/documents', auth, upload.single('file'), (req, res) => {
   notifyChannel(g, ch, req.user, `${senderDisplay(req.user)} a partagé un document ${ch === 'prive' ? '(privé) ' : ''}: ${originalName}`);
   save();
   res.json({ doc: docPub(doc) });
+});
+// suppression d'un document : par son expéditeur (formateur) ou par l'administration.
+// Les pièces SIGNÉES (feuille de présence, questionnaire rempli) sont protégées : ce sont
+// des pièces justificatives, et les retirer laisserait la demande dans un état incohérent.
+app.delete('/api/documents/:id', auth, (req, res) => {
+  const d = db.docs.find(x => x.id === req.params.id);
+  if (!d) return res.status(404).json({ error: 'Document introuvable.' });
+  const g = groupById(d.group);
+  if (!canChannel(g, req.user, d.channel)) return res.status(403).json({ error: 'Accès refusé.' });
+  const isMine = req.user.role === 'admin' ? true : (!d.fromAdmin && d.from === req.user.id);
+  if (req.user.role === 'eleve' || !isMine) return res.status(403).json({ error: 'Seul l\'expéditeur ou l\'administration peut supprimer ce document.' });
+  if (db.presences.some(p => p.docId === d.id) || db.qs.some(q => q.docId === d.id)) {
+    return res.status(400).json({ error: 'Ce document est une pièce signée : il ne peut pas être supprimé.' });
+  }
+  try { fs.unlinkSync(path.join(UPLOADS_DIR, d.stored)); } catch (e) { }
+  db.docs = db.docs.filter(x => x.id !== d.id);
+  save();
+  res.json({ ok: true });
 });
 app.get('/api/documents', auth, (req, res) => {
   const g = groupById(req.query.group);
@@ -1652,6 +1680,17 @@ app.post('/api/qs/send', auth, (req, res) => {
   db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'commun', from: req.user.id, fromAdmin: req.user.role === 'admin', kind: 'qs', qsId: qs.id, qsType: type, text: 'Demande de remplissage : ' + tpl.title, date: Date.now() });
   notify(g.eleve, `${senderDisplay(req.user)} vous demande de remplir : ${tpl.title}`, g.id);
   db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé un questionnaire à remplir (${tpl.title}).`, g.id));
+  // e-mail à l'apprenant : un questionnaire l'attend
+  const eleveQ = realUser(g.eleve);
+  if (eleveQ) {
+    const urlQ = SITE_URL + '/espace-documents.html';
+    sendMailSafe(eleveQ.email,
+      'Un questionnaire à remplir vous attend — Languages & Success',
+      'Bonjour ' + eleveQ.prenom + ',\n\n' + senderDisplay(req.user) + ' vous demande de remplir le questionnaire « ' + tpl.title + ' ».\n\nConnectez-vous à votre espace documents pour le remplir :\n' + urlQ + '\n\nLanguages & Success',
+      mailHtml('Un questionnaire à remplir vous attend',
+        ['Bonjour ' + eleveQ.prenom + ',', senderDisplay(req.user) + ' vous demande de remplir le questionnaire « ' + tpl.title + ' ».', 'Connectez-vous à votre espace documents pour le remplir.'],
+        'Remplir le questionnaire', urlQ));
+  }
   save();
   res.json({ ok: true, id: qs.id });
 });
@@ -1674,6 +1713,18 @@ app.post('/api/qs/:id/submit', auth, async (req, res) => {
   try { doc = await generateQsDoc(qs, (req.body || {}).format, req.user); } catch (e) { console.error('QS gen:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   qs.docId = doc.id;
   notifyChannel(g, 'commun', req.user, `${senderDisplay(req.user)} a rempli et déposé : ${(QS_TEMPLATES[qs.type] || {}).title}`);
+  // e-mail au formateur (l'envoyeur) : le questionnaire est rempli
+  const senderQ = realUser(qs.by);
+  if (senderQ && senderQ.id !== req.user.id) {
+    const urlS = SITE_URL + '/espace-documents.html';
+    const titreQ = (QS_TEMPLATES[qs.type] || {}).title || 'Questionnaire';
+    sendMailSafe(senderQ.email,
+      'Questionnaire rempli par ' + senderDisplay(req.user) + ' — Languages & Success',
+      'Bonjour ' + senderQ.prenom + ',\n\n' + senderDisplay(req.user) + ' a rempli le questionnaire « ' + titreQ + ' ».\nLe document est disponible sur votre espace documents.\n\n' + urlS + '\n\nLanguages & Success',
+      mailHtml('Le questionnaire est rempli ✓',
+        ['Bonjour ' + senderQ.prenom + ',', senderDisplay(req.user) + ' a rempli le questionnaire « ' + titreQ + ' ».', 'Le document est disponible sur votre espace documents.'],
+        'Voir le document', urlS));
+  }
   save();
   res.json({ ok: true, doc: docPub(doc) });
 });

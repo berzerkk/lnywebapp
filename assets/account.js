@@ -43,7 +43,9 @@
   function initials(name) { var p = (name || '').trim().split(/\s+/); return ((p[0] || '')[0] || '') + ((p[1] || '')[0] || ''); }
   function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
   function err(id, msg) { var el = document.getElementById(id); if (el) el.textContent = msg; }
-  function roleAllowed(me, o) { if (me.role === 'prof') return o.role === 'eleve'; if (me.role === 'eleve') return o.role === 'prof'; return false; }
+  // seul le formateur constitue un dossier depuis son espace (l'apprenant ne le fait plus :
+  // c'est l'administration ou le formateur qui l'ajoute)
+  function roleAllowed(me, o) { return me.role === 'prof' && o.role === 'eleve'; }
   function app() { return document.getElementById('docspace'); }
 
   // ---- widget header ------------------------------------------------------
@@ -232,9 +234,13 @@
     return fullName(g.prof);
   }
   function membersChips(g) {
-    return '<div class="grp-members"><span class="mchip">' + esc(fullName(g.eleve)) + ' · Apprenant</span>' +
-      '<span class="mchip">' + esc(fullName(g.prof)) + ' · Formateur</span>' +
-      '<span class="mchip mchip-admin">Administration L&amp;S</span></div>';
+    // la bulle mise en couleur est celle du COMPTE CONNECTÉ (avant, c'était toujours
+    // celle de l'administration, quel que soit l'utilisateur)
+    var r = ME.role;
+    return '<div class="grp-members">' +
+      '<span class="mchip' + (r === 'eleve' ? ' mchip-me' : '') + '">' + esc(fullName(g.eleve)) + ' · Apprenant</span>' +
+      '<span class="mchip' + (r === 'prof' ? ' mchip-me' : '') + '">' + esc(fullName(g.prof)) + ' · Formateur</span>' +
+      '<span class="mchip' + (r === 'admin' ? ' mchip-me' : '') + '">Administration L&amp;S</span></div>';
   }
   function qsMsgHTML(m) {
     var q = m.qs || {}, mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
@@ -293,7 +299,11 @@
       ((docs && docs.length) ? '<ul class="docs">' + docs.map(function (d) {
         var mine = (ME.role === 'admin') ? d.fromAdmin : (!d.fromAdmin && d.from === ME.id);
         return '<li><span class="doc-ic">📄</span><span class="doc-meta"><b>' + esc(d.name) + '</b><small>' + fmtSize(d.size) + ' · ' + (mine ? 'envoyé par vous' : 'de ' + esc(d.fromName)) + ' · ' + fmtDate(d.date) + '</small></span>' +
-          '<a class="btn-mini" href="/api/documents/' + d.id + '/download?token=' + encodeURIComponent(token()) + '">Télécharger</a></li>';
+          '<a class="btn-mini" href="/api/documents/' + d.id + '/download?token=' + encodeURIComponent(token()) + '">Télécharger</a>' +
+          // l'expéditeur (formateur) et l'administration peuvent retirer un document envoyé
+          ((mine && ME.role !== 'eleve') || ME.role === 'admin'
+            ? '<button class="adm-del doc-del" type="button" data-id="' + d.id + '" data-name="' + esc(d.name) + '" title="Supprimer ce document">🗑</button>' : '') +
+          '</li>';
       }).join('') + '</ul>' : '<p class="ds-empty" style="margin:14px 0">Aucun document dans ce canal.</p>');
   }
   function groupView(g, messages, docs) {
@@ -307,7 +317,9 @@
       docsBlock(docs) + '<h4 class="ds-sub">Messagerie</h4>' + chatHTML(messages) + '</div>';
   }
   function dossiersCardHTML(groups, canAdd) {
-    var addLabel = ME.role === 'prof' ? 'Ajouter un apprenant' : 'Ajouter un formateur';
+    // l'apprenant ne constitue pas de dossier : pas de bouton d'ajout chez lui
+    if (ME.role === 'eleve') canAdd = null;
+    var addLabel = 'Ajouter un apprenant';
     return '<div class="ds-card"><h3>Mes dossiers</h3>' +
       (groups.length ? '<ul class="contact-list">' + groups.map(function (g) {
         var sub = ME.role === 'admin' ? 'Formateur + Apprenant + Admin' : (ME.role === 'prof' ? 'Apprenant + Admin' : 'Formateur + Admin');
@@ -366,6 +378,22 @@
       };
     });
     var asb = el.querySelector('.add-search-btn'); if (asb) asb.onclick = openAddModal;
+    el.querySelectorAll('.doc-del').forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-id'), nom = b.getAttribute('data-name');
+        confirmDialog({
+          title: 'Supprimer ce document ?',
+          message: '« ' + nom + ' » sera définitivement retiré du dossier, pour tous les membres. Cette action est irréversible.',
+          confirm: 'Supprimer', cancel: 'Annuler',
+          onConfirm: function () {
+            api('/api/documents/' + encodeURIComponent(id), { method: 'DELETE' }).then(function (r) {
+              if (!r.ok) { alertDialog((r.data && r.data.error) || 'Suppression impossible.'); return; }
+              renderDashboard();
+            });
+          }
+        });
+      };
+    });
     el.querySelectorAll('.chan-tab').forEach(function (t) { t.onclick = function () { channel = t.getAttribute('data-ch'); renderDashboard(); }; });
     var gb = el.querySelector('.gen-btn'); if (gb) gb.onclick = openTemplatePicker;
     if (selG) { wireChat(); wireUpload(); }
@@ -626,6 +654,7 @@
       '<div class="adm-bar"><div class="adm-toggle">' + chip('dossiers', 'Dossiers', groups.length) + chip('comptes', 'Comptes', users.length) + chip('fichiers', 'Fichiers', docs.length) +
       '</div><input id="adm-search" class="adm-search" placeholder="Filtrer par nom, e-mail, fichier…" value="' + esc(adminQuery) + '" />' +
       '<button class="btn-mini adm-new" type="button">+ Créer un compte</button>' +
+      '<button class="btn-mini adm-newgrp" type="button">+ Créer un dossier</button>' +
       '<button class="btn-mini adm-logins" type="button">🕐 Historique de connexions</button></div>';
     var sections = '';
     if (adminShow.dossiers) {
@@ -660,6 +689,7 @@
     document.querySelectorAll('.adm-chip').forEach(function (t) { t.onclick = function () { var k = t.getAttribute('data-k'); adminShow[k] = !adminShow[k]; rerenderAdmin(false); }; });
     var s = document.getElementById('adm-search'); if (s) s.oninput = function () { adminQuery = s.value; rerenderAdmin(true); };
     var nb = document.querySelector('.adm-new'); if (nb) nb.onclick = openCreateAccount;
+    var ng = document.querySelector('.adm-newgrp'); if (ng) ng.onclick = openCreateGroup;
     var lb = document.querySelector('.adm-logins'); if (lb) lb.onclick = function () { openLoginsModal(null, null); };
     document.querySelectorAll('.adm-hist').forEach(function (b) {
       b.onclick = function () { openLoginsModal(b.getAttribute('data-id'), b.getAttribute('data-name')); };
@@ -726,6 +756,32 @@
         closeFsModal('ca-modal');
         alertDialog('Compte créé — un e-mail de bienvenue a été envoyé.');
         api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; rerenderAdmin(false); } });
+      });
+    };
+  }
+  // ---- admin : constituer un dossier (formateur + apprenant) ---------------
+  function openCreateGroup() {
+    var users = (ADMIN_OVERVIEW && ADMIN_OVERVIEW.users) || [];
+    var profs = users.filter(function (u) { return u.role === 'prof'; });
+    var eleves = users.filter(function (u) { return u.role === 'eleve'; });
+    if (!profs.length || !eleves.length) {
+      alertDialog('Il faut au moins un formateur et un apprenant pour constituer un dossier.');
+      return;
+    }
+    function opts(list) { return list.map(function (u) { return '<option value="' + esc(u.id) + '">' + esc(fullName(u)) + ' — ' + esc(u.email || '') + '</option>'; }).join(''); }
+    var body = '<h4 class="gen-h">Dossier</h4><div class="gf-grid">' +
+      '<label class="gf">Formateur<select id="cg-prof">' + opts(profs) + '</select></label>' +
+      '<label class="gf">Apprenant<select id="cg-eleve">' + opts(eleves) + '</select></label></div>' +
+      '<p class="chan-note" style="margin-top:10px">Les deux personnes seront notifiées de l\'ouverture du dossier. L\'administration en est membre automatiquement.</p>';
+    var footer = '<p class="fe-err auth-err" id="cg-err" style="margin:0 12px 0 0"></p><button class="btn btn-primary cg-save" type="button" style="padding:11px 22px">Créer le dossier</button>';
+    var m = buildFsModal('cg-modal', 'Créer un dossier', body, footer);
+    m.querySelector('.cg-save').onclick = function () {
+      var btn = m.querySelector('.cg-save'); btn.disabled = true; btn.textContent = 'Création…';
+      apiJSON('/api/groups', 'POST', { profId: val('cg-prof'), eleveId: val('cg-eleve') }).then(function (r) {
+        btn.disabled = false; btn.textContent = 'Créer le dossier';
+        if (!r.ok) { err('cg-err', (r.data && r.data.error) || 'Création impossible.'); return; }
+        closeFsModal('cg-modal');
+        api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; renderDashboard(); } });
       });
     };
   }
