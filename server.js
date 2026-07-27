@@ -1570,13 +1570,16 @@ const CT_TERMES = ['LANGUAGES & SUCCESS - L&S', 'Languages and Success', 'LANGUA
 function ctSeg(texte) {
   let segs = [{ t: String(texte == null ? '' : texte) }];
   for (const terme of CT_TERMES) {                       // du plus long au plus court : pas de chevauchement
+    const cible = terme.toLowerCase();
     const out = [];
     for (const s of segs) {
       if (s.b) { out.push(s); continue; }
       let reste = s.t, i;
-      while ((i = reste.indexOf(terme)) >= 0) {
+      // recherche INSENSIBLE À LA CASSE (le contrat écrit parfois « le sous-traitant » en
+      // minuscules) mais la casse d'origine est conservée : on ne réécrit pas le texte du contrat.
+      while ((i = reste.toLowerCase().indexOf(cible)) >= 0) {
         if (i > 0) out.push({ t: reste.slice(0, i) });
-        out.push({ t: terme, b: 1 });
+        out.push({ t: reste.slice(i, i + terme.length), b: 1 });
         reste = reste.slice(i + terme.length);
       }
       if (reste) out.push({ t: reste });
