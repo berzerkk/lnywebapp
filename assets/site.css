@@ -161,6 +161,15 @@ body.menu-open{overflow:hidden}
 .hero-stats-row .hs{display:flex;flex-direction:column;gap:5px;border-top:1.5px solid var(--accent);padding-top:11px;min-width:108px}
 .hero-stats-row .n{font-family:var(--ff-head);font-size:clamp(22px,2.4vw,30px);font-weight:500;line-height:1;color:var(--ink)}
 .hero-stats-row .l{font-size:12px;color:var(--ink-soft);max-width:18ch;line-height:1.3}
+/* En desktop, l'animation du héros est posée en absolu sur la moitié droite : la barre de chiffres
+   et sa note sont bornées à la colonne de GAUCHE pour ne jamais passer par-dessus. La largeur est
+   calculée à partir de celle de l'animation, donc elle reste juste à toutes les tailles d'écran.
+   (Sous 880 px l'animation repasse dans le flux, sous le texte : aucune contrainte nécessaire.) */
+@media(min-width:881px){
+  .hero .hero-stats-row,
+  .hero .hero-stats-note{max-width:calc(100% - min(540px,46vw) - 24px)}
+  .hero .hero-stats-row{margin-top:40px}
+}
 
 /* stats verticales (réutilisées sur la page À propos) */
 .hero-band{margin-top:60px;display:grid;grid-template-columns:1.5fr 1fr;gap:24px}
