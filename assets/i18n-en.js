@@ -26,7 +26,9 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Des formations sur mesure, menées par des formateurs natifs et diplômés, pensées autour de vos objectifs, financées CPF & OPCO.": "Tailor-made language courses, taught by qualified native trainers, built around your goals, funded by CPF & OPCO.",
   "Nous contacter →": "Contact us →", "Faire le test de niveau": "Take the level test",
   "apprenants formés *": "learners trained *", "de formation dispensées *": "of teaching delivered *", "entreprises *": "companies *", "satisfaction": "satisfaction", "(311 avis CPF)": "(311 CPF reviews)",
-  "* Chiffres arrêtés au 31/12/2025.": "* Figures as of 31/12/2025.", "Lire": "Scroll",
+  "taux de passage *": "sit-in rate *",
+  "taux de réussite *": "pass rate *",
+  "* Chiffres arrêtés au 31/12/2025. Taux de passage : part des apprenants inscrits qui se sont présentés à la certification ou à l'examen. Taux de réussite : part des apprenants présentés ayant obtenu leur certification ou leur examen.": "* Figures as of 31/12/2025. Sit-in rate: share of enrolled learners who sat the certification or exam. Pass rate: share of learners who sat it and obtained their certification or exam.", "Lire": "Scroll",
   /* ---- landing : langues ---- */
   "Douze langues": "Twelve languages", "La vôtre est forcément ici.": "Yours is bound to be here.",
   /* ---- landing : formats ---- */

@@ -92,9 +92,9 @@
             '<div class="logo">' + '<img class="emblem" src="assets/ls-logo.png" alt="" />' +
               '<span class="wm"><span class="l">Languages</span><i class="amp">&amp;</i><span class="l">Success</span></span></div>' +
             '<p class="foot-desc">Organisme de formation en langues, certifié Qualiopi. Des parcours sur mesure pour les particuliers, les salariés et les entreprises.</p>' +
-            '<p style="margin-top:16px;line-height:1.7">57, route de Grenoble, BP1052<br/>06201 Nice Cédex 3, France<br/>' +
+            '<p style="margin-top:16px;line-height:1.7">57, avenue Valéry Giscard d\'Estaing, BP1052<br/>06201 Nice Cédex 3, France<br/>' +
               '<a href="tel:+33778873201">+33 7 78 87 32 01</a><br/>' +
-              '<a href="mailto:lny.cambridge@gmail.com">lny.cambridge@gmail.com</a></p>' +
+              '<a href="mailto:contact@languagesandsuccess.com">contact@languagesandsuccess.com</a></p>' +
           '</div>' +
           '<div><h5>Formations</h5><ul>' +
             '<li><a href="formations.html">Nos langues</a></li>' +
@@ -109,7 +109,7 @@
             '<li><a href="contact.html">Contact</a></li></ul></div>' +
           '<div><h5>Suivez-nous</h5><ul>' +
             '<li><a href="https://www.linkedin.com/company/languages-n-success-lns/" target="_blank" rel="noopener">LinkedIn</a></li>' +
-            '<li><a href="mailto:lny.cambridge@gmail.com">Contact</a></li></ul>' +
+            '<li><a href="mailto:contact@languagesandsuccess.com">Contact</a></li></ul>' +
             // boutons réseaux sociaux — href="#" en attendant les vrais liens (à remplacer le moment venu)
             '<div class="socials">' +
               '<a class="soc" href="https://www.facebook.com/languagesnsuccess/" target="_blank" rel="noopener" aria-label="Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07c0 6.03 4.39 11.03 10.13 11.93v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8v8.44C19.61 23.1 24 18.1 24 12.07z"/></svg></a>' +

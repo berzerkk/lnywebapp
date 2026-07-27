@@ -27,8 +27,8 @@ const QUALIOPI_CERT = 'CERT_S0226_0162';   // numéro du certificat QUALIOPI (mi
 const NO_BORDERS = () => ({ top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } });
 const LEGAL_LINES = [
   'ASSOCIATION Loi 1901 LANGUAGES & SUCCESS - L&S',
-  'Siège social : 57, route de Grenoble - BP 1052 - 06201 NICE CÉDEX 3 - France',
-  'Tél. : 0778873201 - Adresse mail : lny.cambridge@gmail.com',
+  'Siège social : 57, avenue Valéry Giscard d\'Estaing - BP 1052 - 06201 NICE CÉDEX 3 - France',
+  'Tél. : 0778873201 - Adresse mail : contact@languagesandsuccess.com',
   'Numéro RNA : W061014363 - SIRET : 881 226 641 00028 - Certificat QUALIOPI : ' + QUALIOPI_CERT,
   'Enregistré sous le N° 93 060 886 106 auprès du Préfet de la région PACA'
 ];
@@ -1618,7 +1618,7 @@ function contratBlocks(d) {
     { h1: 'CONTRAT DE SOUS-TRAITANCE DE FORMATION' },
     { sub: d.ref || 'Réf. n° 2023/L&S0701' },
     { p: 'ENTRE LES SOUSSIGNÉS :', bold: true },
-    { p: `LANGUAGES & SUCCESS - L&S (enregistré sous le N° 93 060 886 106 auprès du Préfet de la région PACA - Certificat QUALIOPI ${QUALIOPI_CERT}) - 57, route de Grenoble - BP 1052 - 06201 NICE CÉDEX 3, représenté par ${rep}, Président, auquel il est conclu la convention suivante, en application des dispositions de la partie VI du Code du travail portant organisation de la formation professionnelle continue dans le cadre de la formation professionnelle tout au long de la vie.` },
+    { p: `LANGUAGES & SUCCESS - L&S (enregistré sous le N° 93 060 886 106 auprès du Préfet de la région PACA - Certificat QUALIOPI ${QUALIOPI_CERT}) - 57, avenue Valéry Giscard d'Estaing - BP 1052 - 06201 NICE CÉDEX 3, représenté par ${rep}, Président, auquel il est conclu la convention suivante, en application des dispositions de la partie VI du Code du travail portant organisation de la formation professionnelle continue dans le cadre de la formation professionnelle tout au long de la vie.` },
     { p: 'Ci-après dénommé « Languages and Success ».', bold: true, italics: true },
     { p: 'ET', bold: true, before: true },
     { p: `${d.stnom || ''}`, bold: true },
@@ -2580,7 +2580,7 @@ app.use((req, res) => {
 const DEMO_PASSWORD = 'demo1234';
 const DEMO_ACCOUNTS = [
   { email: 'admin@ls.fr', prenom: 'Alice', nom: 'Admin', role: 'admin', profile: {} },
-  { email: 'prof@ls.fr', prenom: 'Paul', nom: 'Formateur', role: 'prof', profile: { langue: 'Anglais', siret: '881 226 641 00028', nda: '93 060 886 106', adresse: '57 route de Grenoble, 06200 Nice', tel: '06 12 34 56 78', dateNaissance: '12/04/1985', nationalite: 'Française' } },
+  { email: 'prof@ls.fr', prenom: 'Paul', nom: 'Formateur', role: 'prof', profile: { langue: 'Anglais', siret: '881 226 641 00028', nda: '93 060 886 106', adresse: '57 avenue Valéry Giscard d\'Estaing, 06200 Nice', tel: '06 12 34 56 78', dateNaissance: '12/04/1985', nationalite: 'Française' } },
   { email: 'eleve@ls.fr', prenom: 'Léa', nom: 'Apprenante', role: 'eleve', profile: { tel: '06 98 76 54 32', societe: 'ACME SAS', heuresTotal: '40 h', heuresDetail: '20 h en visioconférence + 20 h en présentiel', intitule: 'Anglais professionnel', langue: 'Anglais', dateDebut: '15/09/2026', dateFin: '20/12/2026', lieu: 'distanciel', lieuAdresse: '', certification: 'oui', certificationText: 'Certification LINGUASKILL (Cambridge)' } }
 ];
 // compte administrateur permanent (mot de passe surchargeable via ADMIN_PASSWORD ;
