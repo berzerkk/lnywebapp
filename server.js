@@ -1404,10 +1404,13 @@ app.post('/api/testdoc/generate', auth, async (req, res) => {
 // ---- Attestation de fin de stage (formateur + admin) -----------------------
 const ATT_NIVEAUX = ['Acquis', "En cours d'acquisition", 'Non acquis'];
 // Signature du président et tampon de l'association, incrustés automatiquement sur les documents
-// qui les demandent. Les fichiers sont FACULTATIFS : s'ils sont absents, rien n'est dessiné et
-// aucun document n'échoue (il suffit de les déposer dans assets/ pour qu'ils apparaissent).
-const SIGN_PRESIDENT = path.join(__dirname, 'assets', 'signature-antonin.png');
-const TAMPON_LS = path.join(__dirname, 'assets', 'tampon-ls.png');
+// qui les demandent.
+// ⚠️ Ces fichiers vivent dans data/ et NON dans assets/ : le dépôt GitHub est PUBLIC, une signature
+// manuscrite n'a rien à y faire. data/ est hors Git, monté en volume Docker en production et inclus
+// dans les sauvegardes offsite — comme data/smtp.json.
+// Ils sont FACULTATIFS : absents, rien n'est dessiné et aucune génération n'échoue.
+const SIGN_PRESIDENT = path.join(DATA_DIR, 'signature-antonin.png');
+const TAMPON_LS = path.join(DATA_DIR, 'tampon-ls.png');
 const imgSiPresent = (f) => { try { return fs.existsSync(f) ? f : null; } catch (e) { return null; } };
 // Word : renvoie les paragraphes d'image à insérer (liste vide si les fichiers manquent)
 function dxSignaturePresident(largeur) {
@@ -1419,6 +1422,13 @@ function dxSignaturePresident(largeur) {
     try { out.push(new Paragraph({ children: [new ImageRun({ type: 'png', data: fs.readFileSync(p), transformation: { width: w, height: Math.round(w * 0.45) } })] })); } catch (e) { }
   }
   return out;
+}
+// Le bloc de signature est dessiné à des coordonnées EXPLICITES : pdfkit ne pagine pas tout seul
+// dans ce cas. On force donc une page si la place manque, sinon l'image déborderait sur le pied
+// de page (ou hors de la feuille) quand le document est long.
+function pdfPlacePourSignature(doc, hauteur) {
+  if (doc.y + hauteur > doc.page.height - doc.page.margins.bottom) { doc.addPage(); return true; }
+  return false;
 }
 // PDF : dessine la signature puis le tampon sous le nom et le titre, et renvoie la hauteur utilisée
 function pdfSignaturePresident(doc, x, y, largeur) {
@@ -1516,6 +1526,7 @@ function buildAttestationPdf(d, user) {
     p('Commentaires du formateur :', { bold: true, after: 0.2 }); p(d.commentaires || '', { after: 0.6 });
     p('Fait à ' + (d.lieuFait || 'Nice') + ', le ' + (d.dateFait || ''), { after: 1.4 });
     // bloc de signature sur une ligne horizontale complète : les trois signataires ne se touchent pas
+    pdfPlacePourSignature(doc, 110);
     const colW = totalW / 3 - 12, y0 = doc.y;
     doc.font('Helvetica').fontSize(9.5).fillColor('#2a241d');
     doc.text((d.representant || 'Antonin HATTABE'), left, y0, { width: colW });
@@ -2308,6 +2319,7 @@ function buildPresencePdf(type, d, user) {
     // signature du président incrustée automatiquement (documents administratifs)
     if (tpl.president) {
       doc.moveDown(0.8);
+      pdfPlacePourSignature(doc, 100);
       const y0 = doc.y;
       doc.font('Helvetica').fontSize(9).fillColor('#2a241d').text('Pour Languages & Success', left, y0, { width: totalW * 0.5 });
       doc.text('Antonin HATTABE, Président', left, doc.y, { width: totalW * 0.5 });
