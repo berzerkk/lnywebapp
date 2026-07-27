@@ -22,11 +22,14 @@ const zlib = require('zlib');
 const PDFDocument = require('pdfkit');
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType } = require('docx');
 const LOGO_PATH = path.join(__dirname, 'assets', 'ls-logo.png');
+const QUALIOPI_CERT = 'CERT_S0226_0162';   // numéro du certificat QUALIOPI (mis à jour le 27/07/2026)
+// tableau Word sans aucune bordure (mise en page en colonnes : pied de page, signatures…)
+const NO_BORDERS = () => ({ top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } });
 const LEGAL_LINES = [
   'ASSOCIATION Loi 1901 LANGUAGES & SUCCESS - L&S',
   'Siège social : 57, route de Grenoble - BP 1052 - 06201 NICE CÉDEX 3 - France',
   'Tél. : 0778873201 - Adresse mail : lny.cambridge@gmail.com',
-  'Numéro RNA : W061014363 - SIRET : 881 226 641 00028 - Certificat QUALIOPI : F1017',
+  'Numéro RNA : W061014363 - SIRET : 881 226 641 00028 - Certificat QUALIOPI : ' + QUALIOPI_CERT,
   'Enregistré sous le N° 93 060 886 106 auprès du Préfet de la région PACA'
 ];
 
@@ -1350,7 +1353,6 @@ function buildTestDocx(title, header, extra, user) {
     new TableRow({ children: [cellH('Langue', H.langue), cellH('Intitulé de la formation', H.intitule)] }),
     new TableRow({ children: [cellH('Formateur', H.formateur), cellH('Date', H.date)] })
   ];
-  if (H.certification) rows.push(new TableRow({ children: [dxCell('Certification : ' + H.certification, { span: 2 })] }));
   rows.push(new TableRow({ children: [dxCell('Résultat', { span: 2, fill: HEADBG, bold: true, color: DARKC })] }));
   rows.push(dxRowMin([dxCell(X.resultat || '', { span: 2, valign: VerticalAlign ? VerticalAlign.TOP : 'top' })], 700));
   rows.push(new TableRow({ children: [dxCell('Appréciation formateur', { span: 2, fill: HEADBG, bold: true, color: DARKC })] }));
@@ -1372,7 +1374,6 @@ function buildTestPdf(title, header, extra, user) {
       { cells: [{ text: 'Langue : ' + (H.langue || ''), w: half, size: 10 }, { text: 'Intitulé de la formation : ' + (H.intitule || ''), w: half, size: 10 }] },
       { cells: [{ text: 'Formateur : ' + (H.formateur || ''), w: half, size: 10 }, { text: 'Date : ' + (H.date || ''), w: half, size: 10 }] }
     ];
-    if (H.certification) rows.push({ cells: [{ text: 'Certification : ' + H.certification, w: totalW, size: 10 }] });
     rows.push({ cells: [{ text: 'Résultat', w: totalW, fill: HB, bold: true, color: '#a8593c', size: 11 }], minH: 20 });
     rows.push({ cells: [{ text: X.resultat || '', w: totalW, size: 10, valign: 'top' }], minH: 60 });
     rows.push({ cells: [{ text: 'Appréciation formateur', w: totalW, fill: HB, bold: true, color: '#a8593c', size: 11 }], minH: 20 });
@@ -1402,13 +1403,41 @@ app.post('/api/testdoc/generate', auth, async (req, res) => {
 
 // ---- Attestation de fin de stage (formateur + admin) -----------------------
 const ATT_NIVEAUX = ['Acquis', "En cours d'acquisition", 'Non acquis'];
+// Signature du président et tampon de l'association, incrustés automatiquement sur les documents
+// qui les demandent. Les fichiers sont FACULTATIFS : s'ils sont absents, rien n'est dessiné et
+// aucun document n'échoue (il suffit de les déposer dans assets/ pour qu'ils apparaissent).
+const SIGN_PRESIDENT = path.join(__dirname, 'assets', 'signature-antonin.png');
+const TAMPON_LS = path.join(__dirname, 'assets', 'tampon-ls.png');
+const imgSiPresent = (f) => { try { return fs.existsSync(f) ? f : null; } catch (e) { return null; } };
+// Word : renvoie les paragraphes d'image à insérer (liste vide si les fichiers manquent)
+function dxSignaturePresident(largeur) {
+  const out = [];
+  const w = largeur || 120;
+  for (const f of [SIGN_PRESIDENT, TAMPON_LS]) {
+    const p = imgSiPresent(f);
+    if (!p) continue;
+    try { out.push(new Paragraph({ children: [new ImageRun({ type: 'png', data: fs.readFileSync(p), transformation: { width: w, height: Math.round(w * 0.45) } })] })); } catch (e) { }
+  }
+  return out;
+}
+// PDF : dessine la signature puis le tampon sous le nom et le titre, et renvoie la hauteur utilisée
+function pdfSignaturePresident(doc, x, y, largeur) {
+  let dy = 0;
+  const w = largeur || 120;
+  for (const f of [SIGN_PRESIDENT, TAMPON_LS]) {
+    const p = imgSiPresent(f);
+    if (!p) continue;
+    try { doc.image(p, x, y + dy, { fit: [w, w * 0.45] }); dy += w * 0.45 + 4; } catch (e) { }
+  }
+  return dy;
+}
 function buildAttestationDocx(d, user) {
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
   const lc = (t) => dxCell(t, { width: PC(34), fill: LBLBG, bold: true }), vc = (t) => dxCell(t || '', { width: PC(66) });
   const kids = [];
   kids.push(dxTable([new TableRow({ children: [dxCell('ATTESTATION DE FIN DE STAGE', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 30, fill: HEADBG })] })]));
-  kids.push(dxSpacer());
-  kids.push(dxPara("Je soussigné, " + (d.representant || 'Antonin HATTABE') + ", représentant de l'organisme de formation LANGUAGES & SUCCESS - L&S, numéro de déclaration d'activité 93 060 886 106, certificat QUALIOPI F1017, atteste que :", { after: 140 }));
+  kids.push(dxSpacer()); kids.push(dxSpacer());   // le titre respire
+  kids.push(dxPara("Je soussigné, " + (d.representant || 'Antonin HATTABE') + ", représentant de l'organisme de formation LANGUAGES & SUCCESS - L&S, numéro de déclaration d'activité 93 060 886 106, certificat QUALIOPI " + QUALIOPI_CERT + ", atteste que :", { after: 140 }));
   kids.push(dxTable([
     new TableRow({ children: [lc("L'apprenant"), vc(d.apprenant)] }),
     new TableRow({ children: [lc('De la société'), vc(d.societe)] }),
@@ -1420,22 +1449,34 @@ function buildAttestationDocx(d, user) {
     new TableRow({ children: [lc('Avec'), vc(d.formateur)] })
   ]));
   kids.push(dxSpacer());
-  kids.push(dxPara('Objectifs de la formation', { bold: true, color: DARKC, size: 24, before: 80, after: 80 }));
+  kids.push(dxPara('Objectifs de la formation', { bold: true, color: DARKC, size: 24, before: 240, after: 140 }));
   (d.objectifs || '').split('\n').filter(x => x.trim()).forEach(o => kids.push(dxPara('• ' + o.trim(), { after: 40 })));
-  kids.push(dxPara('Nature de la formation :', { bold: true, before: 140 }));
+  kids.push(dxPara('Nature de la formation :', { bold: true, before: 240 }));
   kids.push(dxPara("Action d'acquisition, d'entretien ou de perfectionnement de la langue.", { after: 140 }));
-  kids.push(dxPara("Résultat de l'évaluation des acquis :", { bold: true, color: DARKC, before: 80, after: 80 }));
-  const compRows = [new TableRow({ tableHeader: true, children: [dxCell('Compétence', { width: PC(40), fill: HEADBG, bold: true })].concat(ATT_NIVEAUX.map(n => dxCell(n, { width: PC(20), fill: HEADBG, bold: true, align: AlignmentType.CENTER, size: 16 }))) })];
+  kids.push(dxPara("Résultat de l'évaluation des acquis :", { bold: true, color: DARKC, before: 240, after: 140 }));
+  const compRows = [new TableRow({ tableHeader: true, children: [dxCell('Compétences', { width: PC(40), fill: HEADBG, bold: true })].concat(ATT_NIVEAUX.map(n => dxCell(n, { width: PC(20), fill: HEADBG, bold: true, align: AlignmentType.CENTER, size: 16 }))) })];
   (d.competences || []).filter(c => c && c.label && c.label.trim()).forEach(c => {
     compRows.push(new TableRow({ children: [dxCell(c.label, { width: PC(40) })].concat(ATT_NIVEAUX.map(n => { const sel = c.niveau === n; return dxCell(sel ? '✗' : '', { width: PC(20), align: AlignmentType.CENTER, bold: true, fill: sel ? ACCENTC : undefined, color: sel ? 'FFFFFF' : INKC, size: 22 }); })) }));
   });
   if (compRows.length > 1) { kids.push(dxTable(compRows)); kids.push(dxSpacer()); }
-  kids.push(dxPara("Niveau atteint à l'issue de la formation : " + (d.niveauAtteint || ''), { after: 50 }));
-  kids.push(dxPara('Certification : ' + (d.certification || '') + '     Date : ' + (d.dateEval || '') + '     Résultat : ' + (d.resultat || ''), { after: 140 }));
+  // ligne dégagée au-dessus ET en dessous
+  kids.push(dxPara("Niveau atteint à l'issue de la formation : " + (d.niveauAtteint || ''), { before: 240, after: 240 }));
+  // la certification (TOEIC, Bright Language…) est mise en gras
+  kids.push(new Paragraph({ spacing: { after: 140 }, children: [
+    new TextRun({ text: 'Certification : ', color: INKC, size: 20 }),
+    new TextRun({ text: d.certification || '', bold: true, color: INKC, size: 20 }),
+    new TextRun({ text: '     Date : ' + (d.dateEval || '') + '     Résultat : ' + (d.resultat || ''), color: INKC, size: 20 })
+  ] }));
   kids.push(dxPara('Commentaires du formateur :', { bold: true, after: 60 }));
   kids.push(dxPara(d.commentaires || '', { after: 160 }));
-  kids.push(dxPara('Fait à ' + (d.lieuFait || 'Nice') + ', le ' + (d.dateFait || ''), { before: 80, after: 220 }));
-  kids.push(dxPara((d.representant || 'Antonin HATTABE') + ", Président          Le Formateur          L'apprenant", { after: 60 }));
+  kids.push(dxPara('Fait à ' + (d.lieuFait || 'Nice') + ', le ' + (d.dateFait || ''), { before: 160, after: 320 }));
+  // bloc de signature sur une ligne horizontale complète : les trois signataires ne se touchent pas
+  const sigCol = (lignes, extra) => new TableCell({ width: PC(33), borders: NO_BORDERS(), children: lignes.map(l => dxPara(l, { after: 20 })).concat(extra || []) });
+  kids.push(new Table({ width: PC(100), borders: NO_BORDERS(), rows: [new TableRow({ children: [
+    sigCol([(d.representant || 'Antonin HATTABE'), 'Président'], dxSignaturePresident(110)),
+    sigCol(['Le Formateur']),
+    sigCol(["L'apprenant"])
+  ] })] }));
   const hf = docxHeaderFooter(user);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
@@ -1446,29 +1487,43 @@ function buildAttestationPdf(d, user) {
     const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const p = (t, o) => { o = o || {}; doc.font(o.bold ? 'Helvetica-Bold' : (o.italics ? 'Helvetica-Oblique' : 'Helvetica')).fontSize(o.size || 9.5).fillColor(o.color || '#2a241d').text(String(t == null ? '' : t), left, doc.y, { width: totalW, align: o.align || 'left' }); doc.moveDown(o.after != null ? o.after : 0.4); };
     pdfRows(doc, [{ cells: [{ text: 'ATTESTATION DE FIN DE STAGE', w: totalW, align: 'center', bold: true, color: '#be6e54', size: 15, fill: '#f3e7e0' }], minH: 28 }], left);
-    doc.moveDown(0.5);
-    p("Je soussigné, " + (d.representant || 'Antonin HATTABE') + ", représentant de l'organisme de formation LANGUAGES & SUCCESS - L&S, numéro de déclaration d'activité 93 060 886 106, certificat QUALIOPI F1017, atteste que :", { after: 0.5 });
+    doc.moveDown(1.2);   // le titre respire
+    p("Je soussigné, " + (d.representant || 'Antonin HATTABE') + ", représentant de l'organisme de formation LANGUAGES & SUCCESS - L&S, numéro de déclaration d'activité 93 060 886 106, certificat QUALIOPI " + QUALIOPI_CERT + ", atteste que :", { after: 0.5 });
     const lw = totalW * 0.34, vw = totalW * 0.66;
     const inf = [["L'apprenant", d.apprenant], ['De la société', d.societe], ['A suivi la formation', d.intitule], ['Période', 'Du ' + (d.dateDebut || '…') + ' au ' + (d.dateFin || '…')], ['Durée totale', d.dureeTotale], ['Dont', d.dureeDetail], ['À', d.lieu || 'Distanciel'], ['Avec', d.formateur]];
     pdfRows(doc, inf.map(r => ({ cells: [{ text: r[0], w: lw, fill: '#f7eee9', bold: true, size: 9 }, { text: r[1] || '', w: vw, size: 9 }] })), left);
     doc.moveDown(0.5);
-    p('Objectifs de la formation', { bold: true, color: '#a8593c', size: 12, after: 0.3 });
+    doc.moveDown(0.5); p('Objectifs de la formation', { bold: true, color: '#a8593c', size: 12, after: 0.55 });
     (d.objectifs || '').split('\n').filter(x => x.trim()).forEach(o => p('• ' + o.trim(), { after: 0.15 }));
-    doc.moveDown(0.3); p('Nature de la formation :', { bold: true, after: 0.15 });
+    doc.moveDown(0.6); p('Nature de la formation :', { bold: true, after: 0.15 });
     p("Action d'acquisition, d'entretien ou de perfectionnement de la langue.", { after: 0.5 });
-    p("Résultat de l'évaluation des acquis :", { bold: true, color: '#a8593c', size: 11, after: 0.3 });
+    doc.moveDown(0.5); p("Résultat de l'évaluation des acquis :", { bold: true, color: '#a8593c', size: 11, after: 0.55 });
     const comps = (d.competences || []).filter(c => c && c.label && c.label.trim());
     if (comps.length) {
       const cw = totalW * 0.4, ow = (totalW * 0.6) / 3;
-      const crows = [{ cells: [{ text: 'Compétence', w: cw, fill: '#f3e7e0', bold: true, size: 9 }].concat(ATT_NIVEAUX.map(n => ({ text: n, w: ow, fill: '#f3e7e0', bold: true, align: 'center', size: 8 }))) }];
+      const crows = [{ cells: [{ text: 'Compétences', w: cw, fill: '#f3e7e0', bold: true, size: 9 }].concat(ATT_NIVEAUX.map(n => ({ text: n, w: ow, fill: '#f3e7e0', bold: true, align: 'center', size: 8 }))) }];
       comps.forEach(c => crows.push({ cells: [{ text: c.label, w: cw, size: 9 }].concat(ATT_NIVEAUX.map(n => { const sel = c.niveau === n; return { text: sel ? 'X' : '', w: ow, align: 'center', bold: true, fill: sel ? '#be6e54' : null, color: '#ffffff', size: 11 }; })) }));
       pdfRows(doc, crows, left); doc.moveDown(0.5);
     }
-    p("Niveau atteint à l'issue de la formation : " + (d.niveauAtteint || ''), { after: 0.2 });
-    p('Certification : ' + (d.certification || '') + '     Date : ' + (d.dateEval || '') + '     Résultat : ' + (d.resultat || ''), { after: 0.5 });
+    // ligne dégagée au-dessus ET en dessous
+    doc.moveDown(0.6);
+    p("Niveau atteint à l'issue de la formation : " + (d.niveauAtteint || ''), { after: 0.9 });
+    // la certification (TOEIC, Bright Language…) est mise en gras
+    doc.font('Helvetica').fontSize(9.5).fillColor('#2a241d').text('Certification : ', left, doc.y, { width: totalW, continued: true });
+    doc.font('Helvetica-Bold').text(d.certification || '', { continued: true });
+    doc.font('Helvetica').text('     Date : ' + (d.dateEval || '') + '     Résultat : ' + (d.resultat || ''), { width: totalW });
+    doc.moveDown(0.5);
     p('Commentaires du formateur :', { bold: true, after: 0.2 }); p(d.commentaires || '', { after: 0.6 });
-    p('Fait à ' + (d.lieuFait || 'Nice') + ', le ' + (d.dateFait || ''), { after: 0.8 });
-    p((d.representant || 'Antonin HATTABE') + ", Président          Le Formateur          L'apprenant");
+    p('Fait à ' + (d.lieuFait || 'Nice') + ', le ' + (d.dateFait || ''), { after: 1.4 });
+    // bloc de signature sur une ligne horizontale complète : les trois signataires ne se touchent pas
+    const colW = totalW / 3 - 12, y0 = doc.y;
+    doc.font('Helvetica').fontSize(9.5).fillColor('#2a241d');
+    doc.text((d.representant || 'Antonin HATTABE'), left, y0, { width: colW });
+    doc.text('Président', left, doc.y, { width: colW });
+    const hSig = pdfSignaturePresident(doc, left, doc.y + 4, colW * 0.8);
+    doc.text('Le Formateur', left + totalW / 3 + 6, y0, { width: colW });
+    doc.text("L'apprenant", left + (2 * totalW) / 3 + 12, y0, { width: colW });
+    doc.y = y0 + 26 + hSig;
     pdfHeaderFooter(doc, user); doc.end();
   });
 }
@@ -1490,27 +1545,78 @@ app.post('/api/attestation/generate', auth, async (req, res) => {
 });
 
 // ---- Contrat de sous-traitance (admin uniquement) --------------------------
+// ---- contrat de sous-traitance : mise en forme demandée par l'organisme ------
+// Les trois termes contractuels sont EN GRAS partout où ils apparaissent : on découpe donc
+// chaque paragraphe en segments {t, b} plutôt que de les baliser un par un à la main.
+const CT_TERMES = ['LANGUAGES & SUCCESS - L&S', 'Languages and Success', 'LANGUAGES & SUCCESS', "Donneur d'ordre", 'Sous-traitant'];
+function ctSeg(texte) {
+  let segs = [{ t: String(texte == null ? '' : texte) }];
+  for (const terme of CT_TERMES) {                       // du plus long au plus court : pas de chevauchement
+    const out = [];
+    for (const s of segs) {
+      if (s.b) { out.push(s); continue; }
+      let reste = s.t, i;
+      while ((i = reste.indexOf(terme)) >= 0) {
+        if (i > 0) out.push({ t: reste.slice(0, i) });
+        out.push({ t: terme, b: 1 });
+        reste = reste.slice(i + terme.length);
+      }
+      if (reste) out.push({ t: reste });
+    }
+    segs = out;
+  }
+  return segs.filter(s => s.t);
+}
+// heures toujours au format « 20h00 » (40H00, 40 H, 40h → 40h00)
+const ctHeures = (s) => String(s == null ? '' : s).replace(/(\d+)\s*[hH](?:\s*(\d{2}))?/g, (m, h, mn) => h + 'h' + (mn || '00'));
+// normalise les heures d'un texte libre ET les met en gras (« 40h00 dont … puis 20h00 »)
+function ctHeuresGras(texte) {
+  const t = ctHeures(texte);
+  const out = [];
+  const re = /\d+h\d{2}/g;
+  let i = 0, m;
+  while ((m = re.exec(t))) {
+    if (m.index > i) out.push({ t: t.slice(i, m.index) });
+    out.push({ t: m[0], b: 1 });
+    i = m.index + m[0].length;
+  }
+  if (i < t.length) out.push({ t: t.slice(i) });
+  return out.length ? out : [{ t }];
+}
+// montants toujours avec deux décimales et séparateur de milliers : « 1 000,00 € »
+function ctMontant(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  const n = parseFloat(s.replace(/[^\d,.-]/g, '').replace(/\s/g, '').replace(',', '.'));
+  if (!isFinite(n)) return s;
+  return n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/, ' ') + ' €';
+}
 function contratBlocks(d) {
   const rep = d.representant || 'Antonin HATTABE';
   return [
     { h1: 'CONTRAT DE SOUS-TRAITANCE DE FORMATION' },
     { sub: d.ref || 'Réf. n° 2023/L&S0701' },
     { p: 'ENTRE LES SOUSSIGNÉS :', bold: true },
-    { p: `LANGUAGES & SUCCESS - L&S (enregistré sous le N° 93 060 886 106 auprès du Préfet de la région PACA - Certificat QUALIOPI F1017) - 57, route de Grenoble - BP 1052 - 06201 NICE CÉDEX 3, représenté par ${rep}, Président, auquel il est conclu la convention suivante, en application des dispositions de la partie VI du Code du travail portant organisation de la formation professionnelle continue dans le cadre de la formation professionnelle tout au long de la vie. Ci-après dénommé « LANGUAGES & SUCCESS - L&S » ou le « Donneur d'ordre ».` },
-    { p: 'ET', bold: true },
+    { p: `LANGUAGES & SUCCESS - L&S (enregistré sous le N° 93 060 886 106 auprès du Préfet de la région PACA - Certificat QUALIOPI ${QUALIOPI_CERT}) - 57, route de Grenoble - BP 1052 - 06201 NICE CÉDEX 3, représenté par ${rep}, Président, auquel il est conclu la convention suivante, en application des dispositions de la partie VI du Code du travail portant organisation de la formation professionnelle continue dans le cadre de la formation professionnelle tout au long de la vie.` },
+    { p: 'Ci-après dénommé « Languages and Success ».', bold: true, italics: true },
+    { p: 'ET', bold: true, before: true },
     { p: `${d.stnom || ''}`, bold: true },
-    { p: `Né(e) le ${d.stNaissance || '…'}, de nationalité ${d.stNationalite || '…'}, demeurant ${d.stAdresse || '…'}. Inscrit(e) au répertoire INSEE en qualité d'auto-entrepreneur sous le numéro ${d.stSiret || '…'}. Numéro de Déclaration d'Activité (NDA) : ${d.stNda || '…'}.` },
-    { p: `Ci-après dénommé(e) « ${d.stnom || 'le Sous-traitant'} » ou « le Sous-traitant ».` },
-    { p: 'IL A ÉTÉ CONVENU CE QUI SUIT :', bold: true },
+    { p: `Né(e) le ${d.stNaissance || '…'}, de nationalité ${d.stNationalite || '…'}.` },
+    { p: `Demeurant : ${d.stAdresse || '…'}` },
+    { p: `Inscrit au répertoire INSEE en qualité d'auto-entrepreneur sous le numéro : ${d.stSiret || '…'}` },
+    { p: `Numéro d'activité (NDA) : ${d.stNda || '…'}` },
+    { p: `Ci-après dénommé « ${d.stnom || 'le Sous-traitant'} » ou « le Sous-traitant ».`, bold: true, italics: true },
+    { p: 'IL A ÉTÉ CONVENU CE QUI SUIT :', bold: true, before: true, after: true },
     { art: 'ARTICLE 1 – OBJET ET NATURE DU CONTRAT DE FORMATION' },
     { p: "Le présent contrat est conclu dans le cadre d'une prestation de formation ponctuelle réalisée par le sous-traitant au bénéfice du donneur d'ordre." },
-    { p: `La formation est dénommée : « ${d.intitule || '…'} » en ${d.langue || '…'}.` },
+    // en gras : le nom de la formation, la langue, les volumes horaires et les dates
+    { rp: [{ t: 'La formation est dénommée : ' }, { t: `« ${d.intitule || '…'} » en ${d.langue || '…'}`, b: 1 }, { t: '.' }] },
     { p: "Type d'action de formation (art. L6313-1 du code du travail) : action d'acquisition, d'entretien ou de perfectionnement de la langue." },
-    { p: `Stagiaire(s) : ${d.stagiaire || '…'}` },
-    { p: `Programme global de l'action de formation (pour information) : ${d.programme || '…'}` },
-    { p: `Mission confiée au Sous-traitant : ${d.mission || "l'animation des seules heures de formation synchrones, selon la ou les modalités précisées ci-dessus (présentiel et/ou distanciel). Les autres composantes du programme global demeurent mises en œuvre par le Donneur d'ordre dans les conditions de l'article 2."}` },
+    { rp: [{ t: 'Stagiaire(s) : ' }, { t: d.stagiaire || '…', b: 1 }] },
+    { rp: [{ t: "Programme global de l'action de formation (pour information) : " }].concat(ctHeuresGras(d.programme || '…')) },
+    { rp: [{ t: 'Mission confiée au Sous-traitant : ' }].concat(ctHeuresGras(d.mission || "l'animation des seules heures de formation synchrones, selon la ou les modalités précisées ci-dessus (présentiel et/ou distanciel). Les autres composantes du programme global demeurent mises en œuvre par le Donneur d'ordre dans les conditions de l'article 2.")) },
     { p: `Lieu de la formation : ${d.lieu || 'en distanciel (Visioconférence)'}` },
-    { p: `Dates de formation : du ${d.dateDebut || '…'} au ${d.dateFin || '…'}` },
+    { rp: [{ t: 'Dates de formation : ' }, { t: `du ${d.dateDebut || '…'} au ${d.dateFin || '…'}`, b: 1 }] },
     { art: 'ARTICLE 2 – PÉRIMÈTRE DE LA MISSION CONFIÉE AU SOUS-TRAITANT' },
     { p: "La mission confiée au Sous-traitant porte exclusivement sur l'animation des heures de formation synchrones, en présentiel et/ou en distanciel, visées à l'article 1." },
     { p: "Le Donneur d'ordre conserve la mise en œuvre directe de l'ensemble des autres composantes de l'action de formation, et notamment, le cas échéant :" },
@@ -1553,12 +1659,14 @@ function contratBlocks(d) {
     { li: "Le Donneur d'ordre s'assure que le sous-traitant remplit bien les obligations mentionnées à l'article L. 6323-9-1 du Code du travail." },
     { li: "Le Donneur d'ordre se porte fort du respect de la réglementation applicable et de la qualité de l'enseignement du Sous-traitant, qui doit être conforme au référentiel national qualité QUALIOPI." },
     { art: 'ARTICLE 6 – MODALITÉS FINANCIÈRES' },
-    // les AJOUTS du nouveau modèle sont en gras (segments b:1) pour être repérés rapidement
-    { rp: [{ t: `En contrepartie de ses prestations, le Sous-traitant percevra une rémunération de ${d.tauxHoraire || '…'} HT par heure de cours ` }, { t: 'synchrone', b: 1 }, { t: ' effectuée,' }] },
-    { rp: [{ t: `soit un total de ${d.montantTotal || '…'} HT pour l'intégralité de la ` }, { t: 'mission de sous-traitance définie aux articles 1 et 2', b: 1 }].concat(d.heuresSync ? [{ t: ' ' }, { t: `(soit ${d.heuresSync} synchrones)`, b: 1 }] : []).concat([{ t: '.' }]) },
-    { rp: [{ t: "Le règlement sera effectué dans un délai de 5 jours maximum, à réception d'une facture accompagnée des feuilles de présence " }, { t: 'des heures synchrones effectuées dans le mois', b: 1 }, { t: ', dûment remplies et signées (par le Sous-traitant et le stagiaire)' }, { t: ', au plus tard le 5 de chaque mois', b: 1 }, { t: '.' }] },
-    { rp: [{ t: "Le règlement de la facture finale est conditionné par l'envoi de l'ensemble " }, { t: "des documents visés à l'article 4, afférents à la mission confiée au Sous-traitant, au Donneur d'ordre", b: 1 }, { t: ' dûment remplis et signés ' }, { t: "par le formateur et le stagiaire, dans le respect des procédures QUALIOPI : les feuilles de présence (visio/téléphone/Face to Face), l'Interactive Worksheet, le questionnaire et test mi-parcours de formation, le questionnaire et test de fin de formation, l'attestation de fin de formation, le questionnaire du formateur, ainsi que tout autre document obligatoire dans le cadre de la certification QUALIOPI et dont la liste lui serait communiquée au cours de la formation", b: 1 }, { t: '.' }] },
-    { rp: [{ t: 'Le Sous-traitant remettra ' }, { t: "à l'association LANGUAGES & SUCCESS - L&S", b: 1 }, { t: " un relevé d'identité bancaire (RIB), afin de faciliter les règlements " }, { t: 'du prix de ses prestations', b: 1 }, { t: '.' }] },
+    // Seuls le PRIX HORAIRE et le TOTAL sont mis en gras ici (avec deux décimales) ; le reste
+    // est en texte normal, les termes contractuels étant mis en gras automatiquement.
+    { rp: [{ t: 'En contrepartie de ses prestations, le ' }, { t: 'Sous-traitant', b: 1 }, { t: ' percevra une rémunération de ' }, { t: ctMontant(d.tauxHoraire) || '…', b: 1 }, { t: ' HT par heure de cours synchrone effectuée,' }] },
+    { rp: [{ t: 'soit un total de ' }, { t: ctMontant(d.montantTotal) || '…', b: 1 }, { t: " HT correspondant à l'intégralité de la mission définie aux articles 1 et 2" }]
+        .concat(d.heuresSync ? [{ t: ', soit ' }, { t: ctHeures(d.heuresSync), b: 1 }] : []).concat([{ t: '.' }]) },
+    { p: "Le règlement sera effectué dans un délai de 5 jours maximum, à réception d'une facture accompagnée des feuilles de présence des heures synchrones effectuées dans le mois, dûment remplies et signées (par le Sous-traitant et le stagiaire), au plus tard le 5 de chaque mois." },
+    { p: "Le règlement de la facture finale est conditionné par l'envoi de l'ensemble des documents visés à l'article 4, afférents à la mission confiée au Sous-traitant, au Donneur d'ordre dûment remplis et signés par le formateur et le stagiaire, dans le respect des procédures QUALIOPI : les feuilles de présence (visio/téléphone/Face to Face), l'Interactive Worksheet, le questionnaire et test mi-parcours de formation, le questionnaire et test de fin de formation, l'attestation de fin de formation, le questionnaire du formateur, ainsi que tout autre document obligatoire dans le cadre de la certification QUALIOPI et dont la liste lui serait communiquée au cours de la formation." },
+    { p: "Le Sous-traitant remettra à l'association LANGUAGES & SUCCESS - L&S un relevé d'identité bancaire (RIB), afin de faciliter les règlements du prix de ses prestations." },
     { art: 'ARTICLE 7 – OBLIGATION DE LOYAUTÉ ET DE NON-CAPTATION DE CLIENTÈLE' },
     { p: "Les parties s'engagent à toujours se comporter l'une envers l'autre comme des partenaires loyaux et de bonne foi et notamment à s'informer mutuellement de toute difficulté qu'elles pourraient rencontrer dans le cadre de l'exécution du présent contrat." },
     { p: "L'Association LANGUAGES & SUCCESS - L&S s'engage à respecter le caractère indépendant de la mission effectuée par le Sous-traitant, et à ce titre, à ne pas entraver les cours que le Sous-traitant effectuerait en dehors de ceux dispensés pour l'Association LANGUAGES & SUCCESS - L&S." },
@@ -1576,20 +1684,33 @@ function contratBlocks(d) {
     { art: 'ARTICLE 10 – LITIGES' },
     { p: "De convention expresse entre les parties, le présent contrat est soumis au droit français." },
     { p: "Tout différend ou litige né à l'occasion du présent contrat, portant sur son application, son interprétation et/ou les responsabilités encourues, et qui n'aurait pu être réglé à l'amiable par les Parties, sera soumis à la compétence exclusive du Tribunal de Commerce de NICE (06). Les Parties font élection de domicile à leur adresse respective indiquée au présent contrat." },
-    { p: `Fait à ${d.lieuFait || 'Nice'}, le ${d.dateFait || ''}`, before: true },
-    { p: `Pour le Donneur d'ordre, LANGUAGES & SUCCESS - L&S — ${rep}, Président                    Pour le Sous-traitant, ${d.stnom || ''}` }
+    // Zone de date et de signature nettement dégagée du corps du contrat (au moins deux lignes
+    // vides au-dessus de la date, puis au-dessus des signatures).
+    { vide: 2 },
+    { p: `Fait à ${d.lieuFait || 'Nice'}, le ${d.dateFait || ''}` },
+    { vide: 2 },
+    { sign: { gauche: ["Pour le Donneur d'ordre, Languages and Success", rep, 'Président'], droite: ['Pour le Sous-traitant,', d.stnom || ''] } }
   ];
 }
 function buildContratDocx(d, user) {
   const kids = [];
+  // segments d'un bloc : les rp gardent leur gras explicite, le reste passe par ctSeg
+  const segs = (b, txt) => b.rp ? b.rp : ctSeg(txt);
+  const runs = (list, o) => list.map(s => new TextRun({ text: s.t, bold: !!s.b || !!(o && o.bold), italics: !!(o && o.italics), color: INKC, size: (o && o.size) || 19 }));
   contratBlocks(d).forEach(b => {
     if (b.h1) kids.push(dxPara(b.h1, { bold: true, color: ACCENTC, size: 28, align: AlignmentType.CENTER, after: 40 }));
     else if (b.sub) kids.push(dxPara(b.sub, { color: SOFTC, italics: true, align: AlignmentType.CENTER, after: 140 }));
-    else if (b.art) kids.push(dxPara(b.art, { bold: true, color: DARKC, size: 23, before: 200, after: 80 }));
-    else if (b.li) kids.push(dxPara('• ' + b.li, { size: 18, after: 50 }));
-    else if (b.li2) kids.push(dxPara('        –  ' + b.li2, { size: 18, after: 40 }));
-    else if (b.rp) kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: 0, after: 90 }, children: b.rp.map(s => new TextRun({ text: s.t, bold: !!s.b, color: INKC, size: 19 })) }));
-    else kids.push(dxPara(b.p, { bold: !!b.bold, size: 19, before: b.before ? 160 : 0, after: 90 }));
+    // saut de ligne AVANT chaque article + espace conservé entre les articles
+    else if (b.art) kids.push(dxPara(b.art, { bold: true, color: DARKC, size: 23, before: 400, after: 120 }));
+    else if (b.vide) { for (let i = 0; i < b.vide; i++) kids.push(dxPara('', { size: 19, after: 120 })); }
+    else if (b.sign) {
+      // les deux blocs de signature aux extrémités, sur la même ligne
+      const col = (lignes, align) => new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: NO_BORDERS(), children: lignes.map(l => new Paragraph({ alignment: align, children: runs(ctSeg(l), { size: 19 }) })) });
+      kids.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NO_BORDERS(), rows: [new TableRow({ children: [col(b.sign.gauche, AlignmentType.LEFT), col(b.sign.droite, AlignmentType.RIGHT)] })] }));
+    }
+    else if (b.li) kids.push(new Paragraph({ spacing: { after: 50 }, children: runs([{ t: '• ' }].concat(ctSeg(b.li)), { size: 18 }) }));
+    else if (b.li2) kids.push(new Paragraph({ spacing: { after: 40 }, children: runs([{ t: '        –  ' }].concat(ctSeg(b.li2)), { size: 18 }) }));
+    else kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: b.before ? 200 : 0, after: b.after ? 200 : 90 }, children: runs(segs(b, b.p), { bold: b.bold, italics: b.italics }) }));
   });
   const hf = docxHeaderFooter(user);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
@@ -1600,21 +1721,45 @@ function buildContratPdf(d, user) {
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
     const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const p = (t, o) => { o = o || {}; doc.font(o.bold ? 'Helvetica-Bold' : (o.italics ? 'Helvetica-Oblique' : 'Helvetica')).fontSize(o.size || 9).fillColor(o.color || '#2a241d').text(String(t == null ? '' : t), left, doc.y, { width: totalW, align: o.align || 'left' }); doc.moveDown(o.after != null ? o.after : 0.35); };
+    // paragraphe à segments : chaque segment peut être en gras (termes contractuels, montants…)
+    const rich = (segs, o) => {
+      o = o || {};
+      if (o.before) doc.moveDown(o.before);
+      const police = (s) => (s.b || o.bold) ? (o.italics ? 'Helvetica-BoldOblique' : 'Helvetica-Bold') : (o.italics ? 'Helvetica-Oblique' : 'Helvetica');
+      segs.forEach((s, i) => {
+        doc.font(police(s)).fontSize(o.size || 9.2).fillColor('#2a241d');
+        if (i === 0) doc.text(s.t, left, doc.y, { width: totalW, continued: segs.length > 1 });
+        else doc.text(s.t, { width: totalW, continued: i < segs.length - 1 });
+      });
+      doc.moveDown(o.after != null ? o.after : 0.45);
+    };
     contratBlocks(d).forEach(b => {
       if (b.h1) p(b.h1, { bold: true, color: '#be6e54', size: 15, align: 'center', after: 0.25 });
       else if (b.sub) p(b.sub, { color: '#6f6253', italics: true, align: 'center', size: 9, after: 0.7 });
-      else if (b.art) p(b.art, { bold: true, color: '#a8593c', size: 11, after: 0.3 });
-      else if (b.li) p('•  ' + b.li, { size: 9, after: 0.2 });
-      else if (b.li2) p('        –  ' + b.li2, { size: 9, after: 0.18 });
-      else if (b.rp) {
-        b.rp.forEach((s, i) => {
-          doc.font(s.b ? 'Helvetica-Bold' : 'Helvetica').fontSize(9.2).fillColor('#2a241d');
-          if (i === 0) doc.text(s.t, left, doc.y, { width: totalW, continued: b.rp.length > 1 });
-          else doc.text(s.t, { width: totalW, continued: i < b.rp.length - 1 });
-        });
-        doc.moveDown(0.45);
+      // saut de ligne AVANT chaque article + espace conservé entre les articles
+      else if (b.art) { doc.moveDown(0.75); p(b.art, { bold: true, color: '#a8593c', size: 11, after: 0.45 }); }
+      else if (b.vide) doc.moveDown(b.vide * 1.2);
+      else if (b.sign) {
+        // les deux blocs de signature aux extrémités, sur la même ligne
+        const y0 = doc.y, colW = totalW / 2 - 10;
+        doc.font('Helvetica').fontSize(9.2).fillColor('#2a241d');
+        const bloc = (lignes, x, align) => {
+          let y = y0;
+          lignes.forEach(l => {
+            ctSeg(l).forEach((s, i) => {
+              doc.font(s.b ? 'Helvetica-Bold' : 'Helvetica');
+              doc.text(s.t, i === 0 ? x : doc.x, i === 0 ? y : doc.y, { width: colW, align: align, continued: i < ctSeg(l).length - 1 });
+            });
+            y = doc.y;
+          });
+          return y;
+        };
+        const yG = bloc(b.sign.gauche, left, 'left');
+        const yD = bloc(b.sign.droite, left + totalW / 2 + 10, 'right');
+        doc.y = Math.max(yG, yD); doc.moveDown(0.5);
       }
-      else p(b.p, { bold: !!b.bold, size: 9.2, after: 0.45 });
+      else if (b.li || b.li2) rich((b.li ? [{ t: '•  ' }] : [{ t: '        –  ' }]).concat(ctSeg(b.li || b.li2)), { size: 9, after: b.li ? 0.2 : 0.18 });
+      else rich(b.rp || ctSeg(b.p), { size: 9.2, after: b.after ? 0.9 : 0.45, bold: b.bold, italics: b.italics, before: b.before ? 0.5 : 0 });
     });
     pdfHeaderFooter(doc, user); doc.end();
   });
@@ -2079,10 +2224,10 @@ const PRESENCE_GRID_HEADER = [['', 'chk', 6], ['', 'time', 7], ['Date', 'date', 
 function sigImg(d) { if (!d || typeof d !== 'string') return null; const m = d.match(/^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)$/); if (!m) return null; try { return { buffer: Buffer.from(m[2], 'base64'), type: /jpe?g/.test(m[1]) ? 'jpg' : 'png' }; } catch (e) { return null; } }
 const PRESENCE_TEMPLATES = {
   elearning: {
-    title: 'Feuille de présence — E-learning', kind: 'summary',
+    title: 'Suivi assiduité — E-learning', docTitle: "SUIVI ASSIDUITÉ", kind: 'summary', president: true,
     headerRows: [
       [['mois', 'Mois'], ['langue', 'Langue']],
-      [['formateur', 'Formateur'], ['formation', 'Formation']],
+      [['formateur', 'Administratif'], ['formation', 'Formation']],
       [['apprenant', 'Apprenant'], ['debut', 'Début de la formation']],
       [['compte', 'Compte'], ['fin', 'Fin de la formation']],
       [['ref', 'Ref proposition'], ['lieu', 'Lieu']]
@@ -2100,10 +2245,10 @@ const PRESENCE_TEMPLATES = {
     ]
   },
   test: {
-    title: 'Feuille de présence — Test', kind: 'grid',
+    title: 'Feuille de présence — Test', kind: 'grid', president: true,
     headerRows: [
       [['mois', 'Mois'], ['langue', 'Contrat langue']],
-      [['formateur', 'Formateur'], ['formation', 'Formation']],
+      [['formateur', 'Administratif'], ['formation', 'Formation']],
       [['apprenant', 'Apprenant'], ['dureePrevue', 'Durée prévue']],
       [['compte', 'Compte'], ['lieu', 'Lieu']],
       [['ref', 'Ref proposition'], ['ville', 'Ville']]
@@ -2142,7 +2287,7 @@ function buildPresencePdf(type, d, user) {
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
     const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right, HB = '#f3e7e0', LB = '#f7eee9';
     const sigF = sigImg(d.formateurSig), sigA = sigImg(d.apprenantSig);
-    pdfRows(doc, [{ cells: [{ text: 'FEUILLES DE PRÉSENCE', w: totalW, align: 'center', bold: true, color: '#be6e54', size: 14, fill: HB }], minH: 26 }], left);
+    pdfRows(doc, [{ cells: [{ text: tpl.docTitle || 'FEUILLES DE PRÉSENCE', w: totalW, align: 'center', bold: true, color: '#be6e54', size: 14, fill: HB }], minH: 26 }], left);
     doc.moveDown(0.4);
     const lw = totalW * 0.16, vw = totalW * 0.34;
     pdfRows(doc, tpl.headerRows.map(row => ({ cells: row.reduce((acc, pair) => { acc.push({ text: pair ? pair[1] : '', w: lw, fill: pair ? LB : null, bold: !!pair, size: 8.5 }); acc.push({ text: pair ? (d[pair[0]] || '') : '', w: vw, size: 9 }); return acc; }, []) })), left);
@@ -2160,6 +2305,14 @@ function buildPresencePdf(type, d, user) {
     } else {
       pdfPresenceGrid(doc, left, totalW, d.sessions || [], HB, sigF, sigA);
     }
+    // signature du président incrustée automatiquement (documents administratifs)
+    if (tpl.president) {
+      doc.moveDown(0.8);
+      const y0 = doc.y;
+      doc.font('Helvetica').fontSize(9).fillColor('#2a241d').text('Pour Languages & Success', left, y0, { width: totalW * 0.5 });
+      doc.text('Antonin HATTABE, Président', left, doc.y, { width: totalW * 0.5 });
+      pdfSignaturePresident(doc, left, doc.y + 4, 120);
+    }
     pdfHeaderFooter(doc, user); doc.end();
   });
 }
@@ -2169,7 +2322,7 @@ function buildPresenceDocx(type, d, user) {
   const sigF = sigImg(d.formateurSig), sigA = sigImg(d.apprenantSig);
   const sigCell = (sig, widthPC, w, h) => new TableCell({ width: PC(widthPC), borders: TBL_CELLBORDERS, verticalAlign: V_CENTER, margins: { top: 20, bottom: 20, left: 40, right: 40 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: sig ? [new ImageRun({ type: sig.type, data: sig.buffer, transformation: { width: w, height: h } })] : [] })] });
   const kids = [];
-  kids.push(dxTable([new TableRow({ children: [dxCell('FEUILLES DE PRÉSENCE', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG })] })]));
+  kids.push(dxTable([new TableRow({ children: [dxCell(tpl.docTitle || 'FEUILLES DE PRÉSENCE', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG })] })]));
   kids.push(dxSpacer());
   const Lc = (t) => dxCell(t, { width: PC(16), fill: LBLBG, bold: true }), Vc = (t) => dxCell(t || '', { width: PC(34) });
   kids.push(dxTable(tpl.headerRows.map(row => new TableRow({ children: row.reduce((acc, pair) => { acc.push(pair ? Lc(pair[1]) : dxCell('', { width: PC(16) })); acc.push(pair ? Vc(d[pair[0]]) : dxCell('', { width: PC(34) })); return acc; }, []) }))));
@@ -2193,6 +2346,13 @@ function buildPresenceDocx(type, d, user) {
       }), 360));
     });
     kids.push(dxTable(rows));
+  }
+  // signature du président incrustée automatiquement (documents administratifs)
+  if (tpl.president) {
+    kids.push(dxSpacer());
+    kids.push(dxPara('Pour Languages & Success', { after: 20 }));
+    kids.push(dxPara('Antonin HATTABE, Président', { after: 40 }));
+    dxSignaturePresident(120).forEach(x => kids.push(x));
   }
   const hf = docxHeaderFooter(user);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));

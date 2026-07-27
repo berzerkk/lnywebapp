@@ -1275,7 +1275,8 @@
   function openTestDocModal(type) {
     if (!selected || !CUR_GROUP) return;
     var titles = { test_mid: 'Test de mi-parcours de formation', test_end: 'Test de fin de formation' };
-    var fields = [['nomApprenant', "Nom de l'apprenant"], ['societe', 'Société'], ['langue', 'Langue'], ['intitule', 'Intitulé de la formation'], ['formateur', 'Formateur'], ['date', 'Date'], ['certification', 'Certification']];
+    // pas de ligne « Certification » sur les tests mi-parcours et fin de formation
+    var fields = [['nomApprenant', "Nom de l'apprenant"], ['societe', 'Société'], ['langue', 'Langue'], ['intitule', 'Intitulé de la formation'], ['formateur', 'Formateur'], ['date', 'Date']];
     var h = headerPrefill();
     var body = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête, le résultat et votre appréciation, puis générez le document à télécharger.</p><div class="gf-grid">' +
       fields.map(function (f) { return gi('td-' + f[0], f[1], h[f[0]]); }).join('') + '</div>' +
