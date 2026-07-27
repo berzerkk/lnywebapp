@@ -820,6 +820,16 @@ footer a:hover{color:#fff8ef}
 .msg-from{font-size:11px;font-weight:600;color:var(--accent);margin-bottom:2px}
 .grp-members{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
 .mchip{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink-soft)}
+/* récapitulatif de la feuille de présence, affiché avant signature */
+.pr-recap{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:14px;margin-bottom:18px}
+.pr-recap-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
+.pr-rc{display:flex;flex-direction:column;gap:1px;font-size:13px}
+.pr-rc span{color:var(--ink-soft);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+.pr-rc b{color:var(--ink)}
+.pr-recap-tbl{width:100%;border-collapse:collapse;margin-top:12px;font-size:12.5px}
+.pr-recap-tbl th,.pr-recap-tbl td{border:1px solid var(--line);padding:5px 7px;text-align:left}
+.pr-recap-tbl th{background:var(--bg-card);font-weight:600;color:var(--ink-soft)}
+@media(max-width:640px){.pr-recap-grid{grid-template-columns:1fr}.pr-recap-tbl{display:block;overflow-x:auto}}
 /* bulle du compte connecté, mise en avant aux couleurs du site */
 .mchip-me{color:var(--accent);border-color:color-mix(in oklab,var(--accent) 45%,var(--line));background:color-mix(in oklab,var(--accent) 10%,var(--bg-card));font-weight:700}
 .chan-tabs{display:flex;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:14px}

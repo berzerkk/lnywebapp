@@ -275,13 +275,26 @@
       }
     });
   }
-  // l'envoyeur modifie une demande en attente = on l'annule puis on rouvre le générateur (préremplI depuis le dossier)
+  // Modifier une demande en attente.
+  // ⚠️ Pour la feuille de présence, on NE SUPPRIME PLUS rien : on relit la feuille envoyée et
+  // on rouvre la modale PRÉREMPLIE (type, en-tête saisi, séances, signature du formateur).
+  // L'envoi met alors la demande à jour sur place — l'apprenant n'est ni « annulé » ni
+  // re-sollicité par un second e-mail, et fermer la modale ne détruit plus le travail.
   function editRequest(kind, id, type) {
-    var url = (kind === 'presence' ? '/api/presence/' : '/api/qs/') + encodeURIComponent(id) + '/cancel';
-    apiJSON(url, 'POST', {}).then(function (r) {
+    if (kind === 'presence') {
+      api('/api/presence/' + encodeURIComponent(id)).then(function (r) {
+        if (!r.ok) { alertDialog((r.data && r.data.error) || 'Feuille introuvable.'); return; }
+        var p = r.data.presence || {};
+        if (p.status === 'done') { alertDialog('Cette feuille est déjà signée : elle ne peut plus être modifiée.'); return; }
+        openPresenceModal({ id: p.id, type: p.type, fields: p.fields || {}, formateurSig: p.formateurSig || null });
+      });
+      return;
+    }
+    // questionnaire : comportement inchangé (annulation puis nouveau formulaire)
+    apiJSON('/api/qs/' + encodeURIComponent(id) + '/cancel', 'POST', {}).then(function (r) {
       if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
       renderDashboard();
-      if (kind === 'presence') openPresenceModal(); else openQsHeaderModal(type);
+      openQsHeaderModal(type);
     });
   }
   function chatHTML(messages) {
@@ -1220,7 +1233,9 @@
   }
 
   // ---- Feuilles de présence (3 types : e-learning / présentiel-distanciel / test) ----
-  function openPresenceModal() {
+  // init (facultatif) = feuille DÉJÀ envoyée que l'on rouvre pour modification :
+  // { id, type, fields, formateurSig }. Sans init, c'est une nouvelle feuille.
+  function openPresenceModal(init) {
     if (!selected || !CUR_GROUP) return;
     api('/api/presence').then(function (r) {
       if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
@@ -1236,15 +1251,21 @@
         dureePrevue: fc.heuresTotal ? (fc.heuresTotal + (/h/i.test(fc.heuresTotal) ? '' : 'H00')) : '', dateRapport: new Date().toLocaleDateString('fr-FR'),
         heuresPrevues: fc.heuresTotal || ''
       };
-      var curType = 'presentiel', sessions = [];
+      // en modification, ce qui a été RÉELLEMENT saisi et envoyé prime sur la fiche
+      var editing = !!(init && init.id);
+      if (editing && init.fields) Object.keys(init.fields).forEach(function (k) { if (k !== 'sessions') pre[k] = init.fields[k]; });
+      var curType = (editing && init.type) || 'presentiel';
+      var sessions = (editing && init.fields && init.fields.sessions) ? init.fields.sessions.map(function (s) { return Object.assign({}, s); }) : [];
       var PR_TIMES = ['0:30', '1:00', '1:30', '2:00', '2:30', '3:00', '3:30', '4:00', '4:30', '5:00', '5:30', '6:00', '6:30', '7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00'];
       function nextSlot() { var used = sessions.map(function (s) { return s.slot; }); for (var i = 0; i < PR_TIMES.length; i++) { if (used.indexOf(PR_TIMES[i]) < 0) return PR_TIMES[i]; } return PR_TIMES[0]; }
       var dyn = '<label class="gen-chan" style="margin-bottom:14px">Type de feuille <select id="pr-type"><option value="elearning">E-learning</option><option value="presentiel">Présentiel / Distanciel</option><option value="test">Test</option></select></label><div id="pr-dyn"></div>' +
         '<h4 class="gen-h">Votre signature (formateur)</h4><p class="ds-empty" style="margin:0 0 8px">Signez ci-dessous à la souris (ou au doigt), ou téléversez une image de votre signature. L\'apprenant la recevra dans le dossier pour signer à son tour.</p>' + sigPadHTML();
-      var footer = '<button class="btn btn-primary pr-gen" type="button" style="padding:11px 22px">Envoyer à l\'apprenant pour signature →</button>';
-      var m = buildFsModal('pr-modal', 'Feuille de présence', dyn, footer);
+      var sendLabel = editing ? 'Enregistrer les modifications →' : 'Envoyer à l\'apprenant pour signature →';
+      var footer = '<button class="btn btn-primary pr-gen" type="button" style="padding:11px 22px">' + sendLabel + '</button>';
+      var m = buildFsModal('pr-modal', editing ? 'Feuille de présence — modification' : 'Feuille de présence', dyn, footer);
       document.getElementById('pr-type').value = curType;
-      var sigPad = mountSignaturePad(m.querySelector('.sigpad'));
+      // en modification, la signature déjà apposée est rechargée dans le pad
+      var sigPad = mountSignaturePad(m.querySelector('.sigpad'), editing ? init.formateurSig : null);
       function lieuSelect(id, v) { return '<label class="gf">Lieu<select id="' + id + '"><option value="">—</option><option value="Présentiel"' + (v === 'Présentiel' ? ' selected' : '') + '>Présentiel</option><option value="Distanciel"' + (v === 'Distanciel' ? ' selected' : '') + '>Distanciel</option></select></label>'; }
       function headerHTML(tpl) {
         return '<h4 class="gen-h">En-tête</h4><div class="gf-grid">' + tpl.headerRows.map(function (row) {
@@ -1269,17 +1290,33 @@
         document.getElementById('pr-dyn').innerHTML = html;
         if (tpl.kind === 'grid') { if (!sessions.length) sessions.push({ slot: nextSlot() }); redrawSessions(); m.querySelector('.pr-add-sess').onclick = function () { collectSessions(); sessions.push({ slot: nextSlot() }); redrawSessions(); }; }
       }
-      document.getElementById('pr-type').onchange = function () { curType = this.value; sessions = []; render(); };
+      // changer de type ne doit plus effacer la saisie : on mémorise l'en-tête et les séances
+      document.getElementById('pr-type').onchange = function () {
+        var old = T[curType];
+        if (old) old.headerRows.forEach(function (row) { row.forEach(function (pair) { if (pair) { var e = document.getElementById('pr-' + pair[0]); if (e) pre[pair[0]] = e.value; } }); });
+        if (old && old.kind === 'grid') collectSessions();
+        curType = this.value; render();
+      };
       render();
       m.querySelector('.pr-gen').onclick = function () {
         if (sigPad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature) avant d\'envoyer à l\'apprenant.'); return; }
         var tpl = T[curType], fields = {};
         tpl.headerRows.forEach(function (row) { row.forEach(function (pair) { if (pair) fields[pair[0]] = val('pr-' + pair[0]); }); });
         if (tpl.kind === 'summary') { fields.heuresPrevues = val('pr-heuresPrevues'); fields.heuresRealisees = val('pr-heuresRealisees'); fields.dateRapport = val('pr-dateRapport'); }
-        else { collectSessions(); fields.sessions = sessions.filter(function (s) { return s.date || s.jour || s.hDebut || s.hFin || s.duree; }); }
-        var btn = m.querySelector('.pr-gen'); btn.disabled = true; btn.textContent = 'Envoi…';
-        apiJSON('/api/presence/send', 'POST', { group: selected, type: curType, fields: fields, formateurSig: sigPad.dataURL() }).then(function (rr) {
-          if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant pour signature →'; alertDialog((rr.data && rr.data.error) || 'Erreur'); return; }
+        else {
+          collectSessions();
+          fields.sessions = sessions.filter(function (s) { return s.date || s.jour || s.hDebut || s.hFin || s.duree; });
+          // deux séances sur le même créneau : l'une écraserait l'autre dans la grille
+          var vus = {}, dbl = null;
+          fields.sessions.forEach(function (s) { if (s.slot) { if (vus[s.slot]) dbl = s.slot; vus[s.slot] = 1; } });
+          if (dbl) { alertDialog('Deux séances utilisent le créneau ' + dbl + '. Chaque séance doit avoir un créneau différent, sinon l\'une disparaîtrait du document.'); return; }
+        }
+        var btn = m.querySelector('.pr-gen'); btn.disabled = true; btn.textContent = editing ? 'Enregistrement…' : 'Envoi…';
+        var url = editing ? '/api/presence/' + encodeURIComponent(init.id) + '/update' : '/api/presence/send';
+        var body = editing ? { type: curType, fields: fields, formateurSig: sigPad.dataURL() }
+          : { group: selected, type: curType, fields: fields, formateurSig: sigPad.dataURL() };
+        apiJSON(url, 'POST', body).then(function (rr) {
+          if (!rr.ok) { btn.disabled = false; btn.textContent = sendLabel; alertDialog((rr.data && rr.data.error) || 'Erreur'); return; }
           closeFsModal('pr-modal'); channel = 'commun'; renderDashboard();
         });
       };
@@ -1289,10 +1326,18 @@
   function sigPadHTML() {
     return '<div class="sigpad"><canvas class="sigpad-canvas" width="500" height="160"></canvas><div class="sigpad-tools"><button type="button" class="btn-mini sigpad-clear">Effacer</button><label class="btn-mini sigpad-up">Téléverser une image<input type="file" accept="image/*" class="sigpad-file" hidden /></label></div></div>';
   }
-  function mountSignaturePad(container) {
+  // initial (facultatif) : data URL d'une signature déjà apposée, rechargée dans le pad
+  // (modification d'une feuille envoyée : le formateur ne re-signe pas)
+  function mountSignaturePad(container, initial) {
     var canvas = container.querySelector('.sigpad-canvas'), ctx = canvas.getContext('2d');
     ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = '#1d2b4a';
     var drawing = false, dirty = false, last = null;
+    if (initial && /^data:image\//.test(initial)) {
+      var im = new Image();
+      im.onload = function () { var s = Math.min(canvas.width / im.width, canvas.height / im.height); var w = im.width * s, h = im.height * s; ctx.drawImage(im, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h); };
+      im.src = initial;
+      dirty = true;   // une signature existe déjà : l'envoi n'est pas bloqué
+    }
     function pos(e) { var r = canvas.getBoundingClientRect(); var t = (e.touches && e.touches[0]) || e; return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) }; }
     function down(e) { drawing = true; last = pos(e); e.preventDefault(); }
     function move(e) { if (!drawing) return; var p = pos(e); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p; dirty = true; e.preventDefault(); }
@@ -1303,13 +1348,46 @@
     var file = container.querySelector('.sigpad-file'); if (file) file.onchange = function () { var f = file.files && file.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = function () { var img = new Image(); img.onload = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); var s = Math.min(canvas.width / img.width, canvas.height / img.height); var w = img.width * s, h = img.height * s; ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h); dirty = true; }; img.src = rd.result; }; rd.readAsDataURL(f); };
     return { isEmpty: function () { return !dirty; }, dataURL: function () { return dirty ? canvas.toDataURL('image/png') : ''; } };
   }
+  // Récapitulatif EN LECTURE SEULE du contenu de la feuille : l'apprenant (comme l'envoyeur)
+  // doit pouvoir vérifier ce qu'il atteste avant de signer — la signature est irréversible.
+  function presenceRecapHTML(p) {
+    var f = p.fields || {}, T = PRESENCE_TPL_CACHE || {}, tpl = T[p.type];
+    var rows = '';
+    if (tpl && tpl.headerRows) {
+      rows = tpl.headerRows.map(function (row) {
+        return row.map(function (pair) { return pair ? '<div class="pr-rc"><span>' + esc(pair[1]) + '</span><b>' + esc(f[pair[0]] || '—') + '</b></div>' : ''; }).join('');
+      }).join('');
+    }
+    var extra = '';
+    if (tpl && tpl.kind === 'summary') {
+      extra = '<div class="pr-recap-grid">' +
+        '<div class="pr-rc"><span>Nombre d\'heures prévues</span><b>' + esc(f.heuresPrevues || '—') + '</b></div>' +
+        '<div class="pr-rc"><span>Heures de connexion réalisées</span><b>' + esc(f.heuresRealisees || '—') + '</b></div>' +
+        '<div class="pr-rc"><span>Date du rapport</span><b>' + esc(f.dateRapport || '—') + '</b></div></div>';
+    } else if (f.sessions && f.sessions.length) {
+      extra = '<table class="pr-recap-tbl"><thead><tr><th>Créneau</th><th>Date</th><th>Jour</th><th>H début</th><th>H fin</th><th>Durée</th></tr></thead><tbody>' +
+        f.sessions.map(function (s) {
+          return '<tr><td>' + esc(s.slot || '') + '</td><td>' + esc(s.date || '') + '</td><td>' + esc(s.jour || '') + '</td><td>' + esc(s.hDebut || '') + '</td><td>' + esc(s.hFin || '') + '</td><td>' + esc(s.duree || '') + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+    return '<h4 class="gen-h">' + esc(p.title || 'Feuille de présence') + '</h4>' +
+      '<div class="pr-recap"><div class="pr-recap-grid">' + rows + '</div>' + extra + '</div>';
+  }
+  var PRESENCE_TPL_CACHE = null;
   // ---- l'apprenant signe la feuille de présence reçue ----------------------
   function openPresenceSignModal(presenceId) {
-    api('/api/presence/' + encodeURIComponent(presenceId)).then(function (r) {
+    // on charge aussi les modèles : ils décrivent les lignes d'en-tête du récapitulatif
+    Promise.all([
+      api('/api/presence/' + encodeURIComponent(presenceId)),
+      PRESENCE_TPL_CACHE ? Promise.resolve({ ok: true, data: { templates: PRESENCE_TPL_CACHE } }) : api('/api/presence')
+    ]).then(function (res) {
+      var r = res[0];
+      if (res[1] && res[1].ok) PRESENCE_TPL_CACHE = res[1].data.templates || {};
       if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
       var p = r.data.presence || {};
       if (p.status === 'done') { alertDialog('Cette feuille est déjà signée.'); renderDashboard(); return; }
-      var body = '<p class="ds-empty" style="margin:0 0 12px">Signez la feuille de présence « ' + esc(p.title || '') + ' » ci-dessous à la souris (ou au doigt), ou téléversez une image de votre signature.</p>' + sigPadHTML();
+      var body = presenceRecapHTML(p) +
+        '<h4 class="gen-h">Votre signature</h4><p class="ds-empty" style="margin:0 0 8px">Vérifiez le contenu ci-dessus, puis signez à la souris (ou au doigt), ou téléversez une image de votre signature.</p>' + sigPadHTML();
       var m = buildFsModal('prsign-modal', 'Signer la feuille de présence', body, '<button class="btn btn-primary prs-send" type="button" style="padding:11px 22px">Envoyer ma signature →</button>');
       var pad = mountSignaturePad(m.querySelector('.sigpad'));
       m.querySelector('.prs-send').onclick = function () {

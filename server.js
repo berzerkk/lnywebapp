@@ -680,6 +680,7 @@ function deleteGroupCascade(gid) {
   db.docs = db.docs.filter(d => d.group !== gid);
   db.messages = db.messages.filter(m => m.group !== gid);
   db.qs = db.qs.filter(q => q.group !== gid);
+  db.presences = db.presences.filter(p => p.group !== gid); // sinon signatures manuscrites orphelines
   db.worksheets = db.worksheets.filter(w => w.group !== gid);
   db.docgens = db.docgens.filter(x => x.group !== gid);
   db.groups = db.groups.filter(g => g.id !== gid);
@@ -731,7 +732,7 @@ app.get('/api/messages', auth, (req, res) => {
     .map(m => {
       const o = { id: m.id, from: m.from, fromAdmin: !!m.fromAdmin, fromName: m.fromAdmin ? 'Administration L&S' : fullName(m.from), text: m.text, date: m.date, kind: m.kind || 'text' };
       if (m.kind === 'qs') { const q = db.qs.find(x => x.id === m.qsId); o.qs = { id: m.qsId, type: m.qsType, title: (QS_TEMPLATES[m.qsType] || {}).title || 'Questionnaire', status: q ? q.status : 'pending', docId: q ? q.docId : null }; }
-      if (m.kind === 'presence') { const p = db.presences.find(x => x.id === m.presenceId); o.presence = { id: m.presenceId, title: (PRESENCE_TEMPLATES[p && p.type] || {}).title || 'Feuille de présence', status: p ? p.status : 'pending', docId: p ? p.docId : null }; }
+      if (m.kind === 'presence') { const p = db.presences.find(x => x.id === m.presenceId); o.presence = { id: m.presenceId, type: p ? p.type : null, title: (PRESENCE_TEMPLATES[p && p.type] || {}).title || 'Feuille de présence', status: p ? p.status : 'pending', docId: p ? p.docId : null }; }
       return o;
     });
   res.json({ messages: msgs });
@@ -2069,6 +2070,19 @@ async function depositPresenceDoc(p, byUser) {
   db.docs.push(doc);
   return doc;
 }
+// Deux séances placées sur le MÊME créneau : la seconde écrase la première dans la grille
+// (slotMap), et une séance saisie par le formateur disparaît en silence du document signé.
+// On refuse l'envoi en nommant le créneau fautif.
+function duplicateSlot(fields) {
+  const ss = (fields && fields.sessions) || [];
+  const seen = new Set();
+  for (const s of ss) {
+    if (!s || !s.slot) continue;
+    if (seen.has(s.slot)) return s.slot;
+    seen.add(s.slot);
+  }
+  return null;
+}
 // le formateur (ou admin) remplit, signe, puis envoie à l'apprenant pour signature
 app.post('/api/presence/send', auth, (req, res) => {
   const { group, type, fields, formateurSig } = req.body || {};
@@ -2077,6 +2091,8 @@ app.post('/api/presence/send', auth, (req, res) => {
   if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
   if (!sigImg(formateurSig)) return res.status(400).json({ error: 'Signature du formateur manquante.' });
+  const dupS = duplicateSlot(fields);
+  if (dupS) return res.status(400).json({ error: 'Deux séances utilisent le créneau ' + dupS + '. Chaque séance doit avoir un créneau différent.' });
   const p = { id: crypto.randomUUID(), group: g.id, type, fields: fields || {}, formateurSig, apprenantSig: null, status: 'pending', docId: null, by: req.user.id, date: Date.now() };
   db.presences.push(p);
   db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'commun', from: req.user.id, fromAdmin: req.user.role === 'admin', kind: 'presence', presenceId: p.id, text: 'Feuille de présence à signer : ' + tpl.title, date: Date.now() });
@@ -2086,11 +2102,14 @@ app.post('/api/presence/send', auth, (req, res) => {
   const eleveU = db.users.find(u => u.id === g.eleve);
   if (eleveU) {
     const url = SITE_URL + '/espace-documents.html';
-    sendMailSafe(eleveU.email,
-      'Un document à signer vous attend — Languages & Success',
-      'Bonjour ' + eleveU.prenom + ',\n\n' + senderDisplay(req.user) + ' vous a envoyé une feuille de présence à signer (' + tpl.title + ').\n\nConnectez-vous à votre espace documents pour la signer :\n' + url + '\n\nLanguages & Success',
-      mailHtml('Un document à signer vous attend',
-        ['Bonjour ' + eleveU.prenom + ',', senderDisplay(req.user) + ' vous a envoyé une feuille de présence à signer (' + tpl.title + ').', 'Connectez-vous à votre espace documents pour la signer.'],
+    // le MOIS concerné figure dans l'e-mail : l'apprenant sait de quelle période il s'agit
+    const moisTxt = (fields && fields.mois) ? String(fields.mois).trim() : '';
+    const objet = 'Feuille de présence à signer' + (moisTxt ? ' — ' + moisTxt : '') + ' — Languages & Success';
+    const ligne = senderDisplay(req.user) + ' vous a envoyé une feuille de présence à signer (' + tpl.title + (moisTxt ? ', ' + moisTxt : '') + ').';
+    sendMailSafe(eleveU.email, objet,
+      'Bonjour ' + eleveU.prenom + ',\n\n' + ligne + '\n\nConnectez-vous à votre espace documents pour la signer :\n' + url + '\n\nLanguages & Success',
+      mailHtml('Un document à signer vous attend' + (moisTxt ? ' — ' + moisTxt : ''),
+        ['Bonjour ' + eleveU.prenom + ',', ligne, 'Connectez-vous à votre espace documents pour la signer.'],
         'Signer le document', url));
   }
   save();
@@ -2101,7 +2120,35 @@ app.get('/api/presence/:id', auth, (req, res) => {
   const p = db.presences.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'Feuille introuvable.' });
   if (!isMember(groupById(p.group), req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  res.json({ presence: { id: p.id, type: p.type, title: (PRESENCE_TEMPLATES[p.type] || {}).title, status: p.status, docId: p.docId } });
+  // `fields` est renvoyé à tous les membres : c'est le contenu que l'apprenant doit pouvoir
+  // RELIRE avant de signer. La signature manuscrite du formateur, elle, reste réservée à son
+  // auteur et à l'administration (elle ne sort qu'incrustée dans le PDF final).
+  const out = { id: p.id, type: p.type, title: (PRESENCE_TEMPLATES[p.type] || {}).title, status: p.status, docId: p.docId, fields: p.fields || {} };
+  if (req.user.id === p.by || req.user.role === 'admin') out.formateurSig = p.formateurSig || null;
+  res.json({ presence: out });
+});
+// mise à jour d'une feuille EN ATTENTE par son envoyeur (« Modifier ») : on conserve l'id,
+// le message du chat et la demande en cours — rien n'est détruit, l'apprenant n'est pas
+// re-sollicité par un second e-mail.
+app.post('/api/presence/:id/update', auth, (req, res) => {
+  const p = db.presences.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Feuille introuvable.' });
+  if (p.status === 'done') return res.status(400).json({ error: 'Feuille déjà signée : modification impossible.' });
+  if (req.user.id !== p.by && req.user.role !== 'admin') return res.status(403).json({ error: 'Seul l\'envoyeur peut modifier cette feuille.' });
+  const { type, fields, formateurSig } = req.body || {};
+  const tpl = PRESENCE_TEMPLATES[type || p.type];
+  if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
+  const dup = duplicateSlot(fields);
+  if (dup) return res.status(400).json({ error: 'Deux séances utilisent le créneau ' + dup + '. Chaque séance doit avoir un créneau différent.' });
+  p.type = type || p.type;
+  p.fields = fields || {};
+  if (formateurSig && sigImg(formateurSig)) p.formateurSig = formateurSig; // sinon on garde l'existante
+  const g = groupById(p.group);
+  const msg = db.messages.find(m => m.kind === 'presence' && m.presenceId === p.id);
+  if (msg) msg.text = 'Feuille de présence à signer : ' + tpl.title;
+  if (g) notify(g.eleve, `${senderDisplay(req.user)} a mis à jour la feuille de présence à signer.`, g.id);
+  save();
+  res.json({ ok: true, id: p.id });
 });
 // l'apprenant signe → génère le doc final (2 signatures) et le dépose dans le canal commun
 app.post('/api/presence/:id/sign', auth, async (req, res) => {
@@ -2109,13 +2156,19 @@ app.post('/api/presence/:id/sign', auth, async (req, res) => {
   if (!p) return res.status(404).json({ error: 'Feuille introuvable.' });
   const g = groupById(p.group);
   if (!isMember(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  // c'est l'APPRENANT du dossier qui atteste sa présence : ni le formateur, ni un admin
+  // ne peuvent signer à sa place (la feuille est une pièce justificative Qualiopi).
+  if (req.user.id !== g.eleve) return res.status(403).json({ error: 'Seul l\'apprenant peut signer cette feuille de présence.' });
   if (p.status === 'done') return res.status(400).json({ error: 'Feuille déjà signée.' });
   const sig = (req.body || {}).sig;
   if (!sigImg(sig)) return res.status(400).json({ error: 'Signature manquante.' });
-  p.apprenantSig = sig; p.status = 'done'; p.signedBy = req.user.id; p.signedAt = Date.now();
   const byUser = db.users.find(u => u.id === p.by) || req.user;
+  // on GÉNÈRE D'ABORD (sur une copie), on ne bascule l'état qu'ensuite : si la génération
+  // échoue, la feuille reste signable au lieu de rester bloquée en « signée » sans document.
   let doc;
-  try { doc = await depositPresenceDoc(p, byUser); } catch (e) { console.error('presence sign:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
+  try { doc = await depositPresenceDoc(Object.assign({}, p, { apprenantSig: sig }), byUser); }
+  catch (e) { console.error('presence sign:', e); return res.status(500).json({ error: 'Erreur de génération du document. La feuille reste à signer, réessayez.' }); }
+  p.apprenantSig = sig; p.status = 'done'; p.signedBy = req.user.id; p.signedAt = Date.now();
   p.docId = doc.id;
   recordDocgen(g, byUser, { kind: 'presence', tpl: 'presence', title: (PRESENCE_TEMPLATES[p.type] || {}).title, format: 'pdf', apprenant: (p.fields && p.fields.apprenant) || 'apprenant' });
   notifyChannel(g, 'commun', req.user, `${senderDisplay(req.user)} a signé la feuille de présence — document déposé dans le dossier.`);
