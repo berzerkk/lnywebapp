@@ -1404,14 +1404,21 @@ app.post('/api/testdoc/generate', auth, async (req, res) => {
 // ---- Attestation de fin de stage (formateur + admin) -----------------------
 const ATT_NIVEAUX = ['Acquis', "En cours d'acquisition", 'Non acquis'];
 // Signature du président et tampon de l'association, incrustés automatiquement sur les documents
-// qui les demandent.
-// ⚠️ Ces fichiers vivent dans data/ et NON dans assets/ : le dépôt GitHub est PUBLIC, une signature
-// manuscrite n'a rien à y faire. data/ est hors Git, monté en volume Docker en production et inclus
-// dans les sauvegardes offsite — comme data/smtp.json.
-// Ils sont FACULTATIFS : absents, rien n'est dessiné et aucune génération n'échoue.
-const SIGN_PRESIDENT = path.join(DATA_DIR, 'signature-antonin.png');
-const TAMPON_LS = path.join(DATA_DIR, 'tampon-ls.png');
-const imgSiPresent = (f) => { try { return fs.existsSync(f) ? f : null; } catch (e) { return null; } };
+// qui les demandent. Fichiers cherchés dans data/ D'ABORD (permet de remplacer l'image sur un
+// serveur sans toucher au code), puis dans assets/ où ils sont livrés avec le site — ainsi rien
+// n'est à faire au déploiement. Ils sont FACULTATIFS : absents, rien n'est dessiné et aucune
+// génération n'échoue.
+const SIGN_PRESIDENT = ['signature-antonin.png'];
+const TAMPON_LS = ['tampon-ls.png'];
+function imgSiPresent(noms) {
+  for (const n of [].concat(noms)) {
+    for (const dossier of [DATA_DIR, path.join(__dirname, 'assets')]) {
+      const f = path.join(dossier, n);
+      try { if (fs.existsSync(f)) return f; } catch (e) { }
+    }
+  }
+  return null;
+}
 // Word : renvoie les paragraphes d'image à insérer (liste vide si les fichiers manquent)
 function dxSignaturePresident(largeur) {
   const out = [];
