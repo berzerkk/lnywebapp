@@ -33,6 +33,10 @@
   var ME = null, NOTIFS = [], selected = null, channel = 'commun', authTab = 'login', genState = null, ADD_CANDIDATES = [];
   var adminShow = { dossiers: true, comptes: true, fichiers: true }, adminQuery = '', ADMIN_OVERVIEW = null;
   var CUR_GROUP = null, qsFillState = null, notifTimer = null, DEMO = null;
+  // Un dossier = UN apprenant, mais autant de FORMATEURS que voulu. GEN_PROF = le formateur au
+  // nom duquel le document en cours est établi (choisi dans la modale « Générer un document »
+  // quand le dossier en compte plusieurs ; sinon, soi-même).
+  var GEN_PROF = null;
   function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
@@ -270,19 +274,26 @@
       (NOTIFS.length ? '<button class="link-btn ds-seeall">Voir tout</button>' : '') + '</div>' +
       '<p class="ds-empty" style="margin:0">' + (NOTIFS.length ? (unread ? unread + (unread > 1 ? ' notifications non lues' : ' notification non lue') : 'Tout est lu.') : 'Aucune notification pour le moment.') + '</p></div>';
   }
+  // ---- membres d'un dossier (autant de formateurs et d'apprenants que voulu) ----
+  function gProfs(g) { return (g && g.profs) || []; }
+  function nameList(list) { return list.map(fullName).join(', '); }
   function groupTitle(g) {
-    if (ME.role === 'admin') return fullName(g.eleve) + ' · ' + fullName(g.prof);
-    if (ME.role === 'prof') return fullName(g.eleve);
-    return fullName(g.prof);
+    var P = gProfs(g), e = g && g.eleve;
+    // chacun voit d'abord « les autres » : l'apprenant voit ses formateurs, le formateur son apprenant
+    if (ME.role === 'eleve') return nameList(P) || 'Dossier';
+    var t = e ? fullName(e) : 'Dossier';
+    return ME.role === 'admin' ? (t + ' · ' + (nameList(P) || '—')) : t;
   }
   function membersChips(g) {
     // la bulle mise en couleur est celle du COMPTE CONNECTÉ (avant, c'était toujours
     // celle de l'administration, quel que soit l'utilisateur)
-    var r = ME.role;
-    return '<div class="grp-members">' +
-      '<span class="mchip' + (r === 'eleve' ? ' mchip-me' : '') + '">' + esc(fullName(g.eleve)) + ' · Apprenant</span>' +
-      '<span class="mchip' + (r === 'prof' ? ' mchip-me' : '') + '">' + esc(fullName(g.prof)) + ' · Formateur</span>' +
-      '<span class="mchip' + (r === 'admin' ? ' mchip-me' : '') + '">Administration L&amp;S</span></div>';
+    function chips(list, role) {
+      return list.map(function (u) {
+        return '<span class="mchip' + (u.id === ME.id ? ' mchip-me' : '') + '">' + esc(fullName(u)) + ' · ' + role + '</span>';
+      }).join('');
+    }
+    return '<div class="grp-members">' + chips(g && g.eleve ? [g.eleve] : [], 'Apprenant') + chips(gProfs(g), 'Formateur') +
+      '<span class="mchip' + (ME.role === 'admin' ? ' mchip-me' : '') + '">Administration L&amp;S</span></div>';
   }
   function qsMsgHTML(m) {
     var q = m.qs || {}, mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
@@ -377,7 +388,10 @@
     var addLabel = 'Ajouter un apprenant';
     return '<div class="ds-card"><h3>Mes dossiers</h3>' +
       (groups.length ? '<ul class="contact-list">' + groups.map(function (g) {
-        var sub = ME.role === 'admin' ? 'Formateur + Apprenant + Admin' : (ME.role === 'prof' ? 'Apprenant + Admin' : 'Formateur + Admin');
+        // Le nombre de formateurs est désormais variable : chaque mot est dans son propre nœud
+        // texte pour rester une clé de traduction stable malgré le nombre qui change.
+        var np = gProfs(g).length;
+        var sub = '<span>Apprenant</span> · ' + np + ' <span>' + (np > 1 ? 'formateurs' : 'formateur') + '</span> · <span>Admin</span>';
         var nb = NOTIFS.filter(function (n) { return !n.read && n.group === g.id; }).length;
         return '<li class="contact' + (selected === g.id ? ' on' : '') + (nb ? ' has-new' : '') + '" data-id="' + g.id + '"><span class="avatar">' + esc(initials(groupTitle(g))) + '</span><span class="c-name">' + esc(groupTitle(g)) + '<small>' + sub + '</small></span>' + (nb ? '<span class="contact-badge">' + (nb > 9 ? '9+' : nb) + '</span>' : '') + '</li>';
       }).join('') + '</ul>' : '<p class="ds-empty">Aucun dossier pour l\'instant.</p>') +
@@ -397,7 +411,12 @@
     Promise.all([api('/api/groups'), api('/api/users'), api('/api/notifications')]).then(function (res) {
       var groups = res[0].data.groups || [], allUsers = res[1].data.users || [];
       NOTIFS = res[2].data.notifs || [];
-      var grouped = {}; groups.forEach(function (g) { grouped[ME.role === 'prof' ? g.eleve.id : g.prof.id] = 1; });
+      // personnes déjà présentes dans un dossier avec moi → exclues de la recherche d'ajout
+      var grouped = {};
+      groups.forEach(function (g) {
+        if (ME.role === 'prof') { if (g.eleve) grouped[g.eleve.id] = 1; }
+        else gProfs(g).forEach(function (u) { grouped[u.id] = 1; });
+      });
       var canAdd = allUsers.filter(function (o) { return roleAllowed(ME, o) && !grouped[o.id]; });
       ADD_CANDIDATES = canAdd;
       var selG = selected ? groups.filter(function (g) { return g.id === selected; })[0] : null;
@@ -417,7 +436,10 @@
     });
   }
   function paintBoard(el, groups, canAdd, selG, messages, docs, overview) {
+    var changed = !CUR_GROUP || !selG || CUR_GROUP.id !== selG.id;
     CUR_GROUP = selG;
+    if (changed) GEN_PROF = null;
+    resetGenTargets();
     var unread = NOTIFS.filter(function (n) { return !n.read; }).length;
     el.innerHTML = topHTML() + '<div class="ds-grid"><aside class="ds-side">' + notifCardHTML(unread) + dossiersCardHTML(groups, canAdd) +
       '</aside><main class="ds-main">' + groupView(selG, messages, docs) + '</main></div>' + (overview ? adminPanel(overview) : '');
@@ -558,6 +580,27 @@
     renderTplPane('new');
     document.getElementById('tpl-modal').classList.add('open'); document.body.style.overflow = 'hidden';
   }
+  // Quand le dossier compte plusieurs apprenants (ou plusieurs formateurs), on demande UNE FOIS
+  // pour qui le document est établi : tous les générateurs se préremplissent ensuite depuis ce choix.
+  // Avec une seule personne de chaque côté, rien ne s'affiche — l'écran est identique à avant.
+  function genTargetsHTML() {
+    var P = gProfs(CUR_GROUP), out = '';
+    function sel(id, label, list, cur, vide) {
+      return '<label class="gf">' + label + '<select id="' + id + '">' +
+        (vide ? '<option value=""' + (cur ? '' : ' selected') + '>' + esc(vide) + '</option>' : '') +
+        list.map(function (u) {
+          return '<option value="' + esc(u.id) + '"' + (u.id === cur ? ' selected' : '') + '>' + esc(fullName(u)) + '</option>';
+        }).join('') + '</select></label>';
+    }
+    if (P.length > 1) out += sel('gt-prof', 'Formateur concerné', P, (curProf() || {}).id, '');
+    if (!out) return '';
+    return '<div class="gen-targets"><div class="gf-grid">' + out + '</div>' +
+      '<p class="chan-note" style="margin:8px 0 14px">Ce dossier compte plusieurs formateurs : le document sera établi au nom de celui choisi ici.</p></div>';
+  }
+  function wireGenTargets(root) {
+    var p = root.querySelector('#gt-prof');
+    if (p) p.onchange = function () { GEN_PROF = p.value || null; };
+  }
   function ensureTplModal() {
     if (document.getElementById('tpl-modal')) return;
     var m = document.createElement('div'); m.id = 'tpl-modal'; m.className = 'notif-modal';
@@ -574,7 +617,7 @@
     m.querySelectorAll('.tpl-tab').forEach(function (t) { t.classList.toggle('on', t.getAttribute('data-pane') === pane); });
     var body = document.getElementById('tpl-body');
     if (pane === 'new') {
-      body.innerHTML = '<p class="ds-empty" style="margin:0 0 12px">Choisissez le document à générer :</p><ul class="tpl-list">' +
+      body.innerHTML = genTargetsHTML() + '<p class="ds-empty" style="margin:0 0 12px">Choisissez le document à générer :</p><ul class="tpl-list">' +
         '<li class="tpl-item" data-tpl="interactive"><span class="tpl-ic">📄</span><span class="c-name">1 - Interactive Worksheet<small>Résumé de cours à télécharger / partager à l\'apprenant</small></span><span class="tpl-go">→</span></li>' +
         '<li class="tpl-item" data-tpl="qs_mid"><span class="tpl-ic">📋</span><span class="c-name">2 - QS mi-parcours<small>Questionnaire de satisfaction (rempli par l\'apprenant)</small></span><span class="tpl-go">→</span></li>' +
         '<li class="tpl-item" data-tpl="qs_end"><span class="tpl-ic">📋</span><span class="c-name">3 - QS fin de formation<small>Questionnaire de fin de formation (rempli par l\'apprenant)</small></span><span class="tpl-go">→</span></li>' +
@@ -585,6 +628,7 @@
         '<li class="tpl-item" data-tpl="qs_formateur"><span class="tpl-ic">🗒️</span><span class="c-name">' + (ME.role === 'admin' ? '8' : '7') + ' - QS Formateur<small>Bilan rempli par le formateur (à transmettre à l\'administration)</small></span><span class="tpl-go">→</span></li>' +
         '<li class="tpl-item" data-tpl="leveltest"><span class="tpl-ic">📊</span><span class="c-name">' + (ME.role === 'admin' ? '9' : '8') + ' - Level Test<small>Évaluation orale / questionnaire d\'objectifs (rempli par le formateur)</small></span><span class="tpl-go">→</span></li>' +
         '<li class="tpl-item" data-tpl="presence"><span class="tpl-ic">🗓️</span><span class="c-name">' + (ME.role === 'admin' ? '10' : '9') + ' - Feuille de présence<small>E-learning, présentiel/distanciel ou test (au choix)</small></span><span class="tpl-go">→</span></li>' + '</ul>';
+      wireGenTargets(body);
       body.querySelectorAll('.tpl-item').forEach(function (li) { li.onclick = function () { var t = li.getAttribute('data-tpl'); closeTplModal(); if (t === 'interactive') openGenModal(); else if (t === 'qs_mid' || t === 'qs_end') openQsHeaderModal(t); else if (t === 'test_mid' || t === 'test_end') openTestDocModal(t); else if (t === 'attestation') openAttestationModal(); else if (t === 'contrat') openContratModal(); else if (t === 'leveltest') openLevelTestModal(); else if (t === 'presence') openPresenceModal(); else openFormModal(t); }; });
     } else {
       body.innerHTML = '<p class="ds-empty">Chargement…</p>';
@@ -596,7 +640,13 @@
           var action = x.kind === 'interactive' ? 'Dupliquer →' : 'Ouvrir →';
           return '<li class="tpl-item hist-item" data-i="' + i + '"><span class="tpl-ic">' + (HIST_IC[x.kind] || '🕘') + '</span><span class="c-name">' + esc(x.title) + ' · ' + esc(x.apprenant) + '<small>' + meta + '</small></span><span class="tpl-go">' + action + '</span></li>';
         }).join('') + '</ul>' : '<p class="ds-empty">Aucun document généré pour ce dossier.</p>';
-        body.querySelectorAll('.hist-item').forEach(function (li) { li.onclick = function () { var x = hist[parseInt(li.getAttribute('data-i'), 10)]; closeTplModal(); reopenFromHistory(x); }; });
+        // rouvrir un document depuis l'historique le régénère : le choix du formateur vaut aussi ici
+        var box = document.createElement('div'); box.innerHTML = genTargetsHTML();
+        if (box.firstChild) body.insertBefore(box.firstChild, body.firstChild);
+        wireGenTargets(body);
+        body.querySelectorAll('.hist-item').forEach(function (li) {
+          li.onclick = function () { var x = hist[parseInt(li.getAttribute('data-i'), 10)]; closeTplModal(); reopenFromHistory(x); };
+        });
       });
     }
   }
@@ -713,18 +763,27 @@
       '<button class="btn-mini adm-logins" type="button">🕐 Historique de connexions</button></div>';
     var sections = '';
     if (adminShow.dossiers) {
-      var gs = groups.filter(function (g) { return !q || norm(g.prof + ' ' + g.eleve).indexOf(q) >= 0; });
+      var gs = groups.filter(function (g) { return !q || norm(g.label || '').indexOf(q) >= 0; });
       sections += '<div class="adm-sec"><h4 class="adm-sec-h">Dossiers</h4>' + (gs.length ? gs.map(function (g) {
         var gd = docs.filter(function (d) { return d.group === g.id; });
-        return '<div class="adm-grp"><div class="adm-grp-h"><span class="avatar">📁</span><span class="c-name">' + esc(g.eleve) + ' (Apprenant) + ' + esc(g.prof) + ' (Formateur)<small>' + gd.length + ' document(s)</small></span>' +
-          '<button class="adm-del" type="button" data-del="group" data-id="' + g.id + '" data-label="' + esc(g.eleve + ' / ' + g.prof) + '" title="Supprimer ce dossier">🗑</button></div>' +
+        var np = (g.profs || []).length;
+        return '<div class="adm-grp"><div class="adm-grp-h"><span class="avatar">📁</span><span class="c-name">' + esc(g.label || '') + '<small>' + np + ' <span>' + (np > 1 ? 'formateurs' : 'formateur') + '</span> · ' + gd.length + ' <span>document(s)</span></small></span>' +
+          '<button class="adm-grp-edit" type="button" data-id="' + g.id + '" title="Modifier la composition du dossier">✏️</button>' +
+          '<button class="adm-del" type="button" data-del="group" data-id="' + g.id + '" data-label="' + esc(g.label || '') + '" title="Supprimer ce dossier">🗑</button></div>' +
           (gd.length ? '<ul class="docs">' + gd.map(admDocLi).join('') + '</ul>' : '') + '</div>';
       }).join('') : '<p class="ds-empty">Aucun dossier.</p>') + '</div>';
     }
     if (adminShow.comptes) {
       var us = users.filter(function (u) { return !q || norm(u.prenom + ' ' + u.nom).indexOf(q) >= 0 || norm(u.email).indexOf(q) >= 0; });
       sections += '<div class="adm-sec"><h4 class="adm-sec-h">Comptes</h4>' + (us.length ? '<ul class="admin-users">' + us.map(function (u) {
-        var ds = groups.filter(function (g) { return g.profId === u.id || g.eleveId === u.id; }).map(function (g) { return u.id === g.profId ? g.eleve : g.prof; });
+        // les dossiers de cette personne, décrits par les AUTRES membres qu'elle y côtoie
+        var ds = groups.filter(function (g) {
+          return (g.profs || []).some(function (x) { return x.id === u.id; }) || (g.eleve && g.eleve.id === u.id);
+        }).map(function (g) {
+          var membres = (g.profs || []).concat(g.eleve ? [g.eleve] : []);
+          var autres = membres.filter(function (x) { return x.id !== u.id; }).map(function (x) { return x.name; });
+          return autres.join(', ') || '(seul)';
+        });
         var canDel = u.id !== ME.id, canEdit = u.role === 'eleve' || u.role === 'prof';
         return '<li><span class="avatar">' + esc(initials(fullName(u))) + '</span><span class="c-name">' + esc(fullName(u)) + '<small>' + esc(u.email || '') + '</small>' +
           '<small class="adm-contacts">' + (ds.length ? 'Dossiers : ' + ds.map(esc).join(', ') : 'Aucun dossier') + '</small></span>' +
@@ -751,6 +810,13 @@
     var lb = document.querySelector('.adm-logins'); if (lb) lb.onclick = function () { openLoginsModal(null, null); };
     document.querySelectorAll('.adm-hist').forEach(function (b) {
       b.onclick = function () { openLoginsModal(b.getAttribute('data-id'), b.getAttribute('data-name')); };
+    });
+    document.querySelectorAll('.adm-grp-edit').forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-id');
+        var g = ((ADMIN_OVERVIEW && ADMIN_OVERVIEW.groups) || []).filter(function (x) { return x.id === id; })[0];
+        if (g) openEditGroup(g);
+      };
     });
     document.querySelectorAll('.adm-reinv').forEach(function (b) {
       b.onclick = function () {
@@ -841,18 +907,63 @@
       alertDialog('Il faut au moins un formateur et un apprenant pour constituer un dossier.');
       return;
     }
-    function opts(list) { return list.map(function (u) { return '<option value="' + esc(u.id) + '">' + esc(fullName(u)) + ' — ' + esc(u.email || '') + '</option>'; }).join(''); }
-    var body = '<h4 class="gen-h">Dossier</h4><div class="gf-grid">' +
-      '<label class="gf">Formateur<select id="cg-prof">' + opts(profs) + '</select></label>' +
-      '<label class="gf">Apprenant<select id="cg-eleve">' + opts(eleves) + '</select></label></div>' +
-      '<p class="chan-note" style="margin-top:10px">Les deux personnes seront notifiées de l\'ouverture du dossier. L\'administration en est membre automatiquement.</p>';
+    var body = groupComposerBody(profs, eleves, [], null,
+      'Un dossier suit UN apprenant, avec autant de formateurs que nécessaire (au moins un). Toutes les personnes retenues seront notifiées et partageront la discussion commune ; l\'administration est membre automatiquement.');
     var footer = '<p class="fe-err auth-err" id="cg-err" style="margin:0 12px 0 0"></p><button class="btn btn-primary cg-save" type="button" style="padding:11px 22px">Créer le dossier</button>';
     var m = buildFsModal('cg-modal', 'Créer un dossier', body, footer);
     m.querySelector('.cg-save').onclick = function () {
+      var ids = { profIds: pickedIds('cg-profs'), eleveId: val('cg-eleve') };
+      if (!ids.eleveId) { err('cg-err', 'Choisissez l\'apprenant du dossier.'); return; }
+      if (!ids.profIds.length) { err('cg-err', 'Choisissez au moins un formateur.'); return; }
       var btn = m.querySelector('.cg-save'); btn.disabled = true; btn.textContent = 'Création…';
-      apiJSON('/api/groups', 'POST', { profId: val('cg-prof'), eleveId: val('cg-eleve') }).then(function (r) {
+      apiJSON('/api/groups', 'POST', ids).then(function (r) {
         btn.disabled = false; btn.textContent = 'Créer le dossier';
         if (!r.ok) { err('cg-err', (r.data && r.data.error) || 'Création impossible.'); return; }
+        closeFsModal('cg-modal');
+        api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; renderDashboard(); } });
+      });
+    };
+  }
+  // Liste à cocher : chaque personne est une case (autant de membres que voulu de chaque côté).
+  function pickListHTML(id, list, sel) {
+    if (!list.length) return '<p class="ds-empty" style="margin:0">Aucun compte disponible.</p>';
+    return '<div class="pick-list" id="' + id + '">' + list.map(function (u) {
+      return '<label class="pick-row"><input type="checkbox" value="' + esc(u.id) + '"' + (sel.indexOf(u.id) >= 0 ? ' checked' : '') + ' />' +
+        '<span class="pick-name">' + esc(fullName(u)) + '<small>' + esc(u.email || '') + '</small></span></label>';
+    }).join('') + '</div>';
+  }
+  function pickedIds(id) {
+    var box = document.getElementById(id); if (!box) return [];
+    return [].slice.call(box.querySelectorAll('input:checked')).map(function (c) { return c.value; });
+  }
+  // un dossier = UN apprenant (liste déroulante) + AUTANT DE FORMATEURS que voulu (cases à cocher)
+  function groupComposerBody(profs, eleves, selP, selE, note) {
+    var eleveBloc = selE
+      ? '<p class="ds-empty" style="margin:0">' + esc(selE.nom) + '</p>'
+      : '<label class="gf">Apprenant<select id="cg-eleve">' + eleves.map(function (u) {
+          return '<option value="' + esc(u.id) + '">' + esc(fullName(u)) + ' — ' + esc(u.email || '') + '</option>';
+        }).join('') + '</select></label>';
+    return '<h4 class="gen-h">Apprenant</h4><div class="gf-grid">' + eleveBloc + '</div>' +
+      '<h4 class="gen-h" style="margin-top:18px">Formateurs</h4>' + pickListHTML('cg-profs', profs, selP) +
+      '<p class="chan-note" style="margin-top:12px">' + note + '</p>';
+  }
+  // modifier la composition d'un dossier existant (ajouter / retirer des membres)
+  function openEditGroup(g) {
+    var users = (ADMIN_OVERVIEW && ADMIN_OVERVIEW.users) || [];
+    var profs = users.filter(function (u) { return u.role === 'prof'; });
+    var eleves = users.filter(function (u) { return u.role === 'eleve'; });
+    var selP = (g.profs || []).map(function (x) { return x.id; });
+    var body = groupComposerBody(profs, eleves, selP, { nom: (g.eleve && g.eleve.name) || '—' },
+      'L\'apprenant d\'un dossier ne change pas : ce dossier est le sien. Un formateur retiré perd l\'accès au dossier, mais les documents et messages déjà déposés y restent.');
+    var footer = '<p class="fe-err auth-err" id="cg-err" style="margin:0 12px 0 0"></p><button class="btn btn-primary cg-save" type="button" style="padding:11px 22px">Enregistrer</button>';
+    var m = buildFsModal('cg-modal', 'Composition du dossier', body, footer);
+    m.querySelector('.cg-save').onclick = function () {
+      var ids = { profIds: pickedIds('cg-profs') };
+      if (!ids.profIds.length) { err('cg-err', 'Un dossier doit garder au moins un formateur.'); return; }
+      var btn = m.querySelector('.cg-save'); btn.disabled = true; btn.textContent = 'Enregistrement…';
+      apiJSON('/api/groups/' + encodeURIComponent(g.id), 'PATCH', ids).then(function (r) {
+        btn.disabled = false; btn.textContent = 'Enregistrer';
+        if (!r.ok) { err('cg-err', (r.data && r.data.error) || 'Modification impossible.'); return; }
         closeFsModal('cg-modal');
         api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; renderDashboard(); } });
       });
@@ -953,9 +1064,19 @@
     var ok = d.querySelector('.cf-ok'); if (ok) ok.focus();
   }
 
+  // ---- personnes concernées par le document en cours ----------------------
+  // Par défaut : l'unique apprenant du dossier, et — pour le formateur connecté — lui-même.
+  function curEleve() { return (CUR_GROUP && CUR_GROUP.eleve) || null; }
+  function curProf() {
+    var P = gProfs(CUR_GROUP); if (!P.length) return null;
+    return P.filter(function (u) { return u.id === GEN_PROF; })[0] ||
+      P.filter(function (u) { return u.id === ME.id; })[0] || P[0];
+  }
+  // remet le choix à zéro quand on change de dossier (sinon on générerait pour un formateur d'un autre dossier)
+  function resetGenTargets() { var p = curProf(); GEN_PROF = p ? p.id : null; }
   // fiche client (pré-remplissage automatique des documents)
-  function clientFiche() { return (CUR_GROUP && CUR_GROUP.eleve && CUR_GROUP.eleve.profile) || {}; }
-  function profFiche() { return (CUR_GROUP && CUR_GROUP.prof && CUR_GROUP.prof.profile) || {}; }
+  function clientFiche() { var e = curEleve(); return (e && e.profile) || {}; }
+  function profFiche() { var p = curProf(); return (p && p.profile) || {}; }
   // téléchargement direct d'un document généré (binaire) + états du bouton
   function downloadDoc(m, btnSel, url, body, baseName) {
     var btn = m.querySelector(btnSel), orig = 'Générer le document →'; btn.disabled = true; btn.textContent = 'Génération…';
@@ -974,7 +1095,7 @@
   function lieuLabel(p) { p = p || {}; var l = (p.lieu || '').toLowerCase(); var adr = p.lieuAdresse ? ' — ' + p.lieuAdresse : ''; if (l === 'mixte' || l === 'les deux') return 'Présentiel et distanciel' + adr; if (l === 'presentiel' || l === 'présentiel') return 'Présentiel' + adr; if (l === 'distanciel') return 'Distanciel'; return ''; }
   function headerPrefill() {
     var fc = clientFiche();
-    return { nomApprenant: fullName(CUR_GROUP.eleve), formateur: fullName(CUR_GROUP.prof), date: fc.dateDebut || new Date().toLocaleDateString('fr-FR'), societe: fc.societe || '', langue: fc.langue || '', intitule: fc.intitule || '', certification: certifLine(fc) };
+    return { nomApprenant: fullName(curEleve()), formateur: fullName(curProf()), date: fc.dateDebut || new Date().toLocaleDateString('fr-FR'), societe: fc.societe || '', langue: fc.langue || '', intitule: fc.intitule || '', certification: certifLine(fc) };
   }
   // ---- QS : le formateur remplit l'en-tête et envoie à l'apprenant ---------
   function openQsHeaderModal(type) {
@@ -1190,7 +1311,7 @@
   function openAttestationModal() {
     if (!selected || !CUR_GROUP) return;
     var fc = clientFiche();
-    var pre = { representant: 'Antonin HATTABE', apprenant: fullName(CUR_GROUP.eleve), societe: fc.societe || '', intitule: fc.intitule || '', formateur: fullName(CUR_GROUP.prof), dateDebut: fc.dateDebut || '', dateFin: fc.dateFin || '', dureeTotale: fc.heuresTotal || '', dureeDetail: fc.heuresDetail || '', lieu: lieuLabel(fc) || 'Distanciel', certification: fc.certificationText || '', lieuFait: 'Nice', dateFait: new Date().toLocaleDateString('fr-FR') };
+    var pre = { representant: 'Antonin HATTABE', apprenant: fullName(curEleve()), societe: fc.societe || '', intitule: fc.intitule || '', formateur: fullName(curProf()), dateDebut: fc.dateDebut || '', dateFin: fc.dateFin || '', dureeTotale: fc.heuresTotal || '', dureeDetail: fc.heuresDetail || '', lieu: lieuLabel(fc) || 'Distanciel', certification: fc.certificationText || '', lieuFait: 'Nice', dateFait: new Date().toLocaleDateString('fr-FR') };
     var head = '<p class="ds-empty" style="margin:0 0 14px">Le début est prérempli depuis les fiches. Complétez les objectifs, l\'évaluation et les commentaires.</p>' +
       '<h4 class="gen-h">En-tête</h4><div class="gf-grid">' +
       gi('att-apprenant', "Nom de l'apprenant", pre.apprenant) + gi('att-societe', 'Société', pre.societe) +
@@ -1221,7 +1342,7 @@
     var fc = clientFiche(), pf = profFiche();
     var progPre = (fc.heuresTotal || '') + (fc.heuresDetail ? (fc.heuresTotal ? ' : ' : '') + fc.heuresDetail : '') + (fc.certificationText ? ' et la ' + fc.certificationText : '');
     var missionPre = "l'animation des seules …h00 de formation synchrones, selon la ou les modalités précisées ci-dessus (présentiel et/ou distanciel). Les autres composantes du programme global demeurent mises en œuvre par le Donneur d'ordre dans les conditions de l'article 2.";
-    var pre = { stnom: fullName(CUR_GROUP.prof), stNaissance: pf.dateNaissance || '', stNationalite: pf.nationalite || '', stAdresse: pf.adresse || '', stSiret: pf.siret || '', stNda: pf.nda || '', intitule: fc.intitule || '', langue: fc.langue || pf.langue || '', stagiaire: fullName(CUR_GROUP.eleve), programme: progPre, mission: missionPre, lieu: lieuLabel(fc) || 'en distanciel (Visioconférence)', dateDebut: fc.dateDebut || '', dateFin: fc.dateFin || '', lieuFait: 'Nice', dateFait: new Date().toLocaleDateString('fr-FR') };
+    var pre = { stnom: fullName(curProf()), stNaissance: pf.dateNaissance || '', stNationalite: pf.nationalite || '', stAdresse: pf.adresse || '', stSiret: pf.siret || '', stNda: pf.nda || '', intitule: fc.intitule || '', langue: fc.langue || pf.langue || '', stagiaire: fullName(curEleve()), programme: progPre, mission: missionPre, lieu: lieuLabel(fc) || 'en distanciel (Visioconférence)', dateDebut: fc.dateDebut || '', dateFin: fc.dateFin || '', lieuFait: 'Nice', dateFait: new Date().toLocaleDateString('fr-FR') };
     var intro = '<p class="ds-empty" style="margin:0 0 14px">L\'introduction et l\'article 1 sont préremplis depuis les fiches. Précisez le programme global et la mission (article 1 — seules les heures synchrones sont sous-traitées), puis les modalités financières (article 6).</p>' +
       '<h4 class="gen-h">Sous-traitant (formateur)</h4><div class="gf-grid">' +
       gi('ct-stnom', 'Nom du sous-traitant', pre.stnom) + gi('ct-naissance', 'Né(e) le', pre.stNaissance) +
@@ -1241,7 +1362,7 @@
     var m = buildFsModal('ct-modal', 'Contrat de sous-traitance', intro + art1 + art6, footer);
     m.querySelector('.ct-gen').onclick = function () {
       var fields = { stnom: val('ct-stnom'), stNaissance: val('ct-naissance'), stNationalite: val('ct-nationalite'), stAdresse: val('ct-adresse'), stSiret: val('ct-siret'), stNda: val('ct-nda'), intitule: val('ct-intitule'), langue: val('ct-langue'), stagiaire: val('ct-stagiaire'), programme: val('ct-programme'), mission: val('ct-mission'), lieu: val('ct-lieu'), dateDebut: val('ct-debut'), dateFin: val('ct-fin'), tauxHoraire: val('ct-taux'), montantTotal: val('ct-montant'), heuresSync: val('ct-heuressync'), lieuFait: val('ct-lieufait'), dateFait: val('ct-datefait') };
-      downloadDoc(m, '.ct-gen', '/api/contrat/generate', { group: selected, fields: fields, format: document.getElementById('ct-format').value }, '7 - Contrat de sous-traitance - ' + (fields.stnom || 'formateur'));
+      downloadDoc(m, '.ct-gen', '/api/contrat/generate', { group: selected, prof: GEN_PROF, fields: fields, format: document.getElementById('ct-format').value }, '7 - Contrat de sous-traitance - ' + (fields.stnom || 'formateur'));
     };
   }
 
@@ -1252,7 +1373,7 @@
       if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
       var tpl = r.data.tpl || {};
       var fc = clientFiche();
-      var pre = { dateEval: new Date().toLocaleDateString('fr-FR'), societe: fc.societe || '', langue: fc.langue || '', nom: (CUR_GROUP.eleve.nom || ''), prenom: (CUR_GROUP.eleve.prenom || ''), tel: fc.tel || '', mail: (CUR_GROUP.eleve.email || '') };
+      var pre = { dateEval: new Date().toLocaleDateString('fr-FR'), societe: fc.societe || '', langue: fc.langue || '', nom: ((curEleve()||{}).nom || ''), prenom: ((curEleve()||{}).prenom || ''), tel: fc.tel || '', mail: ((curEleve()||{}).email || '') };
       function fld(id, label, v, multi) { return multi ? '<label class="gf">' + label + '<textarea id="' + id + '" rows="2">' + esc(v || '') + '</textarea></label>' : gi(id, label, v); }
       var head = '<p class="ds-empty" style="margin:0 0 14px">En-tête prérempli depuis la fiche. Complétez l\'évaluation et les besoins, puis générez le document.</p><h4 class="gen-h">En-tête</h4><div class="gf-grid">';
       (tpl.headerRows || []).forEach(function (row) { row.forEach(function (pair) { if (pair) head += fld('lt-' + pair[0], pair[1], pre[pair[0]] || '', pair[0] === 'fonction' || pair[0] === 'planning'); }); });
@@ -1303,7 +1424,7 @@
       var moisNow = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); moisNow = moisNow.charAt(0).toUpperCase() + moisNow.slice(1);
       var lieuTxt = (function () { var l = (fc.lieu || '').toLowerCase(); if (l === 'presentiel' || l === 'présentiel') return 'Présentiel'; if (l === 'distanciel') return 'Distanciel'; return ''; })();
       var pre = {
-        mois: moisNow, formateur: fullName(CUR_GROUP.prof), apprenant: fullName(CUR_GROUP.eleve), compte: fc.societe || '',
+        mois: moisNow, formateur: fullName(curProf()), apprenant: fullName(curEleve()), compte: fc.societe || '',
         // « Ref proposition » et « Formation » viennent de la fiche apprenant
         ref: fc.refProposition || '', formation: fc.intitule || '',
         langue: fc.langue || '', debut: fc.dateDebut || '', fin: fc.dateFin || '', lieu: lieuTxt, ville: '',
@@ -1476,7 +1597,7 @@
       var tpl = r.data.tpl || {};
       var hf = tpl.headerFields || [];
       var fc = clientFiche();
-      var pre = { formateur: fullName(CUR_GROUP.prof), nomApprenant: fullName(CUR_GROUP.eleve), date: fc.dateDebut || new Date().toLocaleDateString('fr-FR'), langue: fc.langue || '', intitule: fc.intitule || '' };
+      var pre = { formateur: fullName(curProf()), nomApprenant: fullName(curEleve()), date: fc.dateDebut || new Date().toLocaleDateString('fr-FR'), langue: fc.langue || '', intitule: fc.intitule || '' };
       var headerHTML = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête et cochez vos réponses, puis générez le document à télécharger (à transmettre ensuite à l\'administration via le canal privé).</p>' +
         '<div class="gf-grid">' + hf.map(function (f) { return gi('fm-h-' + f.id, f.label, pre[f.id] || ''); }).join('') + '</div>';
       var footer = '<label class="gen-chan">Format <select id="fm-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +

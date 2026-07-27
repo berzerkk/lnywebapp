@@ -125,9 +125,19 @@ function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys
 // les anciens champs sont retirés pour qu'aucun code ne puisse en dépendre par accident.
 function migrateGroups(d) {
   (d.groups || []).forEach(g => {
-    if (!Array.isArray(g.profs)) g.profs = g.prof ? [g.prof] : [];
-    if (Array.isArray(g.eleves)) { if (!g.eleve) g.eleve = g.eleves[0] || null; delete g.eleves; }
-    delete g.prof;
+    const oldE = g.eleve, oldP = g.prof;
+    if (!Array.isArray(g.profs)) g.profs = oldP ? [oldP] : [];
+    if (!Array.isArray(g.eleves)) g.eleves = oldE ? [oldE] : [];
+    // On ESTAMPILLE le destinataire des pièces nominatives existantes : c'est la seule occasion
+    // où l'ancien apprenant unique est encore lisible. Sans ça il faudrait le deviner plus tard
+    // en prenant « le premier apprenant du dossier », dont l'ordre peut changer.
+    if (oldE) {
+      (d.qs || []).forEach(q => { if (!q.eleve && q.group === g.id) q.eleve = oldE; });
+      (d.presences || []).forEach(p => { if (!p.eleve && p.group === g.id) p.eleve = oldE; });
+      (d.worksheets || []).forEach(w => { if (!w.eleve && w.group === g.id) w.eleve = oldE; });
+      (d.docs || []).forEach(x => { if (x.group === g.id && x.nominatif && !x.eleve) x.eleve = oldE; });
+    }
+    delete g.prof; delete g.eleve;
   });
   return d;
 }
@@ -546,9 +556,11 @@ const groupById = (id) => db.groups.find(g => g.id === id);
 // Un dossier compte AUTANT de formateurs et d'apprenants que voulu. Ces deux accesseurs sont le
 // seul point de lecture des membres : ils tolèrent une base non encore migrée (prof/eleve seuls).
 const gProfs = (g) => (g && (g.profs || (g.prof ? [g.prof] : []))) || [];
-const gMembers = (g) => g && g.eleve ? [...gProfs(g), g.eleve] : gProfs(g);
+const gEleves = (g) => (g && (g.eleves || (g.eleve ? [g.eleve] : []))) || [];
+const gMembers = (g) => [...gProfs(g), ...gEleves(g)];
 // listes d'objets utilisateurs réels (comptes supprimés filtrés)
 const gProfUsers = (g) => gProfs(g).map(realUser).filter(Boolean);
+const gEleveUsers = (g) => gEleves(g).map(realUser).filter(Boolean);
 function groupsForUser(u) { return u.role === 'admin' ? db.groups.slice() : db.groups.filter(g => gMembers(g).includes(u.id)); }
 function isMember(g, u) { return !!g && (u.role === 'admin' || gMembers(g).includes(u.id)); }
 function canChannel(g, u, ch) { if (!isMember(g, u)) return false; return ch === 'prive' ? (u.role === 'prof' || u.role === 'admin') : true; }
@@ -559,7 +571,7 @@ function groupView(g, me) {
   return {
     id: g.id,
     profs: gProfs(g).map(view).filter(Boolean),
-    eleve: view(g.eleve),
+    eleves: gEleves(g).map(view).filter(Boolean),
     admin: { id: ADMIN_ID, prenom: 'Administration', nom: 'L&S', role: 'admin' },
     date: g.date
   };
@@ -567,10 +579,17 @@ function groupView(g, me) {
 function channelRecipients(g, ch, senderId) {
   const ids = new Set();
   gProfs(g).forEach(id => ids.add(id));                 // le canal privé reste formateurs + admins
-  if (ch === 'commun' && g.eleve) ids.add(g.eleve);
+  if (ch === 'commun') gEleves(g).forEach(id => ids.add(id));
   db.users.filter(u => u.role === 'admin').forEach(a => ids.add(a.id));
   ids.delete(senderId);
   return [...ids];
+}
+// prévient les formateurs du dossier + les administrateurs (jamais les autres apprenants)
+function notifyStaff(g, sender, text) {
+  const ids = new Set(gProfs(g));
+  db.users.filter(u => u.role === 'admin').forEach(a => ids.add(a.id));
+  ids.delete(sender.id);
+  ids.forEach(id => notify(id, text, g.id));
 }
 function notifyChannel(g, ch, sender, text) { channelRecipients(g, ch, sender.id).forEach(id => notify(id, text, g.id)); }
 
@@ -727,11 +746,24 @@ app.get('/api/groups', auth, (req, res) => {
 });
 // libellé « Prénom Nom (Formateur) + … » utilisé dans les notifications et la vue admin
 const membersLabel = (g) => [
-  ...(g && g.eleve ? [`${fullName(g.eleve)} (Apprenant)`] : []),
+  ...gEleves(g).map(id => `${fullName(id)} (Apprenant)`),
   ...gProfs(g).map(id => `${fullName(id)} (Formateur)`)
 ].join(' + ') || '(dossier vide)';
-// Un dossier peut compter plusieurs formateurs : on désigne celui que le document concerne.
-// Par défaut, un formateur qui génère un document le fait EN SON NOM.
+// valide une liste d'identifiants pour un rôle donné : dédoublonne, refuse les inconnus
+// Désigne l'apprenant concerné par un document nominatif (questionnaire, feuille de présence).
+// Un seul apprenant dans le dossier → il est pris implicitement (aucune régression pour l'existant).
+function targetEleve(g, id) {
+  const list = gEleves(g);
+  if (!list.length) return { error: 'Ce dossier ne compte aucun apprenant.' };
+  if (id) {
+    if (!list.includes(id)) return { error: 'Cet apprenant ne fait pas partie du dossier.' };
+    return { id };
+  }
+  if (list.length > 1) return { error: 'Ce dossier compte plusieurs apprenants : précisez lequel est concerné.' };
+  return { id: list[0] };
+}
+// Même contrat que targetEleve, côté formateur. Un formateur qui génère un document le fait
+// par défaut EN SON NOM, même si le dossier compte plusieurs formateurs.
 function targetProf(g, id, user) {
   const list = gProfs(g);
   if (!list.length) return { error: 'Ce dossier ne compte aucun formateur.' };
@@ -743,7 +775,6 @@ function targetProf(g, id, user) {
   if (list.length > 1) return { error: 'Ce dossier compte plusieurs formateurs : précisez lequel est concerné.' };
   return { id: list[0] };
 }
-// valide une liste d'identifiants pour un rôle donné : dédoublonne, refuse les inconnus
 function pickMembers(ids, role, label) {
   const out = [];
   for (const id of (Array.isArray(ids) ? ids : (ids ? [ids] : []))) {
@@ -758,27 +789,28 @@ function pickMembers(ids, role, label) {
 }
 app.post('/api/groups', auth, (req, res) => {
   const b = req.body || {};
-  let profs, eleve;
+  let profs, eleves;
   if (req.user.role === 'admin') {
-    // un dossier = UN apprenant, mais AUTANT DE FORMATEURS que voulu
+    // l'administration constitue le dossier en désignant AUTANT de formateurs et d'apprenants que voulu
     const p = pickMembers(b.profIds != null ? b.profIds : b.profId, 'prof', 'Formateur');
+    const e = pickMembers(b.eleveIds != null ? b.eleveIds : b.eleveId, 'eleve', 'Apprenant');
     if (p.error) return res.status(400).json({ error: p.error });
+    if (e.error) return res.status(400).json({ error: e.error });
     if (!p.ids.length) return res.status(400).json({ error: 'Choisissez au moins un formateur.' });
-    const e = realUser(b.eleveId);
-    if (!e || e.role !== 'eleve') return res.status(400).json({ error: 'Apprenant invalide.' });
-    profs = p.ids; eleve = e.id;
+    if (!e.ids.length) return res.status(400).json({ error: 'Choisissez au moins un apprenant.' });
+    profs = p.ids; eleves = e.ids;
   } else if (req.user.role === 'prof') {
     const target = realUser(b.targetId);
     if (!target || target.role !== 'eleve') return res.status(400).json({ error: 'Apprenant introuvable.' });
-    profs = [req.user.id]; eleve = target.id;
-    // un dossier identique existe déjà : on le réutilise au lieu d'en créer un doublon
-    const same = db.groups.find(x => x.eleve === target.id && gProfs(x).length === 1 && gProfs(x)[0] === req.user.id);
+    profs = [req.user.id]; eleves = [target.id];
+    // un dossier identique (mêmes personnes) existe déjà : on le réutilise au lieu d'en créer un doublon
+    const same = db.groups.find(x => gProfs(x).length === 1 && gProfs(x)[0] === req.user.id && gEleves(x).length === 1 && gEleves(x)[0] === target.id);
     if (same) return res.json({ ok: true, group: same.id });
   } else {
     // un apprenant ne constitue plus de dossier lui-même
     return res.status(403).json({ error: 'Les dossiers sont créés par l\'administration ou votre formateur.' });
   }
-  const g = { id: crypto.randomUUID(), profs, eleve, date: Date.now() };
+  const g = { id: crypto.randomUUID(), profs, eleves, date: Date.now() };
   db.groups.push(g);
   const label = membersLabel(g);
   gMembers(g).forEach(id => notify(id, `Vous avez été ajouté dans un dossier : ${label}.`, g.id));
@@ -793,13 +825,27 @@ app.patch('/api/groups/:id', auth, (req, res) => {
   if (!g) return res.status(404).json({ error: 'Dossier introuvable.' });
   const b = req.body || {};
   const p = pickMembers(b.profIds, 'prof', 'Formateur');
+  const e = pickMembers(b.eleveIds, 'eleve', 'Apprenant');
   if (p.error) return res.status(400).json({ error: p.error });
+  if (e.error) return res.status(400).json({ error: e.error });
   if (!p.ids.length) return res.status(400).json({ error: 'Un dossier doit garder au moins un formateur.' });
-  const avant = gProfs(g);
-  const ajoutes = p.ids.filter(id => !avant.includes(id));
-  const retires = avant.filter(id => !p.ids.includes(id));
-  // l'apprenant du dossier ne change pas ici : un dossier est le dossier d'UN apprenant
-  g.profs = p.ids;
+  if (!e.ids.length) return res.status(400).json({ error: 'Un dossier doit garder au moins un apprenant.' });
+  const avant = gMembers(g);
+  const ajoutes = [...p.ids, ...e.ids].filter(id => !avant.includes(id));
+  const retires = avant.filter(id => !p.ids.includes(id) && !e.ids.includes(id));
+  // une personne retirée garde ses documents dans le dossier, mais n'y a plus accès :
+  // ses demandes EN ATTENTE (questionnaire, feuille à signer) n'ont plus de destinataire → on les retire
+  retires.forEach(id => {
+    db.qs.filter(q => q.group === g.id && q.eleve === id && q.status !== 'done').forEach(q => {
+      db.messages = db.messages.filter(m => m.qsId !== q.id);
+    });
+    db.qs = db.qs.filter(q => !(q.group === g.id && q.eleve === id && q.status !== 'done'));
+    db.presences.filter(x => x.group === g.id && x.eleve === id && x.status !== 'done').forEach(x => {
+      db.messages = db.messages.filter(m => m.presenceId !== x.id);
+    });
+    db.presences = db.presences.filter(x => !(x.group === g.id && x.eleve === id && x.status !== 'done'));
+  });
+  g.profs = p.ids; g.eleves = e.ids;
   const label = membersLabel(g);
   ajoutes.forEach(id => notify(id, `Vous avez été ajouté dans un dossier : ${label}.`, g.id));
   retires.forEach(id => {
@@ -833,13 +879,16 @@ app.delete('/api/users/:id', auth, (req, res) => {
   const u = realUser(req.params.id);
   if (!u) return res.status(404).json({ error: 'Compte introuvable.' });
   if (u.id === req.user.id) return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte.' });
-  // Un dossier peut compter PLUSIEURS FORMATEURS : supprimer l'un d'eux ne doit pas détruire le
-  // dossier (ce serait détruire les documents de l'apprenant et le travail des autres formateurs).
-  // Il en est simplement retiré ; le dossier n'est supprimé que s'il ne reste plus aucun formateur.
-  // Supprimer l'APPRENANT, en revanche, supprime son dossier : c'est son dossier.
-  db.groups.filter(g => g.eleve === u.id).map(g => g.id).forEach(deleteGroupCascade);
-  db.groups.forEach(g => { g.profs = gProfs(g).filter(id => id !== u.id); });
-  db.groups.filter(g => !gProfs(g).length).map(g => g.id).forEach(deleteGroupCascade);
+  // Un dossier pouvant réunir plusieurs personnes, supprimer un compte ne détruit PLUS le dossier
+  // (ce serait détruire les documents des autres membres) : la personne en est retirée, et seul un
+  // dossier qui se retrouve SANS AUCUN membre est supprimé en cascade.
+  db.groups.forEach(g => { g.profs = gProfs(g).filter(id => id !== u.id); g.eleves = gEleves(g).filter(id => id !== u.id); });
+  db.groups.filter(g => !gMembers(g).length).map(g => g.id).forEach(deleteGroupCascade);
+  // ses demandes en attente (questionnaire, feuille à signer) n'ont plus de destinataire
+  db.qs.filter(q => q.eleve === u.id && q.status !== 'done').forEach(q => { db.messages = db.messages.filter(m => m.qsId !== q.id); });
+  db.qs = db.qs.filter(q => !(q.eleve === u.id && q.status !== 'done'));
+  db.presences.filter(p => p.eleve === u.id && p.status !== 'done').forEach(p => { db.messages = db.messages.filter(m => m.presenceId !== p.id); });
+  db.presences = db.presences.filter(p => !(p.eleve === u.id && p.status !== 'done'));
   db.notifs = db.notifs.filter(n => n.user !== u.id);
   db.users = db.users.filter(x => x.id !== u.id);
   save();
@@ -873,8 +922,10 @@ app.get('/api/messages', auth, (req, res) => {
   const msgs = db.messages.filter(m => m.group === g.id && m.channel === ch).sort((a, b) => a.date - b.date)
     .map(m => {
       const o = { id: m.id, from: m.from, fromAdmin: !!m.fromAdmin, fromName: m.fromAdmin ? 'Administration L&S' : fullName(m.from), text: m.text, date: m.date, kind: m.kind || 'text' };
-      if (m.kind === 'qs') { const q = db.qs.find(x => x.id === m.qsId); o.qs = { id: m.qsId, type: m.qsType, title: (QS_TEMPLATES[m.qsType] || {}).title || 'Questionnaire', status: q ? q.status : 'pending', docId: q ? q.docId : null }; }
-      if (m.kind === 'presence') { const p = db.presences.find(x => x.id === m.presenceId); o.presence = { id: m.presenceId, type: p ? p.type : null, title: (PRESENCE_TEMPLATES[p && p.type] || {}).title || 'Feuille de présence', status: p ? p.status : 'pending', docId: p ? p.docId : null }; }
+      // `eleve` = l'apprenant DESTINATAIRE : avec plusieurs apprenants dans le dossier, la carte
+      // du chat dit à qui la demande s'adresse et seul lui voit le bouton Remplir / Signer.
+      if (m.kind === 'qs') { const q = db.qs.find(x => x.id === m.qsId); o.qs = { id: m.qsId, type: m.qsType, title: (QS_TEMPLATES[m.qsType] || {}).title || 'Questionnaire', status: q ? q.status : 'pending', docId: q ? q.docId : null, eleve: (q && q.eleve) || null, eleveNom: q && q.eleve ? fullName(q.eleve) : '' }; }
+      if (m.kind === 'presence') { const p = db.presences.find(x => x.id === m.presenceId); o.presence = { id: m.presenceId, type: p ? p.type : null, title: (PRESENCE_TEMPLATES[p && p.type] || {}).title || 'Feuille de présence', status: p ? p.status : 'pending', docId: p ? p.docId : null, eleve: (p && p.eleve) || null, eleveNom: p && p.eleve ? fullName(p.eleve) : '' }; }
       return o;
     });
   res.json({ messages: msgs });
@@ -930,11 +981,14 @@ app.delete('/api/documents/:id', auth, (req, res) => {
   save();
   res.json({ ok: true });
 });
+// Une pièce nominative (questionnaire rempli, feuille de présence signée) n'est visible que par
+// SON apprenant — pas par les autres apprenants du dossier. Formateurs et admins voient tout.
+const docVisible = (d, u) => u.role !== 'eleve' || !d.eleve || d.eleve === u.id;
 app.get('/api/documents', auth, (req, res) => {
   const g = groupById(req.query.group);
   const ch = req.query.channel === 'prive' ? 'prive' : 'commun';
   if (!canChannel(g, req.user, ch)) return res.status(403).json({ error: 'Accès refusé.' });
-  res.json({ docs: db.docs.filter(d => d.group === g.id && d.channel === ch).sort((a, b) => b.date - a.date).map(docPub) });
+  res.json({ docs: db.docs.filter(d => d.group === g.id && d.channel === ch && docVisible(d, req.user)).sort((a, b) => b.date - a.date).map(docPub) });
 });
 app.get('/api/documents/:id/download', (req, res) => {
   const h = req.headers.authorization || '';
@@ -945,6 +999,7 @@ app.get('/api/documents/:id/download', (req, res) => {
   const doc = db.docs.find(d => d.id === req.params.id);
   if (!doc) return res.status(404).end();
   if (!canChannel(groupById(doc.group), u, doc.channel)) return res.status(403).end();
+  if (!docVisible(doc, u)) return res.status(403).end();   // sinon l'identifiant suffirait à contourner la liste
   res.download(path.join(UPLOADS_DIR, doc.stored), safeFile(doc.name));
 });
 
@@ -962,7 +1017,7 @@ app.get('/api/admin/overview', auth, (req, res) => {
   const groups = db.groups.slice().sort((a, b) => b.date - a.date).map(g => ({
     id: g.id, label: membersLabel(g),
     profs: gProfs(g).map(id => ({ id, name: fullName(id) })),
-    eleve: g.eleve ? { id: g.eleve, name: fullName(g.eleve) } : null,
+    eleves: gEleves(g).map(id => ({ id, name: fullName(id) })),
     docs: db.docs.filter(d => d.group === g.id).length, date: g.date
   }));
   const docs = db.docs.slice().sort((a, b) => b.date - a.date).map(d => { const g = groupById(d.group); return Object.assign(docPub(d), { groupLabel: g ? membersLabel(g) : '—' }); });
@@ -974,14 +1029,19 @@ app.get('/api/admin/overview', auth, (req, res) => {
 // ---- génération de documents : Interactive Worksheet -----------------------
 const htmlEsc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const nl2br = (s) => htmlEsc(s).replace(/\n/g, '<br>');
-const wsFind = (gid) => db.worksheets.find(w => w.group === gid && w.type === 'interactive');
-function wsBlank(g, user) {
+// Un dossier peut compter plusieurs apprenants : le brouillon de worksheet est propre à CHAQUE
+// apprenant (sinon deux apprenants du même dossier écraseraient mutuellement leur travail).
+// Les brouillons d'avant le passage au multi-membres (sans `eleve`) sont rattachés au 1ᵉʳ apprenant.
+function wsFind(gid, eleveId) {
+  return db.worksheets.find(w => w.group === gid && w.type === 'interactive' && w.eleve === eleveId);
+}
+function wsBlank(g, eleveId, user) {
   // le formateur qui ouvre la worksheet la préremplit à SON nom (et pas à celui d'un collègue)
   const P = (user && user.role === 'prof' && gProfs(g).includes(user.id)) ? user : gProfUsers(g)[0];
-  const E = realUser(g.eleve);
+  const E = realUser(eleveId) || gEleveUsers(g)[0];
   const ep = (E && E.profile) || {}, pp = (P && P.profile) || {};
   return {
-    group: g.id, type: 'interactive',
+    group: g.id, eleve: E ? E.id : null, type: 'interactive',
     header: { intitule: ep.intitule || '', langue: ep.langue || pp.langue || '', societe: ep.societe || '', nomApprenant: E ? `${E.prenom} ${E.nom}` : '', nomFormateur: P ? `${P.prenom} ${P.nom}` : '', telApprenant: ep.tel || '', telFormateur: pp.tel || '', mailApprenant: E ? E.email : '', mailFormateur: P ? P.email : '', notes: { vocabulaire: '', structure: '', communication: '', autre: '' } },
     sessions: []
   };
@@ -1037,14 +1097,19 @@ function renderWorksheetHTML(w, user) {
 app.get('/api/worksheet', auth, (req, res) => {
   const g = groupById(req.query.group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  res.json({ worksheet: wsFind(g.id) || wsBlank(g, req.user) });
+  const c = targetEleve(g, req.query.eleve);
+  if (c.error) return res.status(400).json({ error: c.error });
+  res.json({ worksheet: wsFind(g.id, c.id) || wsBlank(g, c.id, req.user) });
 });
 app.post('/api/worksheet', auth, (req, res) => {
-  const { group, header, sessions } = req.body || {};
+  const { group, header, sessions, eleve } = req.body || {};
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  let w = wsFind(g.id);
-  if (!w) { w = { id: crypto.randomUUID(), group: g.id, type: 'interactive' }; db.worksheets.push(w); }
+  const c = targetEleve(g, eleve);
+  if (c.error) return res.status(400).json({ error: c.error });
+  let w = wsFind(g.id, c.id);
+  if (!w) { w = { id: crypto.randomUUID(), group: g.id, eleve: c.id, type: 'interactive' }; db.worksheets.push(w); }
+  w.eleve = c.id;
   w.header = header || {}; w.sessions = Array.isArray(sessions) ? sessions : []; w.updatedBy = req.user.id; w.date = Date.now();
   save();
   res.json({ ok: true });
@@ -1237,11 +1302,13 @@ function recordDocgen(g, user, info) {
 }
 
 app.post('/api/worksheet/generate', auth, async (req, res) => {
-  const { group, format } = req.body || {};
+  const { group, format, eleve } = req.body || {};
   const fmt = (format === 'word' || format === 'docx') ? 'word' : 'pdf';
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  const w = wsFind(g.id) || wsBlank(g, req.user);
+  const c = targetEleve(g, eleve);
+  if (c.error) return res.status(400).json({ error: c.error });
+  const w = wsFind(g.id, c.id) || wsBlank(g, c.id, req.user);
   let buf, ext, type;
   try {
     if (fmt === 'word') { buf = await buildWorksheetDocx(w, req.user); ext = 'docx'; type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
@@ -1388,6 +1455,9 @@ app.post('/api/testdoc/generate', auth, async (req, res) => {
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de document inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  // document nominatif : le destinataire est validé côté serveur (le client ne fait pas foi)
+  const cib = targetEleve(g, (req.body || {}).eleve);
+  if (cib.error) return res.status(400).json({ error: cib.error });
   let buf, ext, ctype;
   try {
     if (format === 'word' || format === 'docx') { buf = await buildTestDocx(tpl.title, header, extra, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
@@ -1476,6 +1546,9 @@ app.post('/api/attestation/generate', auth, async (req, res) => {
   const { group, fields, format } = req.body || {};
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  // attestation NOMINATIVE : destinataire validé côté serveur
+  const cibA = targetEleve(g, (req.body || {}).eleve);
+  if (cibA.error) return res.status(400).json({ error: cibA.error });
   const d = fields || {};
   let buf, ext, ctype;
   try {
@@ -1632,7 +1705,9 @@ app.post('/api/contrat/generate', auth, async (req, res) => {
   const { group, fields, format } = req.body || {};
   const g = groupById(group);
   if (!g) return res.status(400).json({ error: 'Dossier introuvable.' });
-  // le contrat lie L&S à UN formateur : on valide lequel
+  // le contrat lie L&S à UN formateur pour UN stagiaire : les deux extrémités sont validées
+  const cibC = targetEleve(g, (req.body || {}).eleve);
+  if (cibC.error) return res.status(400).json({ error: cibC.error });
   const cibP = targetProf(g, (req.body || {}).prof, req.user);
   if (cibP.error) return res.status(400).json({ error: cibP.error });
   const d = fields || {};
@@ -1819,26 +1894,29 @@ async function generateQsDoc(qs, format, fromUser) {
   const stored = crypto.randomUUID() + '.' + ext;
   fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
   const name = (qs.type === 'qs_mid' ? '2' : '3') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((qs.header && qs.header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
-  const doc = { id: crypto.randomUUID(), group: qs.group, channel: 'commun', from: fromUser.id, fromAdmin: fromUser.role === 'admin', name, size: buf.length, type, stored, date: Date.now() };
+  // piece NOMINATIVE : marquee au nom de son apprenant, les autres apprenants du dossier ne la voient pas
+  const doc = { id: crypto.randomUUID(), group: qs.group, channel: 'commun', eleve: qs.eleve || null, nominatif: true, from: fromUser.id, fromAdmin: fromUser.role === 'admin', name, size: buf.length, type, stored, date: Date.now() };
   db.docs.push(doc);
   return doc;
 }
 
 // le formateur (ou admin) remplit l'en-tête et envoie le questionnaire à l'apprenant
 app.post('/api/qs/send', auth, (req, res) => {
-  const { group, type, header } = req.body || {};
+  const { group, type, header, eleve } = req.body || {};
   const tpl = QS_TEMPLATES[type];
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de questionnaire inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  if (!g.eleve) return res.status(400).json({ error: 'Ce dossier ne compte aucun apprenant.' });
-  const qs = { id: crypto.randomUUID(), group: g.id, type, header: header || {}, answers: {}, status: 'pending', docId: null, by: req.user.id, date: Date.now() };
+  // un dossier pouvant compter plusieurs apprenants, le questionnaire DÉSIGNE son destinataire
+  const cible = targetEleve(g, eleve);
+  if (cible.error) return res.status(400).json({ error: cible.error });
+  const qs = { id: crypto.randomUUID(), group: g.id, eleve: cible.id, type, header: header || {}, answers: {}, status: 'pending', docId: null, by: req.user.id, date: Date.now() };
   db.qs.push(qs);
   db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'commun', from: req.user.id, fromAdmin: req.user.role === 'admin', kind: 'qs', qsId: qs.id, qsType: type, text: 'Demande de remplissage : ' + tpl.title, date: Date.now() });
-  notify(g.eleve, `${senderDisplay(req.user)} vous demande de remplir : ${tpl.title}`, g.id);
-  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé un questionnaire à remplir (${tpl.title}).`, g.id));
+  notify(cible.id, `${senderDisplay(req.user)} vous demande de remplir : ${tpl.title}`, g.id);
+  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé un questionnaire à remplir à ${fullName(cible.id)} (${tpl.title}).`, g.id));
   // e-mail à l'apprenant concerné : un questionnaire l'attend
-  const eleveQ = realUser(g.eleve);
+  const eleveQ = realUser(cible.id);
   if (eleveQ) {
     const urlQ = SITE_URL + '/espace-documents.html';
     sendMailSafe(eleveQ.email,
@@ -1856,8 +1934,10 @@ app.get('/api/qs/:id', auth, (req, res) => {
   const qs = db.qs.find(x => x.id === req.params.id);
   if (!qs) return res.status(404).json({ error: 'Questionnaire introuvable.' });
   if (!isMember(groupById(qs.group), req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  // un apprenant ne lit que SON questionnaire (les réponses de satisfaction d'un autre le concernent pas)
+  if (req.user.role === 'eleve' && req.user.id !== qs.eleve) return res.status(403).json({ error: 'Ce questionnaire ne vous est pas destiné.' });
   const tpl = QS_TEMPLATES[qs.type] || {};
-  res.json({ qs: { id: qs.id, type: qs.type, title: tpl.title, items: tpl.items, headerFields: QS_HEADER_FIELDS, header: qs.header, answers: qs.answers, status: qs.status, docId: qs.docId } });
+  res.json({ qs: { id: qs.id, type: qs.type, title: tpl.title, items: tpl.items, headerFields: QS_HEADER_FIELDS, header: qs.header, answers: qs.answers, status: qs.status, docId: qs.docId, eleve: qs.eleve || null, eleveNom: qs.eleve ? fullName(qs.eleve) : '' } });
 });
 // l'apprenant répond → génère le document et le dépose dans le canal commun
 app.post('/api/qs/:id/submit', auth, async (req, res) => {
@@ -1865,14 +1945,16 @@ app.post('/api/qs/:id/submit', auth, async (req, res) => {
   if (!qs) return res.status(404).json({ error: 'Questionnaire introuvable.' });
   const g = groupById(qs.group);
   if (!isMember(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  // seul l'APPRENANT du dossier répond : ni le formateur ni un admin à sa place (pièce nominative)
-  if (req.user.id !== g.eleve) return res.status(403).json({ error: 'Seul l\'apprenant peut remplir ce questionnaire.' });
+  // seul l'apprenant DESTINATAIRE répond : avec plusieurs apprenants dans le dossier, un autre
+  // ne doit pas pouvoir remplir le questionnaire à sa place (pièce nominative)
+  if (req.user.id !== qs.eleve) return res.status(403).json({ error: 'Seul l\'apprenant destinataire peut remplir ce questionnaire.' });
   if (qs.status === 'done') return res.status(400).json({ error: 'Ce questionnaire a déjà été rempli.' });
   qs.answers = (req.body || {}).answers || {}; qs.status = 'done'; qs.filledBy = req.user.id; qs.filledAt = Date.now();
   let doc;
   try { doc = await generateQsDoc(qs, (req.body || {}).format, req.user); } catch (e) { console.error('QS gen:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   qs.docId = doc.id;
-  notifyChannel(g, 'commun', req.user, `${senderDisplay(req.user)} a rempli et déposé : ${(QS_TEMPLATES[qs.type] || {}).title}`);
+  // dépôt NOMINATIF : on prévient les formateurs et l'administration, pas les autres apprenants
+  notifyStaff(g, req.user, `${senderDisplay(req.user)} a rempli et déposé : ${(QS_TEMPLATES[qs.type] || {}).title}`);
   // e-mail au formateur (l'envoyeur) : le questionnaire est rempli
   const senderQ = realUser(qs.by);
   if (senderQ && senderQ.id !== req.user.id) {
@@ -1897,7 +1979,7 @@ app.post('/api/qs/:id/cancel', auth, (req, res) => {
   const g = groupById(qs.group);
   db.qs = db.qs.filter(x => x.id !== qs.id);
   db.messages = db.messages.filter(m => !(m.kind === 'qs' && m.qsId === qs.id));
-  if (g) notify(g.eleve, `${senderDisplay(req.user)} a annulé une demande de questionnaire.`, g.id);
+  if (g && qs.eleve) notify(qs.eleve, `${senderDisplay(req.user)} a annulé une demande de questionnaire.`, g.id);
   save();
   res.json({ ok: true });
 });
@@ -1914,6 +1996,9 @@ app.post('/api/form/generate', auth, async (req, res) => {
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de document inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  // la fiche satisfaction formateur porte sur UN apprenant : destinataire validé côté serveur
+  const cibF = targetEleve(g, (req.body || {}).eleve);
+  if (cibF.error) return res.status(400).json({ error: cibF.error });
   const qs = { header: header || {}, answers: answers || {} };
   let buf, ext, ctype;
   try {
@@ -2059,6 +2144,9 @@ app.post('/api/leveltest/generate', auth, async (req, res) => {
   const { group, fields, format } = req.body || {};
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  // fiche d'intake NOMINATIVE : destinataire validé côté serveur
+  const cibL = targetEleve(g, (req.body || {}).eleve);
+  if (cibL.error) return res.status(400).json({ error: cibL.error });
   const d = fields || {};
   let buf, ext, ctype;
   try {
@@ -2204,6 +2292,8 @@ app.post('/api/presence/generate', auth, async (req, res) => {
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  const cibG = targetEleve(g, (req.body || {}).eleve);
+  if (cibG.error) return res.status(400).json({ error: cibG.error });
   const d = fields || {};
   let buf, ext, ctype;
   try {
@@ -2225,7 +2315,8 @@ async function depositPresenceDoc(p, byUser) {
   const stored = crypto.randomUUID() + '.pdf';
   fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
   const name = safeFile(tpl.title || 'Feuille de présence') + ' - ' + safeFile((p.fields && p.fields.apprenant) || 'apprenant') + ' - ' + nameDate() + ' - signée.pdf';
-  const doc = { id: crypto.randomUUID(), group: p.group, channel: 'commun', from: byUser.id, fromAdmin: byUser.role === 'admin', name, size: buf.length, type: 'application/pdf', stored, date: Date.now() };
+  // piece NOMINATIVE (elle porte les SIGNATURES MANUSCRITES) : reservee a son apprenant, aux formateurs et aux admins
+  const doc = { id: crypto.randomUUID(), group: p.group, channel: 'commun', eleve: p.eleve || null, nominatif: true, from: byUser.id, fromAdmin: byUser.role === 'admin', name, size: buf.length, type: 'application/pdf', stored, date: Date.now() };
   db.docs.push(doc);
   return doc;
 }
@@ -2244,7 +2335,7 @@ function duplicateSlot(fields) {
 }
 // le formateur (ou admin) remplit, signe, puis envoie à l'apprenant pour signature
 app.post('/api/presence/send', auth, (req, res) => {
-  const { group, type, fields, formateurSig } = req.body || {};
+  const { group, type, fields, formateurSig, eleve } = req.body || {};
   const tpl = PRESENCE_TEMPLATES[type];
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
@@ -2252,14 +2343,16 @@ app.post('/api/presence/send', auth, (req, res) => {
   if (!sigImg(formateurSig)) return res.status(400).json({ error: 'Signature du formateur manquante.' });
   const dupS = duplicateSlot(fields);
   if (dupS) return res.status(400).json({ error: 'Deux séances utilisent le créneau ' + dupS + '. Chaque séance doit avoir un créneau différent.' });
-  if (!g.eleve) return res.status(400).json({ error: 'Ce dossier ne compte aucun apprenant.' });
-  const p = { id: crypto.randomUUID(), group: g.id, type, fields: fields || {}, formateurSig, apprenantSig: null, status: 'pending', docId: null, by: req.user.id, date: Date.now() };
+  // la feuille est nominative : elle désigne l'apprenant qui devra la signer
+  const cibleP = targetEleve(g, eleve);
+  if (cibleP.error) return res.status(400).json({ error: cibleP.error });
+  const p = { id: crypto.randomUUID(), group: g.id, eleve: cibleP.id, type, fields: fields || {}, formateurSig, apprenantSig: null, status: 'pending', docId: null, by: req.user.id, date: Date.now() };
   db.presences.push(p);
   db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'commun', from: req.user.id, fromAdmin: req.user.role === 'admin', kind: 'presence', presenceId: p.id, text: 'Feuille de présence à signer : ' + tpl.title, date: Date.now() });
-  notify(g.eleve, `${senderDisplay(req.user)} vous demande de signer une feuille de présence (${tpl.title}).`, g.id);
-  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé une feuille de présence à signer (${tpl.title}).`, g.id));
-  // e-mail à l'apprenant : un document l'attend pour signature
-  const eleveU = realUser(g.eleve);
+  notify(cibleP.id, `${senderDisplay(req.user)} vous demande de signer une feuille de présence (${tpl.title}).`, g.id);
+  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(a => notify(a.id, `${senderDisplay(req.user)} a envoyé à ${fullName(cibleP.id)} une feuille de présence à signer (${tpl.title}).`, g.id));
+  // e-mail à l'apprenant concerné : un document l'attend pour signature
+  const eleveU = realUser(cibleP.id);
   if (eleveU) {
     const url = SITE_URL + '/espace-documents.html';
     // le MOIS concerné figure dans l'e-mail : l'apprenant sait de quelle période il s'agit
@@ -2280,10 +2373,12 @@ app.get('/api/presence/:id', auth, (req, res) => {
   const p = db.presences.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'Feuille introuvable.' });
   if (!isMember(groupById(p.group), req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  // un apprenant ne lit que SA feuille (horaires, créneaux et heures effectuées d'un autre : donnée personnelle)
+  if (req.user.role === 'eleve' && req.user.id !== p.eleve) return res.status(403).json({ error: 'Cette feuille ne vous est pas destinée.' });
   // `fields` est renvoyé à tous les membres : c'est le contenu que l'apprenant doit pouvoir
   // RELIRE avant de signer. La signature manuscrite du formateur, elle, reste réservée à son
   // auteur et à l'administration (elle ne sort qu'incrustée dans le PDF final).
-  const out = { id: p.id, type: p.type, title: (PRESENCE_TEMPLATES[p.type] || {}).title, status: p.status, docId: p.docId, fields: p.fields || {} };
+  const out = { id: p.id, type: p.type, title: (PRESENCE_TEMPLATES[p.type] || {}).title, status: p.status, docId: p.docId, fields: p.fields || {}, eleve: p.eleve || null, eleveNom: p.eleve ? fullName(p.eleve) : '' };
   if (req.user.id === p.by || req.user.role === 'admin') out.formateurSig = p.formateurSig || null;
   res.json({ presence: out });
 });
@@ -2306,7 +2401,7 @@ app.post('/api/presence/:id/update', auth, (req, res) => {
   const g = groupById(p.group);
   const msg = db.messages.find(m => m.kind === 'presence' && m.presenceId === p.id);
   if (msg) msg.text = 'Feuille de présence à signer : ' + tpl.title;
-  if (g) notify(g.eleve, `${senderDisplay(req.user)} a mis à jour la feuille de présence à signer.`, g.id);
+  if (g && p.eleve) notify(p.eleve, `${senderDisplay(req.user)} a mis à jour la feuille de présence à signer.`, g.id);
   save();
   res.json({ ok: true, id: p.id });
 });
@@ -2318,7 +2413,7 @@ app.post('/api/presence/:id/sign', auth, async (req, res) => {
   if (!isMember(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
   // c'est l'APPRENANT du dossier qui atteste sa présence : ni le formateur, ni un admin
   // ne peuvent signer à sa place (la feuille est une pièce justificative Qualiopi).
-  if (req.user.id !== g.eleve) return res.status(403).json({ error: 'Seul l\'apprenant peut signer cette feuille de présence.' });
+  if (req.user.id !== p.eleve) return res.status(403).json({ error: 'Seul l\'apprenant destinataire peut signer cette feuille de présence.' });
   if (p.status === 'done') return res.status(400).json({ error: 'Feuille déjà signée.' });
   const sig = (req.body || {}).sig;
   if (!sigImg(sig)) return res.status(400).json({ error: 'Signature manquante.' });
@@ -2331,7 +2426,7 @@ app.post('/api/presence/:id/sign', auth, async (req, res) => {
   p.apprenantSig = sig; p.status = 'done'; p.signedBy = req.user.id; p.signedAt = Date.now();
   p.docId = doc.id;
   recordDocgen(g, byUser, { kind: 'presence', tpl: 'presence', title: (PRESENCE_TEMPLATES[p.type] || {}).title, format: 'pdf', apprenant: (p.fields && p.fields.apprenant) || 'apprenant' });
-  notifyChannel(g, 'commun', req.user, `${senderDisplay(req.user)} a signé la feuille de présence — document déposé dans le dossier.`);
+  notifyStaff(g, req.user, `${senderDisplay(req.user)} a signé la feuille de présence — document déposé dans le dossier.`);
   // e-mail au formateur (l'envoyeur) : le document signé est prêt
   if (byUser && byUser.id !== req.user.id) {
     const urlS = SITE_URL + '/espace-documents.html';
@@ -2355,7 +2450,7 @@ app.post('/api/presence/:id/cancel', auth, (req, res) => {
   const g = groupById(p.group);
   db.presences = db.presences.filter(x => x.id !== p.id);
   db.messages = db.messages.filter(m => !(m.kind === 'presence' && m.presenceId === p.id));
-  if (g) notify(g.eleve, `${senderDisplay(req.user)} a annulé une demande de signature.`, g.id);
+  if (g && p.eleve) notify(p.eleve, `${senderDisplay(req.user)} a annulé une demande de signature.`, g.id);
   save();
   res.json({ ok: true });
 });
@@ -2417,7 +2512,7 @@ async function ensureDemo() {
     }
   }
   const prof = db.users.find(u => u.email === 'prof@ls.fr'), eleve = db.users.find(u => u.email === 'eleve@ls.fr');
-  if (prof && eleve && !db.groups.some(g => gProfs(g).includes(prof.id) && g.eleve === eleve.id)) { db.groups.push({ id: crypto.randomUUID(), profs: [prof.id], eleve: eleve.id, date: Date.now() }); changed = true; }
+  if (prof && eleve && !db.groups.some(g => gProfs(g).includes(prof.id) && gEleves(g).includes(eleve.id))) { db.groups.push({ id: crypto.randomUUID(), profs: [prof.id], eleves: [eleve.id], date: Date.now() }); changed = true; }
   if (changed) save();
 }
 
