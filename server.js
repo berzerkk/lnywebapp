@@ -1408,8 +1408,11 @@ const ATT_NIVEAUX = ['Acquis', "En cours d'acquisition", 'Non acquis'];
 // serveur sans toucher au code), puis dans assets/ où ils sont livrés avec le site — ainsi rien
 // n'est à faire au déploiement. Ils sont FACULTATIFS : absents, rien n'est dessiné et aucune
 // génération n'échoue.
-const SIGN_PRESIDENT = ['signature-antonin.png'];
-const TAMPON_LS = ['tampon-ls.png'];
+// DEUX variantes : la signature SEULE (feuilles administratives) et la signature SUR LE TAMPON
+// (attestation de fin de stage). Le tampon retombe sur la signature seule s'il n'est pas fourni.
+const SIGN_ANTONIN = ['signature-antonin.png'];
+const SIGN_ANTONIN_TAMPON = ['signature-antonin-tampon.png', 'signature-antonin.png'];
+const RATIO_SIGN = 147 / 203;          // proportions de l'image de signature
 function imgSiPresent(noms) {
   for (const n of [].concat(noms)) {
     for (const dossier of [DATA_DIR, path.join(__dirname, 'assets')]) {
@@ -1419,16 +1422,19 @@ function imgSiPresent(noms) {
   }
   return null;
 }
-// Word : renvoie les paragraphes d'image à insérer (liste vide si les fichiers manquent)
-function dxSignaturePresident(largeur) {
-  const out = [];
-  const w = largeur || 120;
-  for (const f of [SIGN_PRESIDENT, TAMPON_LS]) {
-    const p = imgSiPresent(f);
-    if (!p) continue;
-    try { out.push(new Paragraph({ children: [new ImageRun({ type: 'png', data: fs.readFileSync(p), transformation: { width: w, height: Math.round(w * 0.45) } })] })); } catch (e) { }
-  }
-  return out;
+// Word : paragraphe d'image (liste vide si le fichier manque — aucune génération n'échoue)
+function dxSignatureAntonin(largeur, variante) {
+  const p = imgSiPresent(variante || SIGN_ANTONIN);
+  if (!p) return [];
+  const w = largeur || 120, h = Math.round(w * (variante === SIGN_ANTONIN_TAMPON ? 0.45 : RATIO_SIGN));
+  try { return [new Paragraph({ children: [new ImageRun({ type: 'png', data: fs.readFileSync(p), transformation: { width: w, height: h } })] })]; } catch (e) { return []; }
+}
+// Word : la MÊME image dans une cellule de tableau (case « signature administratif »)
+function dxSignatureCell(largeur) {
+  const p = imgSiPresent(SIGN_ANTONIN);
+  if (!p) return [];
+  const w = largeur || 90;
+  try { return [new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ type: 'png', data: fs.readFileSync(p), transformation: { width: w, height: Math.round(w * RATIO_SIGN) } })] })]; } catch (e) { return []; }
 }
 // Le bloc de signature est dessiné à des coordonnées EXPLICITES : pdfkit ne pagine pas tout seul
 // dans ce cas. On force donc une page si la place manque, sinon l'image déborderait sur le pied
@@ -1437,16 +1443,12 @@ function pdfPlacePourSignature(doc, hauteur) {
   if (doc.y + hauteur > doc.page.height - doc.page.margins.bottom) { doc.addPage(); return true; }
   return false;
 }
-// PDF : dessine la signature puis le tampon sous le nom et le titre, et renvoie la hauteur utilisée
-function pdfSignaturePresident(doc, x, y, largeur) {
-  let dy = 0;
-  const w = largeur || 120;
-  for (const f of [SIGN_PRESIDENT, TAMPON_LS]) {
-    const p = imgSiPresent(f);
-    if (!p) continue;
-    try { doc.image(p, x, y + dy, { fit: [w, w * 0.45] }); dy += w * 0.45 + 4; } catch (e) { }
-  }
-  return dy;
+// PDF : dessine la signature (seule ou sur le tampon) et renvoie la hauteur utilisée
+function pdfSignatureAntonin(doc, x, y, largeur, variante) {
+  const p = imgSiPresent(variante || SIGN_ANTONIN);
+  if (!p) return 0;
+  const w = largeur || 120, h = w * (variante === SIGN_ANTONIN_TAMPON ? 0.45 : RATIO_SIGN);
+  try { doc.image(p, x, y, { fit: [w, h] }); return h + 4; } catch (e) { return 0; }
 }
 function buildAttestationDocx(d, user) {
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
@@ -1466,31 +1468,39 @@ function buildAttestationDocx(d, user) {
     new TableRow({ children: [lc('Avec'), vc(d.formateur)] })
   ]));
   kids.push(dxSpacer());
-  kids.push(dxPara('Objectifs de la formation', { bold: true, color: DARKC, size: 24, before: 240, after: 140 }));
+  kids.push(dxSpacer()); kids.push(dxSpacer());
+  kids.push(dxPara('Objectifs de la formation', { bold: true, color: DARKC, size: 24, after: 140 }));
   (d.objectifs || '').split('\n').filter(x => x.trim()).forEach(o => kids.push(dxPara('• ' + o.trim(), { after: 40 })));
-  kids.push(dxPara('Nature de la formation :', { bold: true, before: 240 }));
+  kids.push(dxSpacer()); kids.push(dxSpacer());
+  kids.push(dxPara('Nature de la formation :', { bold: true }));
   kids.push(dxPara("Action d'acquisition, d'entretien ou de perfectionnement de la langue.", { after: 140 }));
-  kids.push(dxPara("Résultat de l'évaluation des acquis :", { bold: true, color: DARKC, before: 240, after: 140 }));
+  kids.push(dxSpacer()); kids.push(dxSpacer());
+  kids.push(dxPara("Résultat de l'évaluation des acquis :", { bold: true, color: DARKC, after: 140 }));
   const compRows = [new TableRow({ tableHeader: true, children: [dxCell('Compétences', { width: PC(40), fill: HEADBG, bold: true })].concat(ATT_NIVEAUX.map(n => dxCell(n, { width: PC(20), fill: HEADBG, bold: true, align: AlignmentType.CENTER, size: 16 }))) })];
   (d.competences || []).filter(c => c && c.label && c.label.trim()).forEach(c => {
     compRows.push(new TableRow({ children: [dxCell(c.label, { width: PC(40) })].concat(ATT_NIVEAUX.map(n => { const sel = c.niveau === n; return dxCell(sel ? '✗' : '', { width: PC(20), align: AlignmentType.CENTER, bold: true, fill: sel ? ACCENTC : undefined, color: sel ? 'FFFFFF' : INKC, size: 22 }); })) }));
   });
   if (compRows.length > 1) { kids.push(dxTable(compRows)); kids.push(dxSpacer()); }
   // ligne dégagée au-dessus ET en dessous
-  kids.push(dxPara("Niveau atteint à l'issue de la formation : " + (d.niveauAtteint || ''), { before: 240, after: 240 }));
+  kids.push(dxSpacer()); kids.push(dxSpacer());
+  kids.push(new Paragraph({ spacing: { after: 240 }, children: [
+    new TextRun({ text: "Niveau atteint à l'issue de la formation : ", bold: true, color: INKC, size: 20 }),
+    new TextRun({ text: d.niveauAtteint || '', bold: true, color: INKC, size: 20 })
+  ] }));
   // la certification (TOEIC, Bright Language…) est mise en gras
   kids.push(new Paragraph({ spacing: { after: 140 }, children: [
     new TextRun({ text: 'Certification : ', color: INKC, size: 20 }),
     new TextRun({ text: d.certification || '', bold: true, color: INKC, size: 20 }),
     new TextRun({ text: '     Date : ' + (d.dateEval || '') + '     Résultat : ' + (d.resultat || ''), color: INKC, size: 20 })
   ] }));
+  kids.push(dxSpacer()); kids.push(dxSpacer());
   kids.push(dxPara('Commentaires du formateur :', { bold: true, after: 60 }));
   kids.push(dxPara(d.commentaires || '', { after: 160 }));
   kids.push(dxPara('Fait à ' + (d.lieuFait || 'Nice') + ', le ' + (d.dateFait || ''), { before: 160, after: 320 }));
   // bloc de signature sur une ligne horizontale complète : les trois signataires ne se touchent pas
   const sigCol = (lignes, extra) => new TableCell({ width: PC(33), borders: NO_BORDERS(), children: lignes.map(l => dxPara(l, { after: 20 })).concat(extra || []) });
   kids.push(new Table({ width: PC(100), borders: NO_BORDERS(), rows: [new TableRow({ children: [
-    sigCol([(d.representant || 'Antonin HATTABE'), 'Président'], dxSignaturePresident(110)),
+    sigCol([(d.representant || 'Antonin HATTABE'), 'Président'], dxSignatureAntonin(110, SIGN_ANTONIN_TAMPON)),
     sigCol(['Le Formateur']),
     sigCol(["L'apprenant"])
   ] })] }));
@@ -1510,11 +1520,11 @@ function buildAttestationPdf(d, user) {
     const inf = [["L'apprenant", d.apprenant], ['De la société', d.societe], ['A suivi la formation', d.intitule], ['Période', 'Du ' + (d.dateDebut || '…') + ' au ' + (d.dateFin || '…')], ['Durée totale', d.dureeTotale], ['Dont', d.dureeDetail], ['À', d.lieu || 'Distanciel'], ['Avec', d.formateur]];
     pdfRows(doc, inf.map(r => ({ cells: [{ text: r[0], w: lw, fill: '#f7eee9', bold: true, size: 9 }, { text: r[1] || '', w: vw, size: 9 }] })), left);
     doc.moveDown(0.5);
-    doc.moveDown(0.5); p('Objectifs de la formation', { bold: true, color: '#a8593c', size: 12, after: 0.55 });
+    doc.moveDown(1.6); p('Objectifs de la formation', { bold: true, color: '#a8593c', size: 12, after: 0.55 });
     (d.objectifs || '').split('\n').filter(x => x.trim()).forEach(o => p('• ' + o.trim(), { after: 0.15 }));
-    doc.moveDown(0.6); p('Nature de la formation :', { bold: true, after: 0.15 });
+    doc.moveDown(1.6); p('Nature de la formation :', { bold: true, after: 0.15 });
     p("Action d'acquisition, d'entretien ou de perfectionnement de la langue.", { after: 0.5 });
-    doc.moveDown(0.5); p("Résultat de l'évaluation des acquis :", { bold: true, color: '#a8593c', size: 11, after: 0.55 });
+    doc.moveDown(1.6); p("Résultat de l'évaluation des acquis :", { bold: true, color: '#a8593c', size: 11, after: 0.55 });
     const comps = (d.competences || []).filter(c => c && c.label && c.label.trim());
     if (comps.length) {
       const cw = totalW * 0.4, ow = (totalW * 0.6) / 3;
@@ -1523,14 +1533,14 @@ function buildAttestationPdf(d, user) {
       pdfRows(doc, crows, left); doc.moveDown(0.5);
     }
     // ligne dégagée au-dessus ET en dessous
-    doc.moveDown(0.6);
-    p("Niveau atteint à l'issue de la formation : " + (d.niveauAtteint || ''), { after: 0.9 });
+    doc.moveDown(1.6);
+    p("Niveau atteint à l'issue de la formation : " + (d.niveauAtteint || ''), { bold: true, after: 0.9 });
     // la certification (TOEIC, Bright Language…) est mise en gras
     doc.font('Helvetica').fontSize(9.5).fillColor('#2a241d').text('Certification : ', left, doc.y, { width: totalW, continued: true });
     doc.font('Helvetica-Bold').text(d.certification || '', { continued: true });
     doc.font('Helvetica').text('     Date : ' + (d.dateEval || '') + '     Résultat : ' + (d.resultat || ''), { width: totalW });
     doc.moveDown(0.5);
-    p('Commentaires du formateur :', { bold: true, after: 0.2 }); p(d.commentaires || '', { after: 0.6 });
+    doc.moveDown(1.2); p('Commentaires du formateur :', { bold: true, after: 0.2 }); p(d.commentaires || '', { after: 0.6 });
     p('Fait à ' + (d.lieuFait || 'Nice') + ', le ' + (d.dateFait || ''), { after: 1.4 });
     // bloc de signature sur une ligne horizontale complète : les trois signataires ne se touchent pas
     pdfPlacePourSignature(doc, 110);
@@ -1538,7 +1548,7 @@ function buildAttestationPdf(d, user) {
     doc.font('Helvetica').fontSize(9.5).fillColor('#2a241d');
     doc.text((d.representant || 'Antonin HATTABE'), left, y0, { width: colW });
     doc.text('Président', left, doc.y, { width: colW });
-    const hSig = pdfSignaturePresident(doc, left, doc.y + 4, colW * 0.8);
+    const hSig = pdfSignatureAntonin(doc, left, doc.y + 4, colW * 0.8, SIGN_ANTONIN_TAMPON);
     doc.text('Le Formateur', left + totalW / 3 + 6, y0, { width: colW });
     doc.text("L'apprenant", left + (2 * totalW) / 3 + 12, y0, { width: colW });
     doc.y = y0 + 26 + hSig;
@@ -2245,7 +2255,7 @@ const PRESENCE_GRID_HEADER = [['', 'chk', 6], ['', 'time', 7], ['Date', 'date', 
 function sigImg(d) { if (!d || typeof d !== 'string') return null; const m = d.match(/^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)$/); if (!m) return null; try { return { buffer: Buffer.from(m[2], 'base64'), type: /jpe?g/.test(m[1]) ? 'jpg' : 'png' }; } catch (e) { return null; } }
 const PRESENCE_TEMPLATES = {
   elearning: {
-    title: 'Suivi assiduité — E-learning', docTitle: "SUIVI ASSIDUITÉ", kind: 'summary', president: true,
+    title: 'Suivi assiduité — E-learning', docTitle: "SUIVI ASSIDUITÉ", kind: 'summary', signAdmin: true,
     headerRows: [
       [['mois', 'Mois'], ['langue', 'Langue']],
       [['formateur', 'Administratif'], ['formation', 'Formation']],
@@ -2266,7 +2276,7 @@ const PRESENCE_TEMPLATES = {
     ]
   },
   test: {
-    title: 'Feuille de présence — Test', kind: 'grid', president: true,
+    title: 'Feuille de présence — Test', kind: 'grid', signAdmin: true,
     headerRows: [
       [['mois', 'Mois'], ['langue', 'Contrat langue']],
       [['formateur', 'Administratif'], ['formation', 'Formation']],
@@ -2277,11 +2287,11 @@ const PRESENCE_TEMPLATES = {
   }
 };
 // grille PDF : créneaux 0:30→10:00 (case à cocher) + colonnes séance (+ signatures par séance remplie)
-function pdfPresenceGrid(doc, left, totalW, sessions, HB, sigF, sigA) {
+function pdfPresenceGrid(doc, left, totalW, sessions, HB, sigF, sigA, signAdmin) {
   const W = {}; PRESENCE_GRID_HEADER.forEach(c => { W[c[1]] = totalW * c[2] / 100; });
   const rowH = 21;
   let y = doc.y, x = left;
-  PRESENCE_GRID_HEADER.forEach(c => { pdfCell(doc, x, y, W[c[1]], rowH, c[0], { fill: HB, bold: true, size: 8, align: 'center' }); x += W[c[1]]; });
+  PRESENCE_GRID_HEADER.forEach(c => { pdfCell(doc, x, y, W[c[1]], rowH, (signAdmin && c[1] === 'sf') ? 'Sign administratif' : c[0], { fill: HB, bold: true, size: 8, align: 'center' }); x += W[c[1]]; });
   doc.y = y + rowH;
   const slotMap = {}; (sessions || []).forEach(s => { if (s && s.slot && PRESENCE_TIMES.indexOf(s.slot) >= 0) slotMap[s.slot] = s; });
   PRESENCE_TIMES.forEach((t, i) => {
@@ -2296,7 +2306,8 @@ function pdfPresenceGrid(doc, left, totalW, sessions, HB, sigF, sigA) {
     const vals = { time: t, date: s.date || '', jour: s.jour || '', hDebut: s.hDebut || '', hFin: s.hFin || '', duree: s.duree || '', sf: '', ss: '' };
     let sfX = 0, ssX = 0;
     ['time', 'date', 'jour', 'hDebut', 'hFin', 'duree', 'sf', 'ss'].forEach(k => { if (k === 'sf') sfX = x; if (k === 'ss') ssX = x; pdfCell(doc, x, y, W[k], rowH, vals[k], { size: 8, align: 'center', bold: k === 'time' }); x += W[k]; });
-    if (hasData && sigF) { try { doc.image(sigF.buffer, sfX + 3, y + 2, { fit: [W.sf - 6, rowH - 4], align: 'center', valign: 'center' }); } catch (e) { } }
+    if (hasData && signAdmin) pdfSignatureAntonin(doc, sfX + 3, y + 2, Math.min(W.sf - 6, (rowH - 4) / RATIO_SIGN));
+    else if (hasData && sigF) { try { doc.image(sigF.buffer, sfX + 3, y + 2, { fit: [W.sf - 6, rowH - 4], align: 'center', valign: 'center' }); } catch (e) { } }
     if (hasData && sigA) { try { doc.image(sigA.buffer, ssX + 3, y + 2, { fit: [W.ss - 6, rowH - 4], align: 'center', valign: 'center' }); } catch (e) { } }
     doc.y = y + rowH;
   });
@@ -2318,22 +2329,15 @@ function buildPresencePdf(type, d, user) {
       doc.moveDown(0.8);
       const sigY = doc.y, valX = left + totalW * 0.32, valW = totalW * 0.68;
       pdfRows(doc, [
-        { cells: [{ text: 'Signature Formateur', w: totalW * 0.32, fill: LB, bold: true, size: 9, valign: 'top' }, { text: '', w: valW }], minH: 56 },
+        { cells: [{ text: tpl.signAdmin ? 'Signature administratif' : 'Signature Formateur', w: totalW * 0.32, fill: LB, bold: true, size: 9, valign: 'top' }, { text: '', w: valW }], minH: 56 },
         { cells: [{ text: 'Signature Apprenant', w: totalW * 0.32, fill: LB, bold: true, size: 9, valign: 'top' }, { text: '', w: valW }], minH: 56 }
       ], left);
-      if (sigF) { try { doc.image(sigF.buffer, valX + 10, sigY + 6, { fit: [valW - 20, 44], align: 'center', valign: 'center' }); } catch (e) { } }
+      // feuille administrative : la signature d'Antonin (sans tampon) remplace celle du formateur
+      if (tpl.signAdmin) pdfSignatureAntonin(doc, valX + 10, sigY + 6, 96);
+      else if (sigF) { try { doc.image(sigF.buffer, valX + 10, sigY + 6, { fit: [valW - 20, 44], align: 'center', valign: 'center' }); } catch (e) { } }
       if (sigA) { try { doc.image(sigA.buffer, valX + 10, sigY + 62, { fit: [valW - 20, 44], align: 'center', valign: 'center' }); } catch (e) { } }
     } else {
-      pdfPresenceGrid(doc, left, totalW, d.sessions || [], HB, sigF, sigA);
-    }
-    // signature du président incrustée automatiquement (documents administratifs)
-    if (tpl.president) {
-      doc.moveDown(0.8);
-      pdfPlacePourSignature(doc, 100);
-      const y0 = doc.y;
-      doc.font('Helvetica').fontSize(9).fillColor('#2a241d').text('Pour Languages & Success', left, y0, { width: totalW * 0.5 });
-      doc.text('Antonin HATTABE, Président', left, doc.y, { width: totalW * 0.5 });
-      pdfSignaturePresident(doc, left, doc.y + 4, 120);
+      pdfPresenceGrid(doc, left, totalW, d.sessions || [], HB, sigF, sigA, tpl.signAdmin);
     }
     pdfHeaderFooter(doc, user); doc.end();
   });
@@ -2343,6 +2347,8 @@ function buildPresenceDocx(type, d, user) {
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
   const sigF = sigImg(d.formateurSig), sigA = sigImg(d.apprenantSig);
   const sigCell = (sig, widthPC, w, h) => new TableCell({ width: PC(widthPC), borders: TBL_CELLBORDERS, verticalAlign: V_CENTER, margins: { top: 20, bottom: 20, left: 40, right: 40 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: sig ? [new ImageRun({ type: sig.type, data: sig.buffer, transformation: { width: w, height: h } })] : [] })] });
+  // case « signature administratif » : la signature d'Antonin (sans tampon), incrustée d'office
+  const adminSigCell = (widthPC, w) => new TableCell({ width: PC(widthPC), borders: TBL_CELLBORDERS, verticalAlign: V_CENTER, margins: { top: 20, bottom: 20, left: 40, right: 40 }, children: dxSignatureCell(w || 100).concat(dxSignatureCell(w || 100).length ? [] : [new Paragraph('')]) });
   const kids = [];
   kids.push(dxTable([new TableRow({ children: [dxCell(tpl.docTitle || 'FEUILLES DE PRÉSENCE', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG })] })]));
   kids.push(dxSpacer());
@@ -2352,7 +2358,7 @@ function buildPresenceDocx(type, d, user) {
   if (tpl.kind === 'summary') {
     kids.push(dxTable(tpl.summaryRows.map(r => new TableRow({ children: [dxCell(r[1], { width: PC(50), fill: LBLBG, bold: true }), dxCell(d[r[0]] || '', { width: PC(50), bold: r[0] === 'heuresPrevues' })] }))));
     kids.push(dxSpacer()); kids.push(dxSpacer());
-    kids.push(dxTable([dxRowMin([dxCell('Signature Formateur', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top' }), sigCell(sigF, 68, 150, 49)], 900)]));
+    kids.push(dxTable([dxRowMin([dxCell(tpl.signAdmin ? 'Signature administratif' : 'Signature Formateur', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top' }), tpl.signAdmin ? adminSigCell(68) : sigCell(sigF, 68, 150, 49)], 900)]));
     kids.push(dxSpacer());
     kids.push(dxTable([dxRowMin([dxCell('Signature Apprenant', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top' }), sigCell(sigA, 68, 150, 49)], 900)]));
   } else {
@@ -2362,19 +2368,13 @@ function buildPresenceDocx(type, d, user) {
       const s = slotMap[t] || {}; const hasData = !!slotMap[t];
       const vals = { chk: hasData ? '✗' : '', time: t, date: s.date || '', jour: s.jour || '', hDebut: s.hDebut || '', hFin: s.hFin || '', duree: s.duree || '', sf: '', ss: '' };
       rows.push(dxRowMin(PRESENCE_GRID_HEADER.map(c => {
+        if (c[1] === 'sf' && hasData && tpl.signAdmin) return adminSigCell(c[2], 46);
         if ((c[1] === 'sf' || c[1] === 'ss') && hasData) return sigCell(c[1] === 'sf' ? sigF : sigA, c[2], 52, 17);
         if (c[1] === 'chk') return dxCell(vals.chk, { width: PC(c[2]), align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 20, fill: hasData ? '#f3e7e0' : undefined });
         return dxCell(vals[c[1]], { width: PC(c[2]), align: AlignmentType.CENTER, bold: c[1] === 'time', size: c[1] === 'time' ? 18 : 17 });
       }), 360));
     });
     kids.push(dxTable(rows));
-  }
-  // signature du président incrustée automatiquement (documents administratifs)
-  if (tpl.president) {
-    kids.push(dxSpacer());
-    kids.push(dxPara('Pour Languages & Success', { after: 20 }));
-    kids.push(dxPara('Antonin HATTABE, Président', { after: 40 }));
-    dxSignaturePresident(120).forEach(x => kids.push(x));
   }
   const hf = docxHeaderFooter(user);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
@@ -2431,7 +2431,8 @@ app.post('/api/presence/send', auth, (req, res) => {
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  if (!sigImg(formateurSig)) return res.status(400).json({ error: 'Signature du formateur manquante.' });
+  // feuilles administratives : la signature d'Antonin est apposée d'office, le formateur ne signe pas
+  if (!tpl.signAdmin && !sigImg(formateurSig)) return res.status(400).json({ error: 'Signature du formateur manquante.' });
   const dupS = duplicateSlot(fields);
   if (dupS) return res.status(400).json({ error: 'Deux séances utilisent le créneau ' + dupS + '. Chaque séance doit avoir un créneau différent.' });
   if (!g.eleve) return res.status(400).json({ error: 'Ce dossier ne compte aucun apprenant.' });

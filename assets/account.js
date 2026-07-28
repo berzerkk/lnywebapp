@@ -1101,7 +1101,8 @@
   function openQsHeaderModal(type) {
     if (!selected || !CUR_GROUP) return;
     var titles = { qs_mid: 'Questionnaire de satisfaction — en cours de formation', qs_end: 'Questionnaire de fin de formation' };
-    var fields = [['nomApprenant', "Nom de l'apprenant"], ['societe', 'Société'], ['langue', 'Langue'], ['intitule', 'Intitulé de la formation'], ['formateur', 'Formateur'], ['date', 'Date'], ['certification', 'Certification']];
+    // pas de ligne « Certification » sur les questionnaires mi-parcours et fin de formation
+    var fields = [['nomApprenant', "Nom de l'apprenant"], ['societe', 'Société'], ['langue', 'Langue'], ['intitule', 'Intitulé de la formation'], ['formateur', 'Formateur'], ['date', 'Date']];
     var h = headerPrefill();
     var body = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête, puis envoyez le questionnaire à l\'apprenant : il reçoit une notification et le remplit depuis le chat.</p><div class="gf-grid">' +
       fields.map(function (f) { return gi('qsh-' + f[0], f[1], h[f[0]]); }).join('') + '</div>';
@@ -1440,7 +1441,8 @@
       var PR_TIMES = ['0:30', '1:00', '1:30', '2:00', '2:30', '3:00', '3:30', '4:00', '4:30', '5:00', '5:30', '6:00', '6:30', '7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00'];
       function nextSlot() { var used = sessions.map(function (s) { return s.slot; }); for (var i = 0; i < PR_TIMES.length; i++) { if (used.indexOf(PR_TIMES[i]) < 0) return PR_TIMES[i]; } return PR_TIMES[0]; }
       var dyn = '<label class="gen-chan" style="margin-bottom:14px">Type de feuille <select id="pr-type"><option value="elearning">E-learning</option><option value="presentiel">Présentiel / Distanciel</option><option value="test">Test</option></select></label><div id="pr-dyn"></div>' +
-        '<h4 class="gen-h">Votre signature (formateur)</h4><p class="ds-empty" style="margin:0 0 8px">Signez ci-dessous à la souris (ou au doigt), ou téléversez une image de votre signature. L\'apprenant la recevra dans le dossier pour signer à son tour.</p>' + sigPadHTML();
+        '<div id="pr-sigwrap"><h4 class="gen-h">Votre signature (formateur)</h4><p class="ds-empty" style="margin:0 0 8px">Signez ci-dessous à la souris (ou au doigt), ou téléversez une image de votre signature. L\'apprenant la recevra dans le dossier pour signer à son tour.</p>' + sigPadHTML() + '</div>' +
+        '<p class="ds-empty" id="pr-signote" style="display:none;margin:0">Ce document est signé par l\'administration : la signature d\'Antonin HATTABE y est apposée automatiquement. Vous n\'avez pas à signer.</p>';
       var sendLabel = editing ? 'Enregistrer les modifications →' : 'Envoyer à l\'apprenant pour signature →';
       var footer = '<button class="btn btn-primary pr-gen" type="button" style="padding:11px 22px">' + sendLabel + '</button>';
       var m = buildFsModal('pr-modal', editing ? 'Feuille de présence — modification' : 'Feuille de présence', dyn, footer);
@@ -1450,7 +1452,15 @@
       function lieuSelect(id, v) { return '<label class="gf">Lieu<select id="' + id + '"><option value="">—</option><option value="Présentiel"' + (v === 'Présentiel' ? ' selected' : '') + '>Présentiel</option><option value="Distanciel"' + (v === 'Distanciel' ? ' selected' : '') + '>Distanciel</option></select></label>'; }
       function headerHTML(tpl) {
         return '<h4 class="gen-h">En-tête</h4><div class="gf-grid">' + tpl.headerRows.map(function (row) {
-          return row.map(function (pair) { if (!pair) return ''; if (pair[0] === 'lieu') return lieuSelect('pr-' + pair[0], pre.lieu); return gi('pr-' + pair[0], pair[1], pre[pair[0]] || ''); }).join('');
+          return row.map(function (pair) {
+            if (!pair) return '';
+            if (pair[0] === 'lieu') return lieuSelect('pr-' + pair[0], pre.lieu);
+            // feuille administrative : la ligne « Administratif » porte le nom du président,
+            // pas celui du formateur (sauf si l'envoyeur a saisi autre chose lors d'une modification)
+            var v = pre[pair[0]] || '';
+            if (pair[0] === 'formateur' && tpl.signAdmin && (!editing || !v)) v = 'Antonin HATTABE';
+            return gi('pr-' + pair[0], pair[1], v);
+          }).join('');
         }).join('') + '</div>';
       }
       function sessionRowHTML(s) {
@@ -1469,6 +1479,10 @@
           html += '<h4 class="gen-h">Séances</h4><div class="pr-sess-head"><span>Créneau</span><span>Date</span><span>Jour</span><span>H début</span><span>H fin</span><span>Durée</span><span></span></div><div id="pr-sess-wrap"></div><button type="button" class="btn-mini pr-add-sess" style="margin-top:8px">+ Ajouter une séance</button><p class="ds-empty" style="margin:10px 0 0">Le <b>créneau</b> coche automatiquement la case correspondante et place la séance sur la bonne ligne de la grille.</p>';
         }
         document.getElementById('pr-dyn').innerHTML = html;
+        // feuille administrative : le formateur ne signe pas, la signature d'Antonin est apposée d'office
+        var sw = document.getElementById('pr-sigwrap'), sn = document.getElementById('pr-signote');
+        if (sw) sw.style.display = tpl.signAdmin ? 'none' : '';
+        if (sn) sn.style.display = tpl.signAdmin ? '' : 'none';
         if (tpl.kind === 'grid') { if (!sessions.length) sessions.push({ slot: nextSlot() }); redrawSessions(); m.querySelector('.pr-add-sess').onclick = function () { collectSessions(); sessions.push({ slot: nextSlot() }); redrawSessions(); }; }
       }
       // changer de type ne doit plus effacer la saisie : on mémorise l'en-tête et les séances
@@ -1480,8 +1494,9 @@
       };
       render();
       m.querySelector('.pr-gen').onclick = function () {
-        if (sigPad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature) avant d\'envoyer à l\'apprenant.'); return; }
         var tpl = T[curType], fields = {};
+        // sur une feuille administrative, la signature d'Antonin est apposée d'office : rien à signer
+        if (!tpl.signAdmin && sigPad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature) avant d\'envoyer à l\'apprenant.'); return; }
         tpl.headerRows.forEach(function (row) { row.forEach(function (pair) { if (pair) fields[pair[0]] = val('pr-' + pair[0]); }); });
         if (tpl.kind === 'summary') { fields.heuresPrevues = val('pr-heuresPrevues'); fields.heuresRealisees = val('pr-heuresRealisees'); fields.dateRapport = val('pr-dateRapport'); }
         else {
