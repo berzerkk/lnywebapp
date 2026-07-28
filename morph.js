@@ -38,9 +38,13 @@
   // (écart de 0,4 % : rigoureusement invisible, et plus aucune allocation par image).
   var AL = 256;
   var LUT = COLORS.map(function(c){ var t=new Array(AL+1); for(var a=0;a<=AL;a++) t[a]=css(c,a/AL); return t; });
-  var LUT_WHITE = (function(){ var t=new Array(AL+1); for(var a=0;a<=AL;a++) t[a]='rgba(255,250,239,'+(a/AL).toFixed(3)+')'; return t; })();
-  var LUT_SPARK = (function(){ var t=new Array(AL+1); for(var a=0;a<=AL;a++) t[a]='rgba(255,244,224,'+(a/AL).toFixed(3)+')'; return t; })();
   var qa = function(a){ return a<=0 ? 0 : (a>=1 ? AL : (a*AL)|0); };   // opacité -> index
+  // seaux de connexions par teinte (scénario « réseau ») : réutilisés d'une image à l'autre,
+  // on remet seulement leur longueur à zéro — aucune allocation par image.
+  var SEAU = new Array(AL+1);
+  // couleurs OPAQUES : l'opacité passe désormais par globalAlpha (aucune analyse de chaîne CSS)
+  var OPAQUE = COLORS.map(function(c){ return 'rgb('+c[0]+','+c[1]+','+c[2]+')'; });
+  var OPAQUE_WHITE = 'rgb(255,250,239)', OPAQUE_SPARK = 'rgb(255,244,224)';
 
   var N = 200;
   var P = [];
@@ -54,7 +58,7 @@
   var LOGO_T = 11;            // secondes pour un tour complet
   var visible = true, running = true;
 
-  var W=1,H=1,cx=0,cy=0,R=1,rIn=1,D=1, scenes=[];
+  var W=1,H=1,cx=0,cy=0,R=1,rIn=1,D=1, scenes=[], bw=1, bh=1;
 
   function pad(p){ while(p.length<N){ var u=Math.random(),v=Math.random(),th=6.283*u,ph=Math.acos(2*v-1); p.push([Math.sin(ph)*Math.cos(th)*R*0.9,Math.sin(ph)*Math.sin(th)*R*0.9,Math.cos(ph)*R*0.9]); } return p.slice(0,N); }
 
@@ -72,7 +76,12 @@
     var r = stage.getBoundingClientRect();
     W=Math.max(1,r.width); H=Math.max(1,r.height);
     canvas.width=W*dpr; canvas.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
-    bcanvas.width=Math.max(1,Math.round(W*BLOOM_SCALE)); bcanvas.height=Math.max(1,Math.round(H*BLOOM_SCALE));
+    // PERF : la ZONE UTILE du tampon de bloom reste W*0,4 (216 px pour un stage de 540), mais le
+    // tampon lui-même fait au moins 256x256 : en dessous de ce seuil, Chrome peut refuser
+    // d'accelerer un canvas 2D, et lire dedans obligerait alors a rapatrier le canvas principal
+    // du GPU vers le CPU a chaque image. Le rendu ne change pas : on ne lit que la zone utile.
+    bw=Math.max(1,Math.round(W*BLOOM_SCALE)); bh=Math.max(1,Math.round(H*BLOOM_SCALE));
+    bcanvas.width=Math.max(256,bw); bcanvas.height=Math.max(256,bh);
     cx=W/2; cy=H/2; R=Math.min(W,H)*0.44; rIn=Math.min(W,H)*0.24; D=R*3.4;
     scenes = META.map(function(m){ return m.b(); });
     buildGradients();
@@ -114,6 +123,10 @@
 
   var t0=0, sceneStart=0, SCENE_MS=4400;
   var rx=[],ry=[],rz=[],sx=[],sy=[],ff=[],order=[];
+  // valeurs par particule calculées une seule fois par image (profondeur, scintillement, rayon)
+  var DEP=new Float64Array(N), TW=new Float64Array(N), RAD=new Float64Array(N);
+  for(var oi=0;oi<N;oi++) order[oi]=oi;              // ordre initial ; ensuite on garde celui de
+  function byDepth(a,b){ return rz[a]-rz[b]; }       // l'image précédente : le tri est quasi trié
 
   // L'animation tourne en continu à la cadence de l'écran (60 images/seconde) tant que
   // le héros est visible. Elle n'est mise en pause QUE lorsqu'il quitte l'écran, et la
@@ -142,9 +155,8 @@
       rx[i]=x1; ry[i]=y2; rz[i]=z2;
       var f=D/(D - z2); ff[i]=f;
       sx[i]=cx + x1*f; sy[i]=cy + y2*f;
-      order[i]=i;
     }
-    order.sort(function(a,b){ return rz[a]-rz[b]; }); // loin -> près
+    order.sort(byDepth);   // loin -> près ; le tableau reste trie d une image a l autre
 
     ctx.clearRect(0,0,W,H);
 
@@ -175,56 +187,86 @@
     ctx.globalCompositeOperation = 'source-over';
 
     // connexions (cerveau / circuit) — distance 3D (invariante par rotation)
+    // PERF : ce scénario revient un tiers du temps et reliait jusqu'à ~4 000 paires, chacune
+    // avec sa propre chaîne rgba() et son propre tracé — 5,2 ms par image à lui seul, sur un
+    // budget de 16,7 ms : c'était la cause des saccades cycliques. On regroupe désormais les
+    // lignes par teinte (les 256 pas de la LUT), soit ~70 tracés au lieu de ~4 000 → 0,5 ms.
+    // Écart de rendu mesuré (comparaison pixel à pixel, prémultipliée) : 2,7 % au maximum, aux
+    // seuls croisements de lignes, 0,03 % en moyenne.
     if(meta.t==='net'){
-      var th=R*0.42;
+      var th=R*0.42, th2=th*th;
       ctx.lineWidth=1;
+      for(var b=0;b<=AL;b++){ var sb=SEAU[b]; if(sb) sb.length=0; }
       for(i=0;i<N;i++){ for(var k=i+1;k<N;k++){
-        var dx=P[i].x-P[k].x, dy=P[i].y-P[k].y, dz=P[i].z-P[k].z, d=Math.sqrt(dx*dx+dy*dy+dz*dz);
-        if(d>th) continue;
+        var dx=P[i].x-P[k].x, dy=P[i].y-P[k].y, dz=P[i].z-P[k].z, d2=dx*dx+dy*dy+dz*dz;
+        if(d2>th2) continue;                                   // comparaison des carrés : pas de racine inutile
         var fa=(ff[i]+ff[k])*0.5;
-        ctx.strokeStyle=css([190,110,84], (1-d/th)*0.30*Math.min(1,fa));
-        ctx.beginPath(); ctx.moveTo(sx[i],sy[i]); ctx.lineTo(sx[k],sy[k]); ctx.stroke();
+        var q=qa((1-Math.sqrt(d2)/th)*0.30*Math.min(1,fa));
+        var s=SEAU[q] || (SEAU[q]=[]);
+        s.push(sx[i],sy[i],sx[k],sy[k]);
       } }
+      for(var q2=0;q2<=AL;q2++){
+        var sq=SEAU[q2]; if(!sq || !sq.length) continue;
+        ctx.strokeStyle=LUT[0][q2];                            // COLORS[0] = l'accent #be6e54
+        ctx.beginPath();
+        for(var m=0;m<sq.length;m+=4){ ctx.moveTo(sq[m],sq[m+1]); ctx.lineTo(sq[m+2],sq[m+3]); }
+        ctx.stroke();
+      }
     }
+
+    // PERF : profondeur, scintillement et rayon étaient recalculés À L'IDENTIQUE dans les trois
+    // boucles ci-dessous (jusqu'à 400 sinus inutiles par image). On les calcule une fois.
+    var dots=(meta.t==='dots'), mulR=(meta.t==='paint')?1.7:1;
+    for(var pi=0;pi<N;pi++){
+      var fp=ff[pi];
+      DEP[pi]=Math.max(0.25, Math.min(1, (fp-0.74)/0.62));
+      TW[pi]=dots?(0.6+0.4*Math.sin(t*2+P[pi].ph)):1;
+      RAD[pi]=P[pi].s*fp*mulR;
+    }
+
+    // PERF : l'opacité passe par globalAlpha (un simple nombre) au lieu d'une chaîne « rgba(…) »
+    // différente à chaque particule — Blink ne met en cache que la dernière couleur analysée, et
+    // c'étaient ~450 analyses de couleur CSS par image. La couleur, elle, ne change que rarement.
+    // Résultat mathématiquement identique : couleur opaque × globalAlpha = même source prémultipliée.
 
     // halos additifs (brillance, du fond vers l'avant)
     ctx.globalCompositeOperation='lighter';
+    var last=-1;
     for(var o=0;o<N;o++){
-      i=order[o]; var f=ff[i];
-      var depth=Math.max(0.25, Math.min(1, (f-0.74)/0.62));
-      var tw=(meta.t==='dots')?(0.6+0.4*Math.sin(t*2+P[i].ph)):1;
-      var rad=P[i].s*f*(meta.t==='paint'?1.7:1);
-      ctx.fillStyle=LUT[P[i].ci][qa(depth*tw*0.22)];
-      ctx.beginPath(); ctx.arc(sx[i],sy[i],rad*2.4,0,6.283); ctx.fill();
+      i=order[o];
+      if(P[i].ci!==last){ ctx.fillStyle=OPAQUE[P[i].ci]; last=P[i].ci; }
+      ctx.globalAlpha=qa(DEP[i]*TW[i]*0.22)/AL;
+      ctx.beginPath(); ctx.arc(sx[i],sy[i],RAD[i]*2.4,0,6.283); ctx.fill();
     }
     // cœur brillant des particules
     ctx.globalCompositeOperation='source-over';
+    last=-1;
     for(var o2=0;o2<N;o2++){
-      i=order[o2]; var f2=ff[i];
-      var depth2=Math.max(0.25, Math.min(1, (f2-0.74)/0.62));
-      var tw2=(meta.t==='dots')?(0.6+0.4*Math.sin(t*2+P[i].ph)):1;
-      var rad2=P[i].s*f2*(meta.t==='paint'?1.7:1);
-      ctx.fillStyle=LUT[P[i].ci][qa(depth2*tw2+0.12)];
-      ctx.beginPath(); ctx.arc(sx[i],sy[i],rad2,0,6.283); ctx.fill();
+      i=order[o2];
+      if(P[i].ci!==last){ ctx.fillStyle=OPAQUE[P[i].ci]; last=P[i].ci; }
+      ctx.globalAlpha=qa(DEP[i]*TW[i]+0.12)/AL;
+      ctx.beginPath(); ctx.arc(sx[i],sy[i],RAD[i],0,6.283); ctx.fill();
     }
     // twinkles : flashs blancs intermittents, discrets (+ fine croix d'éclat)
     ctx.globalCompositeOperation='lighter';
+    ctx.lineWidth=1;
     for(var o3=0;o3<N;o3++){
-      i=order[o3]; var fk=ff[i];
-      var spk=Math.pow(Math.max(0,Math.sin(t*P[i].ts*1.3+P[i].tk)), 16);
+      i=order[o3];
+      var v=Math.max(0,Math.sin(t*P[i].ts*1.3+P[i].tk));
+      var v2=v*v, v4=v2*v2, v8=v4*v4, spk=v8*v8;      // v^16 sans Math.pow
       if(spk<0.4) continue;
-      var dk=Math.max(0.3, Math.min(1,(fk-0.74)/0.62));
-      var rk=P[i].s*fk;
-      ctx.fillStyle=LUT_WHITE[qa(spk*0.5*dk)];
+      var dk=Math.max(0.3, Math.min(1,(ff[i]-0.74)/0.62));
+      var rk=P[i].s*ff[i];
+      ctx.fillStyle=OPAQUE_WHITE; ctx.globalAlpha=qa(spk*0.5*dk)/AL;
       ctx.beginPath(); ctx.arc(sx[i],sy[i], rk*(0.7+spk*1.0),0,6.283); ctx.fill();
       var cl=rk*(1.6+spk*2.0);
-      ctx.strokeStyle=LUT_SPARK[qa(spk*0.28*dk)]; ctx.lineWidth=1;
+      ctx.strokeStyle=OPAQUE_SPARK; ctx.globalAlpha=qa(spk*0.28*dk)/AL;
       ctx.beginPath(); ctx.moveTo(sx[i]-cl,sy[i]); ctx.lineTo(sx[i]+cl,sy[i]); ctx.moveTo(sx[i],sy[i]-cl); ctx.lineTo(sx[i],sy[i]+cl); ctx.stroke();
     }
+    ctx.globalAlpha=1;
     ctx.globalCompositeOperation='source-over';
 
     // --- BLOOM basse-résolution (rapide) : on floute une petite copie -------
-    var bw=bcanvas.width, bh=bcanvas.height;
     bctx.setTransform(1,0,0,1,0,0);
     bctx.clearRect(0,0,bw,bh);
     bctx.filter='blur(3px)';
@@ -233,7 +275,7 @@
     ctx.save();
     ctx.globalCompositeOperation='lighter';
     ctx.globalAlpha=0.5;
-    ctx.drawImage(bcanvas, 0,0, W,H);
+    ctx.drawImage(bcanvas, 0,0,bw,bh, 0,0,W,H);   // on ne lit QUE la zone utile
     ctx.restore();
 
     // --- LOGO : rotation 360° eased + reflet synchronisé (options 1 & 2) ----

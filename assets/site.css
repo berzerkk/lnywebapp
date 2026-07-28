@@ -28,7 +28,10 @@ a{color:inherit;text-decoration:none}
 .btn-primary::after{content:'';position:absolute;top:-60%;left:-65%;width:42%;height:220%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.65),transparent);transform:skewX(-20deg);opacity:0;pointer-events:none;z-index:1}
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 34px -10px var(--accent)}
 .btn-primary:hover::after{animation:btn-shimmer 1.15s ease-in-out infinite}
-@keyframes btn-shimmer{0%{left:-65%;opacity:0}18%{opacity:1}82%{opacity:1}100%{left:150%;opacity:0}}
+/* PERF : même correction que scrollPulse — `left` forçait un layout à chaque image pendant le
+   survol, or les deux boutons du héros sont juste à côté de l'animation. La course reste la même :
+   de -65 % à 150 % de la largeur du bouton, soit 215 %, appliquée en translation. */
+@keyframes btn-shimmer{0%{transform:translateX(0) skewX(-20deg);opacity:0}18%{opacity:1}82%{opacity:1}100%{transform:translateX(512%) skewX(-20deg);opacity:0}}
 @media(prefers-reduced-motion:reduce){.btn-primary:hover::after{animation:none}}
 .btn-ghost{background:transparent;color:var(--ink);border-color:var(--ink)}
 .btn-ghost:hover{background:var(--ink);color:var(--bg)}
@@ -189,8 +192,13 @@ body.menu-open{overflow:hidden}
 .scroll-indicator{position:absolute;bottom:26px;left:50%;right:auto;z-index:3;display:flex;flex-direction:column;align-items:center;gap:10px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--ink-soft);opacity:0;transform:translate(-50%,8px) scale(.96);pointer-events:none;transition:opacity .48s,transform .48s}
 .scroll-indicator.visible{opacity:.75;transform:translate(-50%,0) scale(1)}
 .scroll-indicator .arrow{width:1px;height:34px;background:linear-gradient(180deg,var(--accent),transparent);position:relative;overflow:hidden}
+/* PERF : `top` n'est pas une propriété compositable — l'animer forçait une passe de LAYOUT à
+   CHAQUE image, en continu, y compris quand l'indicateur est invisible (opacity:0). C'était la
+   seule chose de la page d'accueil à imposer un layout par image, juste à côté de l'animation du
+   héros. `transform` produit exactement la même trajectoire sans layout ni repeinture.
+   34 px de hauteur pour .arrow → 50 % = 17 px ; de -50 % à 100 % = 150 % = 51 px de course. */
 .scroll-indicator .arrow::after{content:'';position:absolute;top:-50%;left:0;width:100%;height:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:scrollPulse 2.2s ease-in-out infinite}
-@keyframes scrollPulse{0%{top:-50%;opacity:0}20%{opacity:1}80%{opacity:1}100%{top:100%;opacity:0}}
+@keyframes scrollPulse{0%{transform:translateY(0);opacity:0}20%{opacity:1}80%{opacity:1}100%{transform:translateY(51px);opacity:0}}
 
 /* ---------- Bandeau clients ----------------------------------------- */
 .clients{padding:40px 0}
