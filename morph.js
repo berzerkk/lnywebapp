@@ -31,17 +31,15 @@
 
   var COLORS = ['#be6e54', '#f3ad99', '#cf855f', '#e8b9a6', '#ffe2bd', '#a8593c'].map(hx);
   function hx(c){ c=c.replace('#',''); return [parseInt(c.substr(0,2),16),parseInt(c.substr(2,2),16),parseInt(c.substr(4,2),16)]; }
-  function css(rgb,a){ return 'rgba('+(rgb[0]|0)+','+(rgb[1]|0)+','+(rgb[2]|0)+','+a.toFixed(3)+')'; }
-  // PERF : reconstruire une chaîne « rgba(…) » (avec toFixed) pour chacune des ~600
-  // particules dessinées à chaque image coûtait à lui seul ~1,6 ms. On pré-calcule
-  // toutes les teintes une fois pour toutes, l'opacité étant quantifiée sur 256 pas
-  // (écart de 0,4 % : rigoureusement invisible, et plus aucune allocation par image).
+  // PERF : l'opacité passe partout par globalAlpha (un simple nombre) plutôt que par une
+  // chaîne « rgba(…) » reconstruite pour chacune des ~600 particules dessinées à chaque image :
+  // Blink ne met en cache que la dernière couleur analysée, c'étaient autant d'analyses CSS.
+  // Les couleurs, elles, sont opaques et fixes (voir OPAQUE ci-dessous).
   var AL = 256;
-  var LUT = COLORS.map(function(c){ var t=new Array(AL+1); for(var a=0;a<=AL;a++) t[a]=css(c,a/AL); return t; });
-  var qa = function(a){ return a<=0 ? 0 : (a>=1 ? AL : (a*AL)|0); };   // opacité -> index
-  // seaux de connexions par teinte (scénario « réseau ») : réutilisés d'une image à l'autre,
-  // on remet seulement leur longueur à zéro — aucune allocation par image.
-  var SEAU = new Array(AL+1);
+  // opacité -> même valeur que celle qu'obtenait la chaîne rgba(…, a.toFixed(3)) d'origine :
+  // quantification sur 256 pas PUIS arrondi à 3 décimales. Rendu identique au pixel près.
+  var qa = function(a){ return a<=0 ? 0 : (a>=1 ? AL : (a*AL)|0); };
+  var al3 = function(q){ return Math.round(q/AL*1000)/1000; };
   // couleurs OPAQUES : l'opacité passe désormais par globalAlpha (aucune analyse de chaîne CSS)
   var OPAQUE = COLORS.map(function(c){ return 'rgb('+c[0]+','+c[1]+','+c[2]+')'; });
   var OPAQUE_WHITE = 'rgb(255,250,239)', OPAQUE_SPARK = 'rgb(255,244,224)';
@@ -187,31 +185,32 @@
     ctx.globalCompositeOperation = 'source-over';
 
     // connexions (cerveau / circuit) — distance 3D (invariante par rotation)
-    // PERF : ce scénario revient un tiers du temps et reliait jusqu'à ~4 000 paires, chacune
-    // avec sa propre chaîne rgba() et son propre tracé — 5,2 ms par image à lui seul, sur un
-    // budget de 16,7 ms : c'était la cause des saccades cycliques. On regroupe désormais les
-    // lignes par teinte (les 256 pas de la LUT), soit ~70 tracés au lieu de ~4 000 → 0,5 ms.
-    // Écart de rendu mesuré (comparaison pixel à pixel, prémultipliée) : 2,7 % au maximum, aux
-    // seuls croisements de lignes, 0,03 % en moyenne.
+    // ⚠️ PERF, CONTRE-INTUITIF — NE PAS « OPTIMISER » EN REGROUPANT LES LIGNES :
+    // regrouper les ~4 000 segments en ~70 tracés (un par teinte) semble malin, mais c'est
+    // SEPT FOIS PLUS LENT. Mesuré sur le vrai canvas 990×990 (médiane de 7 séries entrelacées) :
+    //   un stroke() par ligne + globalAlpha ......  3,3 ms   ← retenu
+    //   un stroke() par ligne + chaîne rgba() ....  5,0 ms
+    //   un seul stroke() pour tout ............... 30,7 ms
+    //   regroupé par teinte (~70 tracés) ......... 36,2 ms
+    // Un chemin à nombreux sous-chemins force un rendu lent, alors que des segments isolés
+    // empruntent un chemin optimisé. L'opacité passe par globalAlpha (un nombre) plutôt que par
+    // une chaîne rgba() reconstruite : c'est ce qui explique le reste de l'écart.
     if(meta.t==='net'){
       var th=R*0.42, th2=th*th;
-      ctx.lineWidth=1;
-      for(var b=0;b<=AL;b++){ var sb=SEAU[b]; if(sb) sb.length=0; }
+      ctx.lineWidth=1; ctx.strokeStyle=OPAQUE[0];              // COLORS[0] = l'accent #be6e54
       for(i=0;i<N;i++){ for(var k=i+1;k<N;k++){
         var dx=P[i].x-P[k].x, dy=P[i].y-P[k].y, dz=P[i].z-P[k].z, d2=dx*dx+dy*dy+dz*dz;
         if(d2>th2) continue;                                   // comparaison des carrés : pas de racine inutile
         var fa=(ff[i]+ff[k])*0.5;
-        var q=qa((1-Math.sqrt(d2)/th)*0.30*Math.min(1,fa));
-        var s=SEAU[q] || (SEAU[q]=[]);
-        s.push(sx[i],sy[i],sx[k],sy[k]);
+        // Opacité : on reproduit EXACTEMENT l'arrondi à 3 décimales que faisait la chaîne
+        // rgba(…, a.toFixed(3)) d'origine, pour un rendu identique au pixel près — mais sans
+        // construire ni analyser la moindre chaîne (globalAlpha prend un nombre).
+        var al=Math.round((1-Math.sqrt(d2)/th)*0.30*Math.min(1,fa)*1000)/1000;
+        if(al<=0) continue;                                    // rien ne serait peint
+        ctx.globalAlpha=al;
+        ctx.beginPath(); ctx.moveTo(sx[i],sy[i]); ctx.lineTo(sx[k],sy[k]); ctx.stroke();
       } }
-      for(var q2=0;q2<=AL;q2++){
-        var sq=SEAU[q2]; if(!sq || !sq.length) continue;
-        ctx.strokeStyle=LUT[0][q2];                            // COLORS[0] = l'accent #be6e54
-        ctx.beginPath();
-        for(var m=0;m<sq.length;m+=4){ ctx.moveTo(sq[m],sq[m+1]); ctx.lineTo(sq[m+2],sq[m+3]); }
-        ctx.stroke();
-      }
+      ctx.globalAlpha=1;
     }
 
     // PERF : profondeur, scintillement et rayon étaient recalculés À L'IDENTIQUE dans les trois
@@ -235,7 +234,7 @@
     for(var o=0;o<N;o++){
       i=order[o];
       if(P[i].ci!==last){ ctx.fillStyle=OPAQUE[P[i].ci]; last=P[i].ci; }
-      ctx.globalAlpha=qa(DEP[i]*TW[i]*0.22)/AL;
+      ctx.globalAlpha=al3(qa(DEP[i]*TW[i]*0.22));
       ctx.beginPath(); ctx.arc(sx[i],sy[i],RAD[i]*2.4,0,6.283); ctx.fill();
     }
     // cœur brillant des particules
@@ -244,7 +243,7 @@
     for(var o2=0;o2<N;o2++){
       i=order[o2];
       if(P[i].ci!==last){ ctx.fillStyle=OPAQUE[P[i].ci]; last=P[i].ci; }
-      ctx.globalAlpha=qa(DEP[i]*TW[i]+0.12)/AL;
+      ctx.globalAlpha=al3(qa(DEP[i]*TW[i]+0.12));
       ctx.beginPath(); ctx.arc(sx[i],sy[i],RAD[i],0,6.283); ctx.fill();
     }
     // twinkles : flashs blancs intermittents, discrets (+ fine croix d'éclat)
@@ -257,10 +256,10 @@
       if(spk<0.4) continue;
       var dk=Math.max(0.3, Math.min(1,(ff[i]-0.74)/0.62));
       var rk=P[i].s*ff[i];
-      ctx.fillStyle=OPAQUE_WHITE; ctx.globalAlpha=qa(spk*0.5*dk)/AL;
+      ctx.fillStyle=OPAQUE_WHITE; ctx.globalAlpha=al3(qa(spk*0.5*dk));
       ctx.beginPath(); ctx.arc(sx[i],sy[i], rk*(0.7+spk*1.0),0,6.283); ctx.fill();
       var cl=rk*(1.6+spk*2.0);
-      ctx.strokeStyle=OPAQUE_SPARK; ctx.globalAlpha=qa(spk*0.28*dk)/AL;
+      ctx.strokeStyle=OPAQUE_SPARK; ctx.globalAlpha=al3(qa(spk*0.28*dk));
       ctx.beginPath(); ctx.moveTo(sx[i]-cl,sy[i]); ctx.lineTo(sx[i]+cl,sy[i]); ctx.moveTo(sx[i],sy[i]-cl); ctx.lineTo(sx[i],sy[i]+cl); ctx.stroke();
     }
     ctx.globalAlpha=1;
