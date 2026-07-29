@@ -121,7 +121,7 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
-const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], contratRefs: [], logins: [], secret: crypto.randomBytes(32).toString('hex') });
+const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], contratRefs: [], logins: [], docVersions: {}, secret: crypto.randomBytes(32).toString('hex') });
 function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys(def)) { if (d[k] == null) d[k] = def[k]; } return migrateGroups(d); }
 // MIGRATION (27/07/2026) : un dossier passe de { prof, eleve } (une seule personne de chaque côté)
 // à { profs: [...], eleves: [...] }. Les bases existantes (dont la prod) sont converties au chargement ;
@@ -528,12 +528,25 @@ function cleanProfile(role, p) {
   if (role === 'prof') return { langue: sTrim(p.langue), siret: sTrim(p.siret), nda: sTrim(p.nda), adresse: sTrim(p.adresse), tel: sTrim(p.tel), dateNaissance: sTrim(p.dateNaissance), nationalite: sTrim(p.nationalite) };
   return {};
 }
+// Version d'un document : 1.0 à la première génération, puis +0,1 à chaque nouvelle génération
+// du MÊME document (même dossier, même modèle). Le compteur est persistant et INDÉPENDANT de
+// l'historique db.docgens, qui lui est purgé au-delà de 40 entrées par dossier.
+function bumpVersion(g, tpl) {
+  if (!g || !tpl) return '1.0';
+  db.docVersions = db.docVersions || {};
+  const cle = g.id + '|' + tpl;
+  const nb = (db.docVersions[cle] || 0) + 1;          // 1 = première génération
+  db.docVersions[cle] = nb;
+  save();
+  return (1 + (nb - 1) / 10).toFixed(1);              // 1.0, 1.1, 1.2 …
+}
 // pied de page : lignes méta (présentes sur TOUS les documents générés)
-function metaLines(user) {
+function metaLines(user, ver) {
+  const v = ver || '1.0';
   return [
     'Créé le 07/06/2026 par FPE',
     'Rédigé le ' + new Date().toLocaleDateString('fr-FR') + ' par ' + senderDisplay(user),
-    "Ce fichier n'a pas encore été modifié — Version 1.0"
+    v === '1.0' ? "Ce fichier n'a pas encore été modifié — Version 1.0" : 'Version ' + v
   ];
 }
 const realUser = (id) => db.users.find(u => u.id === id);
@@ -1152,7 +1165,7 @@ function wsRows(w) {
   return { formation, notes, sessions };
 }
 // --- Interactive Worksheet → Word (tableaux comme l'original) ---
-function buildWorksheetDocx(w, user) {
+function buildWorksheetDocx(w, user, ver) {
   const h = w.header || {}, n = h.notes || {}, sess = wsRows(w).sessions;
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
   const kids = [];
@@ -1184,11 +1197,11 @@ function buildWorksheetDocx(w, user) {
     s.forEach(p => rows.push(dxRowMin([dxCell(p[0], { width: PC(34), fill: LBLBG, bold: true }), dxCell(p[1] || '', { width: PC(66), valign: VerticalAlign ? VerticalAlign.TOP : 'top' })], 380)));
     kids.push(dxTable(rows)); kids.push(dxSpacer());
   });
-  const hf = docxHeaderFooter(user);
+  const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 // --- Interactive Worksheet → PDF (tableaux) ---
-function buildWorksheetPdf(w, user) {
+function buildWorksheetPdf(w, user, ver) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
@@ -1224,7 +1237,7 @@ function buildWorksheetPdf(w, user) {
       s.forEach(p => rows.push({ cells: [{ text: p[0], w: lw2, fill: LB, bold: true, size: 9 }, { text: p[1] || '', w: vw2, size: 9, valign: 'top' }], minH: 24 }));
       pdfRows(doc, rows, left); doc.moveDown(0.4);
     });
-    pdfHeaderFooter(doc, user);
+    pdfHeaderFooter(doc, user, ver);
     doc.end();
   });
 }
@@ -1245,10 +1258,11 @@ app.post('/api/worksheet/generate', auth, async (req, res) => {
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
   const w = wsFind(g.id) || wsBlank(g, req.user);
+  const ver = bumpVersion(g, 'interactive');
   let buf, ext, type;
   try {
-    if (fmt === 'word') { buf = await buildWorksheetDocx(w, req.user); ext = 'docx'; type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
-    else { buf = await buildWorksheetPdf(w, req.user); ext = 'pdf'; type = 'application/pdf'; }
+    if (fmt === 'word') { buf = await buildWorksheetDocx(w, req.user, ver); ext = 'docx'; type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
+    else { buf = await buildWorksheetPdf(w, req.user, ver); ext = 'pdf'; type = 'application/pdf'; }
   } catch (e) { console.error('Génération worksheet:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'interactive', title: 'Interactive Worksheet', format: fmt, apprenant: (w.header && w.header.nomApprenant) || 'apprenant', sessionCount: (w.sessions || []).length, snapshot: { header: w.header || {}, sessions: w.sessions || [] } });
   // on renvoie directement le fichier en téléchargement (aucun dépôt dans le dossier)
@@ -1344,7 +1358,7 @@ function richToPdf(doc, blocks, left, totalW) {
   });
 }
 // --- Test mi-parcours / fin → Word (tableau comme l'original) ---
-function buildTestDocx(title, header, extra, user) {
+function buildTestDocx(title, header, extra, user, ver) {
   const H = header || {}, X = extra || {}, PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
   const cellH = (l, v) => dxCell(l + ' : ' + (v || ''), { width: PC(50) });
   const rows = [
@@ -1357,12 +1371,12 @@ function buildTestDocx(title, header, extra, user) {
   rows.push(dxRowMin([dxCell(X.resultat || '', { span: 2, valign: VerticalAlign ? VerticalAlign.TOP : 'top' })], 700));
   rows.push(new TableRow({ children: [dxCell('Appréciation formateur', { span: 2, fill: HEADBG, bold: true, color: DARKC })] }));
   rows.push(dxRowMin([dxCell(X.appreciation || '', { span: 2, valign: VerticalAlign ? VerticalAlign.TOP : 'top' })], 1000));
-  const hf = docxHeaderFooter(user);
+  const hf = docxHeaderFooter(user, ver);
   const children = [dxTable(rows)].concat(richToDocx(X.libre));
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children }] }));
 }
 // --- Test mi-parcours / fin → PDF (tableau) ---
-function buildTestPdf(title, header, extra, user) {
+function buildTestPdf(title, header, extra, user, ver) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
@@ -1380,7 +1394,7 @@ function buildTestPdf(title, header, extra, user) {
     rows.push({ cells: [{ text: X.appreciation || '', w: totalW, size: 10, valign: 'top' }], minH: 90 });
     pdfRows(doc, rows, left);
     richToPdf(doc, X.libre, left, totalW);
-    pdfHeaderFooter(doc, user); doc.end();
+    pdfHeaderFooter(doc, user, ver); doc.end();
   });
 }
 app.post('/api/testdoc/generate', auth, async (req, res) => {
@@ -1389,10 +1403,11 @@ app.post('/api/testdoc/generate', auth, async (req, res) => {
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de document inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  const ver = bumpVersion(g, type);
   let buf, ext, ctype;
   try {
-    if (format === 'word' || format === 'docx') { buf = await buildTestDocx(tpl.title, header, extra, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
-    else { buf = await buildTestPdf(tpl.title, header, extra, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
+    if (format === 'word' || format === 'docx') { buf = await buildTestDocx(tpl.title, header, extra, req.user, ver); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
+    else { buf = await buildTestPdf(tpl.title, header, extra, req.user, ver); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('testdoc:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'test', tpl: type, title: tpl.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: (header && header.nomApprenant) || 'apprenant' });
   const name = (type === 'test_mid' ? '5' : '6') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((header && header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
@@ -1430,11 +1445,12 @@ function dxSignatureAntonin(largeur, variante) {
   try { return [new Paragraph({ children: [new ImageRun({ type: 'png', data: fs.readFileSync(p), transformation: { width: w, height: h } })] })]; } catch (e) { return []; }
 }
 // Word : la MÊME image dans une cellule de tableau (case « signature administratif »)
-function dxSignatureCell(largeur) {
+function dxSignatureCell(largeur, hMax) {
   const p = imgSiPresent(SIGN_ANTONIN);
   if (!p) return [];
-  const w = largeur || 90;
-  try { return [new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ type: 'png', data: fs.readFileSync(p), transformation: { width: w, height: Math.round(w * RATIO_SIGN) } })] })]; } catch (e) { return []; }
+  let w = largeur || 90;
+  if (hMax && w * RATIO_SIGN > hMax) w = hMax / RATIO_SIGN;   // bornée en hauteur : jamais hors de sa case
+  try { return [new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ type: 'png', data: fs.readFileSync(p), transformation: { width: Math.round(w), height: Math.round(w * RATIO_SIGN) } })] })]; } catch (e) { return []; }
 }
 // Le bloc de signature est dessiné à des coordonnées EXPLICITES : pdfkit ne pagine pas tout seul
 // dans ce cas. On force donc une page si la place manque, sinon l'image déborderait sur le pied
@@ -1443,14 +1459,19 @@ function pdfPlacePourSignature(doc, hauteur) {
   if (doc.y + hauteur > doc.page.height - doc.page.margins.bottom) { doc.addPage(); return true; }
   return false;
 }
-// PDF : dessine la signature (seule ou sur le tampon) et renvoie la hauteur utilisée
-function pdfSignatureAntonin(doc, x, y, largeur, variante) {
+// PDF : dessine la signature (seule ou sur le tampon) et renvoie la hauteur utilisée.
+// `hMax` borne la HAUTEUR : sans elle, une signature large débordait de sa case et mordait sur
+// la ligne suivante (cas signalé sur le récapitulatif « Suivi assiduité »).
+function pdfSignatureAntonin(doc, x, y, largeur, variante, hMax) {
   const p = imgSiPresent(variante || SIGN_ANTONIN);
   if (!p) return 0;
-  const w = largeur || 120, h = w * (variante === SIGN_ANTONIN_TAMPON ? 0.45 : RATIO_SIGN);
+  const ratio = (variante === SIGN_ANTONIN_TAMPON ? 0.45 : RATIO_SIGN);
+  let w = largeur || 120;
+  if (hMax && w * ratio > hMax) w = hMax / ratio;      // on rétrécit à proportions constantes
+  const h = w * ratio;
   try { doc.image(p, x, y, { fit: [w, h] }); return h + 4; } catch (e) { return 0; }
 }
-function buildAttestationDocx(d, user) {
+function buildAttestationDocx(d, user, ver) {
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
   const lc = (t) => dxCell(t, { width: PC(34), fill: LBLBG, bold: true }), vc = (t) => dxCell(t || '', { width: PC(66) });
   const kids = [];
@@ -1504,10 +1525,10 @@ function buildAttestationDocx(d, user) {
     sigCol(['Le Formateur']),
     sigCol(["L'apprenant"])
   ] })] }));
-  const hf = docxHeaderFooter(user);
+  const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
-function buildAttestationPdf(d, user) {
+function buildAttestationPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
@@ -1552,18 +1573,19 @@ function buildAttestationPdf(d, user) {
     doc.text('Le Formateur', left + totalW / 3 + 6, y0, { width: colW });
     doc.text("L'apprenant", left + (2 * totalW) / 3 + 12, y0, { width: colW });
     doc.y = y0 + 26 + hSig;
-    pdfHeaderFooter(doc, user); doc.end();
+    pdfHeaderFooter(doc, user, ver); doc.end();
   });
 }
 app.post('/api/attestation/generate', auth, async (req, res) => {
   const { group, fields, format } = req.body || {};
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  const ver = bumpVersion(g, 'attestation');
   const d = fields || {};
   let buf, ext, ctype;
   try {
-    if (format === 'word' || format === 'docx') { buf = await buildAttestationDocx(d, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
-    else { buf = await buildAttestationPdf(d, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
+    if (format === 'word' || format === 'docx') { buf = await buildAttestationDocx(d, req.user, ver); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
+    else { buf = await buildAttestationPdf(d, req.user, ver); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('attestation:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'attestation', title: 'Attestation de fin de formation', format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.apprenant || 'apprenant' });
   const name = '4 - ' + safeFile('Attestation de fin de formation') + ' - ' + safeFile(d.apprenant || 'apprenant') + ' - ' + nameDate() + '.' + ext;
@@ -1723,7 +1745,7 @@ function contratBlocks(d) {
     { sign: { gauche: ["Pour le Donneur d'ordre, Languages and Success", rep, 'Président'], droite: ['Pour le Sous-traitant,', d.stnom || ''] } }
   ];
 }
-function buildContratDocx(d, user) {
+function buildContratDocx(d, user, ver) {
   const kids = [];
   // segments d'un bloc : les rp gardent leur gras explicite, le reste passe par ctSeg
   const segs = (b, txt) => b.rp ? b.rp : ctSeg(txt);
@@ -1743,10 +1765,10 @@ function buildContratDocx(d, user) {
     else if (b.li2) kids.push(new Paragraph({ spacing: { after: 40 }, children: runs([{ t: '        –  ' }].concat(ctSeg(b.li2)), { size: 18 }) }));
     else kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: b.before ? 200 : 0, after: b.after ? 200 : 90 }, children: runs(segs(b, b.p), { bold: b.bold, italics: b.italics }) }));
   });
-  const hf = docxHeaderFooter(user);
+  const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
-function buildContratPdf(d, user) {
+function buildContratPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
@@ -1792,7 +1814,7 @@ function buildContratPdf(d, user) {
       else if (b.li || b.li2) rich((b.li ? [{ t: '•  ' }] : [{ t: '        –  ' }]).concat(ctSeg(b.li || b.li2)), { size: 9, after: b.li ? 0.2 : 0.18 });
       else rich(b.rp || ctSeg(b.p), { size: 9.2, after: b.after ? 0.9 : 0.45, bold: b.bold, italics: b.italics, before: b.before ? 0.5 : 0 });
     });
-    pdfHeaderFooter(doc, user); doc.end();
+    pdfHeaderFooter(doc, user, ver); doc.end();
   });
 }
 // génère une référence de contrat avec 5 chiffres aléatoires JAMAIS réutilisés
@@ -1814,10 +1836,11 @@ app.post('/api/contrat/generate', auth, async (req, res) => {
   const d = fields || {};
   d.ref = newContratRef(); // référence unique générée serveur (5 chiffres uniques)
   d.representant = 'Antonin HATTABE'; // représentant L&S fixe par défaut
+  const ver = bumpVersion(g, 'contrat');
   let buf, ext, ctype;
   try {
-    if (format === 'word' || format === 'docx') { buf = await buildContratDocx(d, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
-    else { buf = await buildContratPdf(d, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
+    if (format === 'word' || format === 'docx') { buf = await buildContratDocx(d, req.user, ver); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
+    else { buf = await buildContratPdf(d, req.user, ver); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('contrat:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'contrat', title: 'Contrat de sous-traitance', format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.stnom || 'formateur' });
   const name = '7 - ' + safeFile('Contrat de sous-traitance') + ' - ' + safeFile(d.stnom || 'formateur') + ' - ' + nameDate() + '.' + ext;
@@ -1827,9 +1850,9 @@ app.post('/api/contrat/generate', auth, async (req, res) => {
 });
 
 // ---- questionnaires (QS mi-parcours / fin de formation) --------------------
-function pdfHeaderFooter(doc, user) {
+function pdfHeaderFooter(doc, user, ver) {
   const legal = LEGAL_LINES.join('\n');
-  const meta = metaLines(user).join('\n');
+  const meta = metaLines(user, ver).join('\n');
   const range = doc.bufferedPageRange();
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(range.start + i);
@@ -1840,19 +1863,19 @@ function pdfHeaderFooter(doc, user) {
     doc.font('Helvetica').fontSize(6.5).fillColor('#6f6253').text(legal, doc.page.width - 50 - 320, doc.page.height - 74, { width: 320, align: 'right' });
   }
 }
-function docxFooterFor(user) {
+function docxFooterFor(user, ver) {
   const NB = { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } };
   const leftChildren = [new Paragraph({ children: [new TextRun({ children: [PageNumber.CURRENT, ' / ', PageNumber.TOTAL_PAGES], size: 16, color: '6F6253' })] })]
-    .concat(metaLines(user).map(l => new Paragraph({ children: [new TextRun({ text: l, size: 12, color: '6F6253' })] })));
+    .concat(metaLines(user, ver).map(l => new Paragraph({ children: [new TextRun({ text: l, size: 12, color: '6F6253' })] })));
   return new Footer({ children: [new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NB, rows: [new TableRow({ children: [
     new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, borders: NB, children: leftChildren }),
     new TableCell({ width: { size: 60, type: WidthType.PERCENTAGE }, borders: NB, children: LEGAL_LINES.map(l => new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: l, size: 12, color: '6F6253' })] })) })
   ] })] })] });
 }
-function docxHeaderFooter(user) {
+function docxHeaderFooter(user, ver) {
   let logoRun = null; try { logoRun = new ImageRun({ type: 'png', data: fs.readFileSync(LOGO_PATH), transformation: { width: 44, height: 44 } }); } catch (e) { }
   const header = new Header({ children: [new Paragraph({ children: logoRun ? [logoRun] : [] })] });
-  return { header, footer: docxFooterFor(user) };
+  return { header, footer: docxFooterFor(user, ver) };
 }
 // regroupe les items : les questions radio consécutives partageant les mêmes options
 // forment une MATRICE (tableau critères × options), comme les Word d'origine.
@@ -1869,7 +1892,7 @@ function qsBlocks(items) {
   }
   return blocks;
 }
-function buildQsPdf(qs, tpl, user) {
+function buildQsPdf(qs, tpl, user, ver) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
@@ -1882,9 +1905,9 @@ function buildQsPdf(qs, tpl, user) {
     doc.moveTo(left, doc.y + 2).lineTo(right, doc.y + 2).lineWidth(1.4).strokeColor('#be6e54').stroke();
     doc.moveDown(0.55);
     // en-tête (label : valeur)
-    (tpl.headerFields || QS_HEADER_FIELDS).forEach(f => { doc.fillColor('#2a241d').fontSize(10).font('Helvetica-Bold').text(f.label + ' : ', left, doc.y, { continued: true }).font('Helvetica').text(String(h[f.id] || '—')); doc.moveDown(0.1); });
+    (tpl.headerFields || QS_HEADER_FIELDS).forEach(f => { doc.fillColor('#2a241d').fontSize(10).font('Helvetica-Bold').text(f.label + ' : ', left, doc.y, { continued: true }).font('Helvetica').text(String(h[f.id] || '—')); doc.moveDown(0.35); });
     if (h.certification) { doc.fillColor('#2a241d').fontSize(10).font('Helvetica-Bold').text('Certification : ', left, doc.y, { continued: true }).font('Helvetica').text(String(h.certification)); doc.moveDown(0.1); }
-    doc.moveDown(0.4);
+    doc.moveDown(0.9);
     // dessin d'une cellule (fond + bordure + texte centré verticalement)
     function cell(x, y, w, hh, text, o) {
       o = o || {};
@@ -1912,36 +1935,36 @@ function buildQsPdf(qs, tpl, user) {
         options.forEach((o, k) => { const sel = ans[q.id] === o; cell(left + firstW + optW * k, y, optW, rh, sel ? 'X' : '', { fill: sel ? '#be6e54' : null, color: '#ffffff', bold: true, align: 'center', size: 11 }); });
         doc.y = y + rh;
       });
-      doc.moveDown(0.45); questions.forEach(precision);
+      doc.moveDown(1.1); questions.forEach(precision);
     }
     function scale(item) {
-      ensure(30); doc.fillColor('#2a241d').font('Helvetica-Bold').fontSize(9.5).text(item.label, left, doc.y, { width: totalW }); doc.moveDown(0.12);
+      ensure(30); doc.fillColor('#2a241d').font('Helvetica-Bold').fontSize(9.5).text(item.label, left, doc.y, { width: totalW }); doc.moveDown(0.3);
       const cw = totalW / 10, hh = 22; ensure(hh + 4); const y = doc.y;
       for (let k = 1; k <= 10; k++) { const sel = String(ans[item.id]) === String(k); cell(left + cw * (k - 1), y, cw, hh, String(k), { fill: sel ? '#be6e54' : '#f3e7e0', color: sel ? '#ffffff' : '#2a241d', bold: true, align: 'center', size: 10 }); }
-      doc.y = y + hh; doc.moveDown(0.45); precision(item);
+      doc.y = y + hh; doc.moveDown(1.1); precision(item);
     }
     function textItem(item) {
-      ensure(34); doc.fillColor('#2a241d').font('Helvetica-Bold').fontSize(9.5).text(item.label, left, doc.y, { width: totalW }); doc.moveDown(0.1);
+      ensure(34); doc.fillColor('#2a241d').font('Helvetica-Bold').fontSize(9.5).text(item.label, left, doc.y, { width: totalW }); doc.moveDown(0.3);
       const valTxt = String(ans[item.id] || ''); doc.font('Helvetica').fontSize(9.5); const innerW = totalW - 16;
       const boxH = Math.max(doc.heightOfString(valTxt || ' ', { width: innerW }) + 12, 28); ensure(boxH + 4); const y = doc.y;
       doc.rect(left, y, totalW, boxH).lineWidth(0.6).strokeColor('#d9cabe').stroke();
       if (valTxt) doc.fillColor('#2a241d').text(valTxt, left + 8, y + 6, { width: innerW });
-      doc.y = y + boxH; doc.moveDown(0.45);
+      doc.y = y + boxH; doc.moveDown(1.1);
     }
     qsBlocks(tpl.items).forEach(b => {
-      if (b.kind === 'intro') { ensure(24); doc.fillColor('#6f6253').font('Helvetica-Oblique').fontSize(9.5).text(b.item.text, left, doc.y, { width: totalW }); doc.moveDown(0.4); return; }
-      if (b.kind === 'section') { ensure(26); doc.fillColor('#a8593c').font('Helvetica-Bold').fontSize(12).text(b.item.label, left, doc.y, { width: totalW }); doc.moveDown(0.22); return; }
+      if (b.kind === 'intro') { ensure(24); doc.fillColor('#6f6253').font('Helvetica-Oblique').fontSize(9.5).text(b.item.text, left, doc.y, { width: totalW }); doc.moveDown(0.9); return; }
+      if (b.kind === 'section') { ensure(26); doc.fillColor('#a8593c').font('Helvetica-Bold').fontSize(12).text(b.item.label, left, doc.y, { width: totalW }); doc.moveDown(0.6); return; }
       if (b.kind === 'scale') return scale(b.item);
       if (b.kind === 'text') return textItem(b.item);
       if (b.kind === 'matrix') return matrix(b.options, b.questions);
     });
-    pdfHeaderFooter(doc, user);
+    pdfHeaderFooter(doc, user, ver);
     doc.end();
   });
 }
 const SH_CLEAR = ShadingType ? ShadingType.CLEAR : 'clear';
 const V_CENTER = VerticalAlign ? VerticalAlign.CENTER : 'center';
-function buildQsDocx(qs, tpl, user) {
+function buildQsDocx(qs, tpl, user, ver) {
   const ACCENT = 'BE6E54', DARK = 'A8593C', INK = '2A241D', SOFT = '6F6253', HEADBG = 'F3E7E0';
   const h = qs.header || {}, ans = qs.answers || {};
   const BD = { style: BorderStyle.SINGLE, size: 4, color: 'D9CABE' };
@@ -1958,19 +1981,20 @@ function buildQsDocx(qs, tpl, user) {
   const precisionPara = (txt) => new Paragraph({ children: [new TextRun({ text: 'Précision : ' + txt, italics: true, color: SOFT, size: 18 })], spacing: { after: 60 } });
   const kids = [];
   kids.push(new Paragraph({ children: [new TextRun({ text: tpl.title, bold: true, color: ACCENT, size: 34 })], spacing: { after: 70 }, border: { bottom: { color: ACCENT, style: BorderStyle.SINGLE, size: 18, space: 6 } } }));
-  (tpl.headerFields || QS_HEADER_FIELDS).forEach(f => kids.push(new Paragraph({ children: [new TextRun({ text: f.label + ' : ', bold: true, color: INK, size: 21 }), new TextRun({ text: String(h[f.id] || '—'), color: INK, size: 21 })], spacing: { after: 40 } })));
+  (tpl.headerFields || QS_HEADER_FIELDS).forEach(f => kids.push(new Paragraph({ children: [new TextRun({ text: f.label + ' : ', bold: true, color: INK, size: 21 }), new TextRun({ text: String(h[f.id] || '—'), color: INK, size: 21 })], spacing: { after: 140 } })));
   if (h.certification) kids.push(new Paragraph({ children: [new TextRun({ text: 'Certification : ', bold: true, color: INK, size: 21 }), new TextRun({ text: String(h.certification), color: INK, size: 21 })], spacing: { after: 40 } }));
-  const gap = () => kids.push(new Paragraph({ text: '', spacing: { after: 90 } }));
+  // une ligne vide APRES chaque element : c'est ce qui aere le document
+  const gap = () => kids.push(new Paragraph({ text: '', spacing: { after: 240 } }));
   qsBlocks(tpl.items).forEach(b => {
-    if (b.kind === 'intro') { kids.push(new Paragraph({ children: [new TextRun({ text: b.item.text, italics: true, color: SOFT, size: 20 })], spacing: { before: 120, after: 80 } })); return; }
-    if (b.kind === 'section') { kids.push(new Paragraph({ children: [new TextRun({ text: b.item.label, bold: true, color: DARK, size: 25 })], spacing: { before: 180, after: 90 } })); return; }
+    if (b.kind === 'intro') { kids.push(new Paragraph({ children: [new TextRun({ text: b.item.text, italics: true, color: SOFT, size: 20 })], spacing: { before: 200, after: 240 } })); return; }
+    if (b.kind === 'section') { kids.push(new Paragraph({ children: [new TextRun({ text: b.item.label, bold: true, color: DARK, size: 25 })], spacing: { before: 400, after: 200 } })); return; }
     if (b.kind === 'text') {
-      kids.push(new Paragraph({ children: [new TextRun({ text: b.item.label, bold: true, color: INK, size: 21 })], spacing: { before: 100, after: 40 } }));
+      kids.push(new Paragraph({ children: [new TextRun({ text: b.item.label, bold: true, color: INK, size: 21 })], spacing: { before: 260, after: 90 } }));
       kids.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [new TableRow({ children: [tcell(ans[b.item.id] || ' ', { width: { size: 100, type: WidthType.PERCENTAGE } })] })] }));
       gap(); return;
     }
     if (b.kind === 'scale') {
-      kids.push(new Paragraph({ children: [new TextRun({ text: b.item.label, bold: true, color: INK, size: 21 })], spacing: { before: 100, after: 40 } }));
+      kids.push(new Paragraph({ children: [new TextRun({ text: b.item.label, bold: true, color: INK, size: 21 })], spacing: { before: 260, after: 90 } }));
       const cw = { size: 10, type: WidthType.PERCENTAGE };
       const numRow = new TableRow({ children: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(k => { const sel = String(ans[b.item.id]) === String(k); return tcell(String(k), { width: cw, align: AlignmentType.CENTER, bold: true, fill: sel ? ACCENT : HEADBG, color: sel ? 'FFFFFF' : INK, size: 20 }); }) });
       kids.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [numRow] }));
@@ -1984,14 +2008,15 @@ function buildQsDocx(qs, tpl, user) {
       gap(); b.questions.forEach(q => { if (q.comment && ans[q.id + '_c']) kids.push(precisionPara(ans[q.id + '_c'])); }); return;
     }
   });
-  const hf = docxHeaderFooter(user);
+  const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INK } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 async function generateQsDoc(qs, format, fromUser) {
   const tpl = QS_TEMPLATES[qs.type];
   let buf, ext, type;
-  if (format === 'word' || format === 'docx') { buf = await buildQsDocx(qs, tpl, fromUser); ext = 'docx'; type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
-  else { buf = await buildQsPdf(qs, tpl, fromUser); ext = 'pdf'; type = 'application/pdf'; }
+  const verQ = bumpVersion(groupById(qs.group), qs.type);
+  if (format === 'word' || format === 'docx') { buf = await buildQsDocx(qs, tpl, fromUser, verQ); ext = 'docx'; type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
+  else { buf = await buildQsPdf(qs, tpl, fromUser, verQ); ext = 'pdf'; type = 'application/pdf'; }
   const stored = crypto.randomUUID() + '.' + ext;
   fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
   const name = (qs.type === 'qs_mid' ? '2' : '3') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((qs.header && qs.header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
@@ -2091,10 +2116,11 @@ app.post('/api/form/generate', auth, async (req, res) => {
   if (!tpl) return res.status(400).json({ error: 'Type de document inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
   const qs = { header: header || {}, answers: answers || {} };
+  const ver = bumpVersion(g, type);
   let buf, ext, ctype;
   try {
-    if (format === 'word' || format === 'docx') { buf = await buildQsDocx(qs, tpl, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
-    else { buf = await buildQsPdf(qs, tpl, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
+    if (format === 'word' || format === 'docx') { buf = await buildQsDocx(qs, tpl, req.user, ver); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
+    else { buf = await buildQsPdf(qs, tpl, req.user, ver); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('form gen:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'form', tpl: type, title: tpl.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: (header && header.nomApprenant) || 'apprenant' });
   const name = (req.user.role === 'admin' ? '8' : '7') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((header && header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
@@ -2171,7 +2197,7 @@ function pdfObjectifsRow(doc, left, totalW, label, value, LB) {
   doc.rect(left + lw, startY, vw, hh).lineWidth(0.6).strokeColor('#d9cabe').stroke();
   doc.y = startY + hh;
 }
-function buildLevelTestDocx(d, user) {
+function buildLevelTestDocx(d, user, ver) {
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
   // grilles de colonnes en twips (largeur utile A4 = 9026) → layout fixe, Word respecte les proportions
   const COL_HEAD = [1625, 2888, 1625, 2888], COL_TF = [4513, 4513], COL_BES = [1986, 1760, 5280], COL_EVAL = [3610, 5416];
@@ -2200,10 +2226,10 @@ function buildLevelTestDocx(d, user) {
     ev.fields.forEach(f => rows.push(new TableRow({ children: [dxCell(f[1], { width: PC(40), fill: LBLBG, bold: true }), dxCell(d[f[0]] || '', { width: PC(60), bold: f[0] === 'typeTestE' || f[0] === 'typeTestO' })] })));
     kids.push(dxTable(rows, COL_EVAL)); kids.push(dxSpacer());
   });
-  const hf = docxHeaderFooter(user);
+  const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
-function buildLevelTestPdf(d, user) {
+function buildLevelTestPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
@@ -2227,7 +2253,7 @@ function buildLevelTestPdf(d, user) {
       ev.fields.forEach(f => rows.push({ cells: [{ text: f[1], w: totalW * 0.4, fill: LB, bold: true, size: 9 }, { text: d[f[0]] || '', w: totalW * 0.6, size: 9, bold: f[0] === 'typeTestE' || f[0] === 'typeTestO' }] }));
       pdfRows(doc, rows, left); doc.moveDown(0.3);
     });
-    pdfHeaderFooter(doc, user); doc.end();
+    pdfHeaderFooter(doc, user, ver); doc.end();
   });
 }
 app.get('/api/leveltest', auth, (req, res) => res.json({ tpl: LEVEL_TEST }));
@@ -2235,11 +2261,12 @@ app.post('/api/leveltest/generate', auth, async (req, res) => {
   const { group, fields, format } = req.body || {};
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  const ver = bumpVersion(g, 'leveltest');
   const d = fields || {};
   let buf, ext, ctype;
   try {
-    if (format === 'word' || format === 'docx') { buf = await buildLevelTestDocx(d, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
-    else { buf = await buildLevelTestPdf(d, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
+    if (format === 'word' || format === 'docx') { buf = await buildLevelTestDocx(d, req.user, ver); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
+    else { buf = await buildLevelTestPdf(d, req.user, ver); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('leveltest:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'leveltest', title: LEVEL_TEST.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.prenom || d.nom || 'apprenant' });
   const name = (req.user.role === 'admin' ? '9' : '8') + ' - ' + safeFile(LEVEL_TEST.title) + ' - ' + safeFile(d.prenom || d.nom || 'apprenant') + ' - ' + nameDate() + '.' + ext;
@@ -2312,7 +2339,7 @@ function pdfPresenceGrid(doc, left, totalW, sessions, HB, sigF, sigA, signAdmin)
     doc.y = y + rowH;
   });
 }
-function buildPresencePdf(type, d, user) {
+function buildPresencePdf(type, d, user, ver) {
   const tpl = PRESENCE_TEMPLATES[type];
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
@@ -2333,22 +2360,23 @@ function buildPresencePdf(type, d, user) {
         { cells: [{ text: 'Signature Apprenant', w: totalW * 0.32, fill: LB, bold: true, size: 9, valign: 'top' }, { text: '', w: valW }], minH: 56 }
       ], left);
       // feuille administrative : la signature d'Antonin (sans tampon) remplace celle du formateur
-      if (tpl.signAdmin) pdfSignatureAntonin(doc, valX + 10, sigY + 6, 96);
+      if (tpl.signAdmin) pdfSignatureAntonin(doc, valX + 10, sigY + 6, valW - 20, null, 44);
       else if (sigF) { try { doc.image(sigF.buffer, valX + 10, sigY + 6, { fit: [valW - 20, 44], align: 'center', valign: 'center' }); } catch (e) { } }
       if (sigA) { try { doc.image(sigA.buffer, valX + 10, sigY + 62, { fit: [valW - 20, 44], align: 'center', valign: 'center' }); } catch (e) { } }
     } else {
       pdfPresenceGrid(doc, left, totalW, d.sessions || [], HB, sigF, sigA, tpl.signAdmin);
     }
-    pdfHeaderFooter(doc, user); doc.end();
+    pdfHeaderFooter(doc, user, ver); doc.end();
   });
 }
-function buildPresenceDocx(type, d, user) {
+function buildPresenceDocx(type, d, user, ver) {
   const tpl = PRESENCE_TEMPLATES[type];
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
   const sigF = sigImg(d.formateurSig), sigA = sigImg(d.apprenantSig);
   const sigCell = (sig, widthPC, w, h) => new TableCell({ width: PC(widthPC), borders: TBL_CELLBORDERS, verticalAlign: V_CENTER, margins: { top: 20, bottom: 20, left: 40, right: 40 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: sig ? [new ImageRun({ type: sig.type, data: sig.buffer, transformation: { width: w, height: h } })] : [] })] });
   // case « signature administratif » : la signature d'Antonin (sans tampon), incrustée d'office
-  const adminSigCell = (widthPC, w) => new TableCell({ width: PC(widthPC), borders: TBL_CELLBORDERS, verticalAlign: V_CENTER, margins: { top: 20, bottom: 20, left: 40, right: 40 }, children: dxSignatureCell(w || 100).concat(dxSignatureCell(w || 100).length ? [] : [new Paragraph('')]) });
+  // hauteur bornee pour que la signature ne deborde pas de sa case
+  const adminSigCell = (widthPC, w, hMax) => new TableCell({ width: PC(widthPC), borders: TBL_CELLBORDERS, verticalAlign: V_CENTER, margins: { top: 20, bottom: 20, left: 40, right: 40 }, children: dxSignatureCell(w || 100, hMax).concat(dxSignatureCell(w || 100, hMax).length ? [] : [new Paragraph('')]) });
   const kids = [];
   kids.push(dxTable([new TableRow({ children: [dxCell(tpl.docTitle || 'FEUILLES DE PRÉSENCE', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG })] })]));
   kids.push(dxSpacer());
@@ -2358,7 +2386,7 @@ function buildPresenceDocx(type, d, user) {
   if (tpl.kind === 'summary') {
     kids.push(dxTable(tpl.summaryRows.map(r => new TableRow({ children: [dxCell(r[1], { width: PC(50), fill: LBLBG, bold: true }), dxCell(d[r[0]] || '', { width: PC(50), bold: r[0] === 'heuresPrevues' })] }))));
     kids.push(dxSpacer()); kids.push(dxSpacer());
-    kids.push(dxTable([dxRowMin([dxCell(tpl.signAdmin ? 'Signature administratif' : 'Signature Formateur', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top' }), tpl.signAdmin ? adminSigCell(68) : sigCell(sigF, 68, 150, 49)], 900)]));
+    kids.push(dxTable([dxRowMin([dxCell(tpl.signAdmin ? 'Signature administratif' : 'Signature Formateur', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top' }), tpl.signAdmin ? adminSigCell(68, 64, 46) : sigCell(sigF, 68, 150, 49)], 900)]));
     kids.push(dxSpacer());
     kids.push(dxTable([dxRowMin([dxCell('Signature Apprenant', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top' }), sigCell(sigA, 68, 150, 49)], 900)]));
   } else {
@@ -2368,7 +2396,7 @@ function buildPresenceDocx(type, d, user) {
       const s = slotMap[t] || {}; const hasData = !!slotMap[t];
       const vals = { chk: hasData ? '✗' : '', time: t, date: s.date || '', jour: s.jour || '', hDebut: s.hDebut || '', hFin: s.hFin || '', duree: s.duree || '', sf: '', ss: '' };
       rows.push(dxRowMin(PRESENCE_GRID_HEADER.map(c => {
-        if (c[1] === 'sf' && hasData && tpl.signAdmin) return adminSigCell(c[2], 46);
+        if (c[1] === 'sf' && hasData && tpl.signAdmin) return adminSigCell(c[2], 46, 17);
         if ((c[1] === 'sf' || c[1] === 'ss') && hasData) return sigCell(c[1] === 'sf' ? sigF : sigA, c[2], 52, 17);
         if (c[1] === 'chk') return dxCell(vals.chk, { width: PC(c[2]), align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 20, fill: hasData ? '#f3e7e0' : undefined });
         return dxCell(vals[c[1]], { width: PC(c[2]), align: AlignmentType.CENTER, bold: c[1] === 'time', size: c[1] === 'time' ? 18 : 17 });
@@ -2376,7 +2404,7 @@ function buildPresenceDocx(type, d, user) {
     });
     kids.push(dxTable(rows));
   }
-  const hf = docxHeaderFooter(user);
+  const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 app.get('/api/presence', auth, (req, res) => res.json({ templates: PRESENCE_TEMPLATES }));
@@ -2386,11 +2414,12 @@ app.post('/api/presence/generate', auth, async (req, res) => {
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  const ver = bumpVersion(g, 'presence-' + type);
   const d = fields || {};
   let buf, ext, ctype;
   try {
-    if (format === 'word' || format === 'docx') { buf = await buildPresenceDocx(type, d, req.user); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
-    else { buf = await buildPresencePdf(type, d, req.user); ext = 'pdf'; ctype = 'application/pdf'; }
+    if (format === 'word' || format === 'docx') { buf = await buildPresenceDocx(type, d, req.user, ver); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
+    else { buf = await buildPresencePdf(type, d, req.user, ver); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('presence:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'presence', title: tpl.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.apprenant || 'apprenant' });
   const name = (req.user.role === 'admin' ? '10' : '9') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile(d.apprenant || 'apprenant') + ' - ' + nameDate() + '.' + ext;
@@ -2403,7 +2432,7 @@ app.post('/api/presence/generate', auth, async (req, res) => {
 async function depositPresenceDoc(p, byUser) {
   const tpl = PRESENCE_TEMPLATES[p.type] || {};
   const d = Object.assign({}, p.fields, { formateurSig: p.formateurSig, apprenantSig: p.apprenantSig });
-  const buf = await buildPresencePdf(p.type, d, byUser);
+  const buf = await buildPresencePdf(p.type, d, byUser, bumpVersion(groupById(p.group), 'presence-' + p.type));
   const stored = crypto.randomUUID() + '.pdf';
   fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
   const name = safeFile(tpl.title || 'Feuille de présence') + ' - ' + safeFile((p.fields && p.fields.apprenant) || 'apprenant') + ' - ' + nameDate() + ' - signée.pdf';
