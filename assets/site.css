@@ -646,9 +646,13 @@ footer a:hover{color:#fff8ef}
 .ds-top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
 .ds-id{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .ds-hi{font-family:var(--ff-head);font-size:clamp(22px,3vw,30px)}
-.role-chip{font-size:12px;font-weight:600;letter-spacing:.03em;padding:5px 12px;border-radius:999px;border:1px solid color-mix(in oklab,var(--accent) 30%,#fff);color:var(--accent);background:color-mix(in oklab,var(--accent) 10%,#fff)}
-.role-chip.role-admin{color:#7a4ac0;border-color:#d6c2f0;background:#f4eefc}
-.role-chip.role-prof{color:#1f7a5a;border-color:#bfe3d4;background:#eef9f4}
+/* Couleur d'un rôle : UNE seule source pour la bulle du bandeau (« Bonjour … ») et pour la
+   bulle du compte connecté dans un dossier (.mchip-me). Avant, chacune avait sa palette et
+   un formateur se voyait en vert en haut mais en rose dans son dossier. */
+.role-chip,.mchip-me{--chip-ink:var(--accent);--chip-line:color-mix(in oklab,var(--accent) 30%,#fff);--chip-bg:color-mix(in oklab,var(--accent) 10%,#fff)}
+.role-chip.role-admin,.mchip-me.role-admin{--chip-ink:#7a4ac0;--chip-line:#d6c2f0;--chip-bg:#f4eefc}
+.role-chip.role-prof,.mchip-me.role-prof{--chip-ink:#1f7a5a;--chip-line:#bfe3d4;--chip-bg:#eef9f4}
+.role-chip{font-size:12px;font-weight:600;letter-spacing:.03em;padding:5px 12px;border-radius:999px;border:1px solid var(--chip-line);color:var(--chip-ink);background:var(--chip-bg)}
 .ds-grid{display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start}
 @media(max-width:820px){.ds-grid{grid-template-columns:1fr}}
 .ds-card{border:1px solid var(--line);border-radius:16px;background:var(--bg-card);padding:22px;margin-bottom:20px}
@@ -867,7 +871,7 @@ footer a:hover{color:#fff8ef}
 .pr-recap-tbl th{background:var(--bg-card);font-weight:600;color:var(--ink-soft)}
 @media(max-width:640px){.pr-recap-grid{grid-template-columns:1fr}.pr-recap-tbl{display:block;overflow-x:auto}}
 /* bulle du compte connecté, mise en avant aux couleurs du site */
-.mchip-me{color:var(--accent);border-color:color-mix(in oklab,var(--accent) 45%,var(--line));background:color-mix(in oklab,var(--accent) 10%,var(--bg-card));font-weight:700}
+.mchip-me{color:var(--chip-ink);border-color:var(--chip-line);background:var(--chip-bg);font-weight:700}
 .chan-tabs{display:flex;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:14px}
 .chan-tab{flex:1;border:0;background:none;font:inherit;font-weight:600;font-size:13.5px;color:var(--ink-soft);padding:9px;border-radius:8px;cursor:pointer;transition:.15s}
 .chan-tab.on{background:var(--accent);color:#fff}

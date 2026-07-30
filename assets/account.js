@@ -288,14 +288,17 @@
   }
   function membersChips(g) {
     // la bulle mise en couleur est celle du COMPTE CONNECTÉ (avant, c'était toujours
-    // celle de l'administration, quel que soit l'utilisateur)
+    // celle de l'administration, quel que soit l'utilisateur). Elle porte la classe de rôle
+    // pour prendre EXACTEMENT la couleur de la bulle du bandeau « Bonjour … » (cf. site.css :
+    // .role-chip et .mchip-me partagent la même palette --chip-*).
+    var moi = ' mchip-me role-' + ME.role;
     function chips(list, role) {
       return list.map(function (u) {
-        return '<span class="mchip' + (u.id === ME.id ? ' mchip-me' : '') + '">' + esc(fullName(u)) + ' · ' + role + '</span>';
+        return '<span class="mchip' + (u.id === ME.id ? moi : '') + '">' + esc(fullName(u)) + ' · ' + role + '</span>';
       }).join('');
     }
     return '<div class="grp-members">' + chips(g && g.eleve ? [g.eleve] : [], 'Apprenant') + chips(gProfs(g), 'Formateur') +
-      '<span class="mchip' + (ME.role === 'admin' ? ' mchip-me' : '') + '">Administration L&amp;S</span></div>';
+      '<span class="mchip' + (ME.role === 'admin' ? moi : '') + '">Administration L&amp;S</span></div>';
   }
   function qsMsgHTML(m) {
     var q = m.qs || {}, mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
