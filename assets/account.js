@@ -30,8 +30,11 @@
   var EYE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
   var EYE_OFF = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17.9 17.9A10.1 10.1 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2M1 1l22 22"/></svg>';
 
-  var ME = null, NOTIFS = [], selected = null, channel = 'commun', authTab = 'login', genState = null, ADD_CANDIDATES = [];
+  var ME = null, NOTIFS = [], selected = null, channel = 'commun', authTab = 'login', genState = null;
   var adminShow = { dossiers: true, comptes: true, fichiers: true }, adminQuery = '', ADMIN_OVERVIEW = null;
+  // dossiers dont la liste de fichiers est repliée (en mémoire : l'état survit aux re-rendus
+  // du panneau admin — filtrage, suppression — mais pas au rechargement de la page)
+  var admFilesHidden = {};
   var CUR_GROUP = null, qsFillState = null, notifTimer = null, DEMO = null;
   // Un dossier = UN apprenant, mais autant de FORMATEURS que voulu. GEN_PROF = le formateur au
   // nom duquel le document en cours est établi (choisi dans la modale « Générer un document »
@@ -47,9 +50,6 @@
   function initials(name) { var p = (name || '').trim().split(/\s+/); return ((p[0] || '')[0] || '') + ((p[1] || '')[0] || ''); }
   function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
   function err(id, msg) { var el = document.getElementById(id); if (el) el.textContent = msg; }
-  // seul le formateur constitue un dossier depuis son espace (l'apprenant ne le fait plus :
-  // c'est l'administration ou le formateur qui l'ajoute)
-  function roleAllowed(me, o) { return me.role === 'prof' && o.role === 'eleve'; }
   function app() { return document.getElementById('docspace'); }
 
   // ---- widget header ------------------------------------------------------
@@ -391,10 +391,9 @@
       (channel === 'prive' ? '<p class="chan-note">Canal privé : l\'apprenant n\'a pas accès à ce canal.</p>' : '') +
       docsBlock(docs) + '<h4 class="ds-sub">Messagerie</h4>' + chatHTML(messages) + '</div>';
   }
-  function dossiersCardHTML(groups, canAdd) {
-    // l'apprenant ne constitue pas de dossier : pas de bouton d'ajout chez lui
-    if (ME.role === 'eleve') canAdd = null;
-    var addLabel = 'Ajouter un apprenant';
+  // Les dossiers sont constitués par l'administration UNIQUEMENT (30/07/2026) : ni l'apprenant
+  // ni le formateur n'ajoute qui que ce soit, il n'y a donc plus de bouton loupe ici.
+  function dossiersCardHTML(groups) {
     return '<div class="ds-card"><h3>Mes dossiers</h3>' +
       (groups.length ? '<ul class="contact-list">' + groups.map(function (g) {
         // Le nombre de formateurs est désormais variable : chaque mot est dans son propre nœud
@@ -403,8 +402,7 @@
         var sub = '<span>Apprenant</span> · ' + np + ' <span>' + (np > 1 ? 'formateurs' : 'formateur') + '</span> · <span>Admin</span>';
         var nb = NOTIFS.filter(function (n) { return !n.read && n.group === g.id; }).length;
         return '<li class="contact' + (selected === g.id ? ' on' : '') + (nb ? ' has-new' : '') + '" data-id="' + g.id + '"><span class="avatar">' + esc(initials(groupTitle(g))) + '</span><span class="c-name">' + esc(groupTitle(g)) + '<small>' + sub + '</small></span>' + (nb ? '<span class="contact-badge">' + (nb > 9 ? '9+' : nb) + '</span>' : '') + '</li>';
-      }).join('') + '</ul>' : '<p class="ds-empty">Aucun dossier pour l\'instant.</p>') +
-      (canAdd != null ? '<button class="btn-mini add-search-btn" style="margin-top:14px">🔍 ' + addLabel + '</button>' : '') + '</div>';
+      }).join('') + '</ul>' : '<p class="ds-empty">Aucun dossier pour l\'instant.</p>') + '</div>';
   }
 
   // ---- routeur + rendu ----------------------------------------------------
@@ -417,20 +415,13 @@
     Promise.all([loadM, loadD]).then(function (a) { cb(a[0], a[1]); });
   }
   function renderUserDash(el) {
-    Promise.all([api('/api/groups'), api('/api/users'), api('/api/notifications')]).then(function (res) {
-      var groups = res[0].data.groups || [], allUsers = res[1].data.users || [];
-      NOTIFS = res[2].data.notifs || [];
-      // personnes déjà présentes dans un dossier avec moi → exclues de la recherche d'ajout
-      var grouped = {};
-      groups.forEach(function (g) {
-        if (ME.role === 'prof') { if (g.eleve) grouped[g.eleve.id] = 1; }
-        else gProfs(g).forEach(function (u) { grouped[u.id] = 1; });
-      });
-      var canAdd = allUsers.filter(function (o) { return roleAllowed(ME, o) && !grouped[o.id]; });
-      ADD_CANDIDATES = canAdd;
+    // plus besoin de /api/users : un formateur ne cherche plus d'apprenant à ajouter
+    Promise.all([api('/api/groups'), api('/api/notifications')]).then(function (res) {
+      var groups = res[0].data.groups || [];
+      NOTIFS = res[1].data.notifs || [];
       var selG = selected ? groups.filter(function (g) { return g.id === selected; })[0] : null;
       if (selected && !selG) selected = null;
-      loadGroupContent(selG, function (m, d) { paintBoard(el, groups, canAdd, selG, m, d, null); });
+      loadGroupContent(selG, function (m, d) { paintBoard(el, groups, selG, m, d, null); });
     });
   }
   function renderAdminDash(el) {
@@ -441,16 +432,16 @@
       ADMIN_OVERVIEW = overview;
       var selG = selected ? groups.filter(function (g) { return g.id === selected; })[0] : null;
       if (selected && !selG) selected = null;
-      loadGroupContent(selG, function (m, d) { paintBoard(el, groups, null, selG, m, d, overview); });
+      loadGroupContent(selG, function (m, d) { paintBoard(el, groups, selG, m, d, overview); });
     });
   }
-  function paintBoard(el, groups, canAdd, selG, messages, docs, overview) {
+  function paintBoard(el, groups, selG, messages, docs, overview) {
     var changed = !CUR_GROUP || !selG || CUR_GROUP.id !== selG.id;
     CUR_GROUP = selG;
     if (changed) GEN_PROF = null;
     resetGenTargets();
     var unread = NOTIFS.filter(function (n) { return !n.read; }).length;
-    el.innerHTML = topHTML() + '<div class="ds-grid"><aside class="ds-side">' + notifCardHTML(unread) + dossiersCardHTML(groups, canAdd) +
+    el.innerHTML = topHTML() + '<div class="ds-grid"><aside class="ds-side">' + notifCardHTML(unread) + dossiersCardHTML(groups) +
       '</aside><main class="ds-main">' + groupView(selG, messages, docs) + '</main></div>' + (overview ? adminPanel(overview) : '');
     el.querySelector('.ds-logout').onclick = function () { logout(); };
     var sa = el.querySelector('.ds-seeall'); if (sa) sa.onclick = openNotifModal;
@@ -463,7 +454,6 @@
         } else renderDashboard();
       };
     });
-    var asb = el.querySelector('.add-search-btn'); if (asb) asb.onclick = openAddModal;
     el.querySelectorAll('.doc-del').forEach(function (b) {
       b.onclick = function () {
         var id = b.getAttribute('data-id'), nom = b.getAttribute('data-name');
@@ -674,42 +664,6 @@
     else openFormModal(t);
   }
 
-  // ---- recherche + ajout de contact (loupe) -----------------------------
-  function openAddModal() {
-    ensureAddModal();
-    var m = document.getElementById('add-modal');
-    m.querySelector('.nm-head h3').textContent = 'Ajouter ' + (ME.role === 'prof' ? 'un apprenant' : 'un formateur');
-    document.getElementById('add-search').value = '';
-    renderAddResults('');
-    m.classList.add('open'); document.body.style.overflow = 'hidden';
-    setTimeout(function () { var s = document.getElementById('add-search'); if (s) s.focus(); }, 60);
-  }
-  function ensureAddModal() {
-    if (document.getElementById('add-modal')) return;
-    var m = document.createElement('div'); m.id = 'add-modal'; m.className = 'notif-modal';
-    m.innerHTML = '<div class="nm-backdrop"></div><div class="nm-card"><div class="nm-head"><h3>Ajouter</h3><button class="nm-close" id="add-close" aria-label="Fermer">&times;</button></div>' +
-      '<div class="add-searchbar"><input id="add-search" class="add-search-input" placeholder="Rechercher par prénom, nom ou e-mail…" autocomplete="off" /></div>' +
-      '<div class="nm-body" id="add-results"></div></div>';
-    document.body.appendChild(m);
-    m.querySelector('#add-close').onclick = closeAddModal;
-    m.querySelector('.nm-backdrop').onclick = closeAddModal;
-    m.querySelector('#add-search').addEventListener('input', function (e) { renderAddResults(e.target.value); });
-  }
-  function closeAddModal() { var m = document.getElementById('add-modal'); if (m) { m.classList.remove('open'); document.body.style.overflow = ''; } }
-  function renderAddResults(q) {
-    var nq = norm(q);
-    var list = ADD_CANDIDATES.filter(function (u) {
-      if (!nq) return true;
-      return norm(u.prenom + ' ' + u.nom).indexOf(nq) >= 0 || norm(u.nom + ' ' + u.prenom).indexOf(nq) >= 0 || norm(u.email).indexOf(nq) >= 0;
-    });
-    var box = document.getElementById('add-results');
-    box.innerHTML = list.length ? '<ul class="add-list">' + list.map(function (o) {
-      return '<li><span class="c-name">' + esc(fullName(o)) + '<small>' + ROLES[o.role] + (o.email ? ' · ' + esc(o.email) : '') + '</small></span><button class="btn-mini add-pick" data-id="' + o.id + '">Ajouter</button></li>';
-    }).join('') + '</ul>' : '<p class="ds-empty" style="padding:6px 4px">' + (ADD_CANDIDATES.length ? 'Aucun résultat.' : 'Aucun ' + (ME.role === 'prof' ? 'apprenant' : 'formateur') + ' disponible.') + '</p>';
-    box.querySelectorAll('.add-pick').forEach(function (b) {
-      b.onclick = function () { b.disabled = true; apiJSON('/api/groups', 'POST', { targetId: b.getAttribute('data-id') }).then(function (r) { if (r.ok) { selected = r.data.group; channel = 'commun'; closeAddModal(); renderDashboard(); } else { alertDialog((r.data && r.data.error) || 'Erreur'); b.disabled = false; } }); };
-    });
-  }
   function wireChat() {
     var box = document.getElementById('chat-msgs'); if (box) box.scrollTop = box.scrollHeight;
     document.querySelectorAll('.qs-fill-btn').forEach(function (b) { b.onclick = function () { openQsFillModal(b.getAttribute('data-qs')); }; });
@@ -770,17 +724,29 @@
       '</div><input id="adm-search" class="adm-search" placeholder="Filtrer par nom, e-mail, fichier…" value="' + esc(adminQuery) + '" />' +
       '<button class="btn-mini adm-new" type="button">+ Créer un compte</button>' +
       '<button class="btn-mini adm-newgrp" type="button">+ Créer un dossier</button>' +
-      '<button class="btn-mini adm-logins" type="button">🕐 Historique de connexions</button></div>';
+      '<button class="btn-mini adm-logins" type="button">🕐 Historique de connexions</button>' +
+      // replier d'un coup les fichiers de tous les dossiers : c'est ce qui rend la vue lisible
+      // quand il y a beaucoup de dossiers bien remplis
+      (groups.some(function (g) { return docs.some(function (d) { return d.group === g.id; }); })
+        ? '<button class="btn-mini ghost adm-foldall" type="button">📄 Replier tous les fichiers</button>' : '') + '</div>';
     var sections = '';
     if (adminShow.dossiers) {
       var gs = groups.filter(function (g) { return !q || norm(g.label || '').indexOf(q) >= 0; });
       sections += '<div class="adm-sec"><h4 class="adm-sec-h">Dossiers</h4>' + (gs.length ? gs.map(function (g) {
         var gd = docs.filter(function (d) { return d.group === g.id; });
         var np = (g.profs || []).length;
-        return '<div class="adm-grp"><div class="adm-grp-h"><span class="avatar">📁</span><span class="c-name">' + esc(g.label || '') + '<small>' + np + ' <span>' + (np > 1 ? 'formateurs' : 'formateur') + '</span> · ' + gd.length + ' <span>document(s)</span></small></span>' +
+        // les fichiers d'un dossier se replient : avec beaucoup de dossiers bien remplis, la
+        // liste complète est illisible. Le pli est enveloppé dans une grille dont la rangée
+        // passe de 1fr à 0fr — c'est ce qui rend la fermeture animée sans hauteur à calculer.
+        var replie = admFilesHidden[g.id];
+        return '<div class="adm-grp' + (replie ? ' files-off' : '') + '" data-grp="' + g.id + '"><div class="adm-grp-h"><span class="avatar">📁</span><span class="c-name">' + esc(g.label || '') + '<small>' + np + ' <span>' + (np > 1 ? 'formateurs' : 'formateur') + '</span> · ' + gd.length + ' <span>document(s)</span></small></span>' +
+          // les boutons sont groupés : à 375 px le groupe passe à la ligne d'un bloc au lieu de
+          // déborder de la boîte du dossier
+          '<div class="adm-grp-acts">' +
+          (gd.length ? '<button class="adm-fold" type="button" data-id="' + g.id + '" title="' + (replie ? 'Afficher les fichiers de ce dossier' : 'Masquer les fichiers de ce dossier') + '" aria-expanded="' + (replie ? 'false' : 'true') + '"><span class="adm-fold-n">' + gd.length + '</span><span class="adm-fold-ch">▾</span></button>' : '') +
           '<button class="adm-grp-edit" type="button" data-id="' + g.id + '" title="Modifier la composition du dossier">✏️</button>' +
-          '<button class="adm-del" type="button" data-del="group" data-id="' + g.id + '" data-label="' + esc(g.label || '') + '" title="Supprimer ce dossier">🗑</button></div>' +
-          (gd.length ? '<ul class="docs">' + gd.map(admDocLi).join('') + '</ul>' : '') + '</div>';
+          '<button class="adm-del" type="button" data-del="group" data-id="' + g.id + '" data-label="' + esc(g.label || '') + '" title="Supprimer ce dossier">🗑</button></div></div>' +
+          (gd.length ? '<div class="adm-files"><div><ul class="docs">' + gd.map(admDocLi).join('') + '</ul></div></div>' : '') + '</div>';
       }).join('') : '<p class="ds-empty">Aucun dossier.</p>') + '</div>';
     }
     if (adminShow.comptes) {
@@ -818,6 +784,40 @@
     var nb = document.querySelector('.adm-new'); if (nb) nb.onclick = openCreateAccount;
     var ng = document.querySelector('.adm-newgrp'); if (ng) ng.onclick = openCreateGroup;
     var lb = document.querySelector('.adm-logins'); if (lb) lb.onclick = function () { openLoginsModal(null, null); };
+    // ⚠️ le pli ne passe PAS par rerenderAdmin : on bascule la classe sur place, sinon le panneau
+    // est reconstruit et la transition CSS n'a pas lieu (le pli serait instantané).
+    function plier(box, replie) {
+      var id = box.getAttribute('data-grp'), btn = box.querySelector('.adm-fold');
+      box.classList.toggle('files-off', replie);
+      if (replie) admFilesHidden[id] = 1; else delete admFilesHidden[id];
+      if (btn) {
+        btn.setAttribute('aria-expanded', replie ? 'false' : 'true');
+        btn.title = replie ? 'Afficher les fichiers de ce dossier' : 'Masquer les fichiers de ce dossier';
+      }
+    }
+    document.querySelectorAll('.adm-fold').forEach(function (b) {
+      b.onclick = function () {
+        var box = b.closest('.adm-grp'); if (!box) return;
+        plier(box, !box.classList.contains('files-off'));
+        majFoldAll();
+      };
+    });
+    var fa = document.querySelector('.adm-foldall');
+    function majFoldAll() {
+      if (!fa) return;
+      var boites = [].slice.call(document.querySelectorAll('.adm-grp .adm-fold')).map(function (b) { return b.closest('.adm-grp'); });
+      var ouverts = boites.filter(function (x) { return !x.classList.contains('files-off'); }).length;
+      fa.textContent = ouverts ? '📄 Replier tous les fichiers' : '📄 Déplier tous les fichiers';
+    }
+    if (fa) {
+      majFoldAll();
+      fa.onclick = function () {
+        var boites = [].slice.call(document.querySelectorAll('.adm-grp .adm-fold')).map(function (b) { return b.closest('.adm-grp'); });
+        var replier = boites.some(function (x) { return !x.classList.contains('files-off'); });
+        boites.forEach(function (x) { plier(x, replier); });
+        majFoldAll();
+      };
+    }
     document.querySelectorAll('.adm-hist').forEach(function (b) {
       b.onclick = function () { openLoginsModal(b.getAttribute('data-id'), b.getAttribute('data-name')); };
     });

@@ -772,28 +772,19 @@ function pickMembers(ids, role, label) {
   out.sort((a, b) => fullName(a).localeCompare(fullName(b), 'fr'));
   return { ids: out };
 }
+// Les dossiers sont constitués par l'ADMINISTRATION UNIQUEMENT (30/07/2026). Avant, un formateur
+// pouvait s'ajouter un apprenant lui-même via {targetId} : c'est retiré, côté serveur comme côté
+// client, pour que la composition des dossiers reste une décision de l'administration.
 app.post('/api/groups', auth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Les dossiers sont créés par l\'administration.' });
   const b = req.body || {};
-  let profs, eleve;
-  if (req.user.role === 'admin') {
-    // un dossier = UN apprenant, mais AUTANT DE FORMATEURS que voulu
-    const p = pickMembers(b.profIds != null ? b.profIds : b.profId, 'prof', 'Formateur');
-    if (p.error) return res.status(400).json({ error: p.error });
-    if (!p.ids.length) return res.status(400).json({ error: 'Choisissez au moins un formateur.' });
-    const e = realUser(b.eleveId);
-    if (!e || e.role !== 'eleve') return res.status(400).json({ error: 'Apprenant invalide.' });
-    profs = p.ids; eleve = e.id;
-  } else if (req.user.role === 'prof') {
-    const target = realUser(b.targetId);
-    if (!target || target.role !== 'eleve') return res.status(400).json({ error: 'Apprenant introuvable.' });
-    profs = [req.user.id]; eleve = target.id;
-    // un dossier identique existe déjà : on le réutilise au lieu d'en créer un doublon
-    const same = db.groups.find(x => x.eleve === target.id && gProfs(x).length === 1 && gProfs(x)[0] === req.user.id);
-    if (same) return res.json({ ok: true, group: same.id });
-  } else {
-    // un apprenant ne constitue plus de dossier lui-même
-    return res.status(403).json({ error: 'Les dossiers sont créés par l\'administration ou votre formateur.' });
-  }
+  // un dossier = UN apprenant, mais AUTANT DE FORMATEURS que voulu
+  const p = pickMembers(b.profIds != null ? b.profIds : b.profId, 'prof', 'Formateur');
+  if (p.error) return res.status(400).json({ error: p.error });
+  if (!p.ids.length) return res.status(400).json({ error: 'Choisissez au moins un formateur.' });
+  const e = realUser(b.eleveId);
+  if (!e || e.role !== 'eleve') return res.status(400).json({ error: 'Apprenant invalide.' });
+  const profs = p.ids, eleve = e.id;
   const g = { id: crypto.randomUUID(), profs, eleve, date: Date.now() };
   db.groups.push(g);
   const label = membersLabel(g);
