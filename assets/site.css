@@ -72,7 +72,10 @@ a{color:inherit;text-decoration:none}
 .lang-menu button.active::after{content:'✓';font-size:12px}
 /* drawer mobile : choix de langue en grille */
 .mm-lang{padding-top:20px;border-top:1px solid var(--line)}
-.mm-lang-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+/* écart VERTICAL porté à 11 px (et non 8) pour que la zone tactile de chaque langue atteigne
+   44 px sans chevaucher celle de la rangée voisine — cf. le ::after plus bas. L'écart
+   horizontal reste à 8 px : l'augmenter rétrécirait les boutons (3 colonnes à largeur fixe). */
+.mm-lang-grid{display:grid;grid-template-columns:repeat(3,1fr);row-gap:11px;column-gap:8px;margin-top:10px}
 .mm-lang-grid button{background:none;border:1.5px solid var(--line);border-radius:999px;padding:8px 4px;font-family:var(--ff-body);font-size:13px;color:var(--ink);cursor:pointer;transition:border-color .15s,color .15s}
 .mm-lang-grid button.active{border-color:var(--accent);color:var(--accent);font-weight:600}
 .nav-burger{display:none;background:none;border:0;cursor:pointer;flex-direction:column;gap:5px;padding:6px}
@@ -127,9 +130,10 @@ body.menu-open{overflow:hidden}
   .mm-close::after{inset:-6px -13px}
   /* liens 34 → 44 de haut : les 16 px d'écart en laissent 6 entre deux cibles */
   .mm-links a::after{inset:-5px 0}
-  /* langues : l'écart de grille ne fait que 8 px, on le consomme sans le dépasser
-     (33 → 41 et 35 → 43 de haut). Aller jusqu'à 44 demanderait 3 px visibles en plus. */
-  .mm-lang-grid button::after{inset:-4px}
+  /* langues → 44 et 46 de haut : l'écart vertical de la grille a été porté à 11 px exprès
+     (5,5 + 5,5 = 11, les zones se touchent sans jamais se chevaucher). En largeur on consomme
+     les 8 px d'écart horizontal, ce qui donne 87 px sans toucher à la largeur visible. */
+  .mm-lang-grid button::after{inset:-5.5px -4px}
 }
 
 /* ---------- Hero (accueil) ------------------------------------------ */
