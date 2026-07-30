@@ -108,6 +108,28 @@ body.menu-open{overflow:hidden}
   .site-header,.site-header.scrolled{padding-left:22px;padding-right:22px}
   .mobile-menu{display:flex;flex-direction:column;gap:20px;position:fixed;top:0;right:0;bottom:0;z-index:210;width:min(82vw,340px);padding:62px 28px 36px;background:rgba(248,242,231,.82);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);box-shadow:-24px 0 60px rgba(42,33,24,.18);transform:translateX(100%);transition:transform .32s cubic-bezier(.2,.85,.25,1);overflow-y:auto}
   .mobile-menu.open{transform:none}
+
+  /* ---- Zones tactiles agrandies SANS rien changer à l'apparence -----------------------
+     Les cibles visibles étaient trop petites pour un pouce (hamburger 36 × 28, liens du
+     tiroir 34 de haut, croix 19 × 32) : au-dessus du minimum WCAG de 24 px, mais sous les
+     44 px recommandés. On agrandit la surface cliquable avec un ::after transparent posé en
+     absolu : il élargit la cible sans occuper de place dans le flux, donc **aucun pixel
+     visible ne bouge**. Les débords sont calculés pour ne JAMAIS empiéter sur la cible
+     voisine (sinon on déplacerait le problème au lieu de le régler). */
+  /* ⚠️ PAS `.mm-close` ici : elle est déjà `position:absolute` (coin haut-droit du tiroir), et
+     lui imposer `relative` la remettait dans le flux — elle passait à 252 px de large et
+     poussait le contenu. Un élément déjà positionné sert de référence à son ::after. */
+  .nav-burger,.mm-links a,.mm-lang-grid button{position:relative}
+  .nav-burger::after,.mm-close::after,.mm-links a::after,.mm-lang-grid button::after{content:'';position:absolute;z-index:1}
+  /* hamburger 36 × 28 → 56 × 44 ; le logo est à 115 px sur la gauche, aucun voisin proche */
+  .nav-burger::after{inset:-8px -10px}
+  /* croix 19 × 32 → 45 × 44 ; le premier bouton du tiroir est 45 px plus bas */
+  .mm-close::after{inset:-6px -13px}
+  /* liens 34 → 44 de haut : les 16 px d'écart en laissent 6 entre deux cibles */
+  .mm-links a::after{inset:-5px 0}
+  /* langues : l'écart de grille ne fait que 8 px, on le consomme sans le dépasser
+     (33 → 41 et 35 → 43 de haut). Aller jusqu'à 44 demanderait 3 px visibles en plus. */
+  .mm-lang-grid button::after{inset:-4px}
 }
 
 /* ---------- Hero (accueil) ------------------------------------------ */

@@ -178,6 +178,8 @@
     if (window.__lsI18N) window.__lsI18N.set(L);
     else { try { localStorage.setItem('ls-lang', L); } catch (err) {} } // moteur pas encore chargé : appliqué à son boot
     if (langSel) langSel.classList.remove('open');
+    // en mobile le choix se fait dans le drawer : on le referme, comme pour un lien de nav
+    if (opt.closest('#mobile-menu')) setMenu(false);
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && langSel) langSel.classList.remove('open'); });
 
