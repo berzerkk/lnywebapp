@@ -61,6 +61,12 @@ Données : `db.json` = `{users, groups, docs, messages, notifs, secret}`.
 - Landing : section test → choix de langue → 1re question dans la langue → redirige vers `?lang=`.
 - Résultat : niveau CECRL + **compétences du niveau** + **correction détaillée** (réponse, bonne réponse, explication).
 
+## Mobile (audit 375 px du 30/07/2026)
+- **Champs de saisie : 16 px imposés sous 620 px** (fin de `assets/site.css`). Safari iOS **agrandit la page** dès qu'on touche un champ dont la police fait moins de 16 px, obligeant à repincer ; les 13 champs du site étaient entre 13,5 et 15 px (contact, test de niveau, connexion) comme tous les champs des modales de génération. ⚠️ Les deux `:not()` du sélecteur ne filtrent rien : ils portent la **spécificité** au-dessus de `.form input` / `.gf input` / `.quiz-card .field select`, sinon la règle serait sans effet. Desktop inchangé (tailles fines conservées).
+- ⚠️ **`.ds-grid` en mobile = `minmax(0,1fr)` et NON `1fr`** : le minimum implicite de `1fr` est le `min-content` des cartes, donc un contenu un peu large fait **déborder la colonne de son conteneur** au lieu de le comprimer. C'est ce qui est arrivé en passant les champs à 16 px (colonne 339 → 360 px dans un conteneur de 311 px). Ne pas régresser.
+- **Mesure fiable de débordement** : `documentElement.scrollWidth - clientWidth` dans le vrai onglet est **faussé de ~17 px** par la barre de défilement du bureau (`innerWidth` ≠ `clientWidth`) ; les barres sont en surimpression sur un vrai téléphone. Mesurer dans une **iframe de 375 × 812** donne le chiffre juste. Écarter aussi le tiroir `#mobile-menu` (hors écran par construction) et tout ce qui est dans un conteneur `overflow-x` (bandeau de logos, canvas du héros).
+- Vérifié au 30/07/2026 : **13 pages à 0 débordement**, héros dont la barre de chiffres ne chevauche pas l'animation, tiroir mobile (ouverture, fond flou, clic-dehors, Échap), grille des 6 langues (3 colonnes), formulaires de génération et feuille de présence sans débordement. Points **non corrigés** (choix de design, à valider avant de toucher) : le bouton hamburger fait 36 × 28 px et les liens du tiroir 34 px de haut — au-dessus du minimum WCAG (24 px) mais sous les 44 px recommandés par Apple ; le tiroir ne se ferme pas après un changement de langue.
+
 ## Conventions / préférences utilisateur
 - Réponses en **français**. L'utilisateur teste sur **localhost:8000** (Ctrl+Shift+R).
 - Accent orange-rosé : `--accent:#be6e54`. Jamais le mot « promesse ». « apprenant » (pas « stagiaire »).

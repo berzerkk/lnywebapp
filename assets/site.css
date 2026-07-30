@@ -654,7 +654,11 @@ footer a:hover{color:#fff8ef}
 .role-chip.role-prof,.mchip-me.role-prof{--chip-ink:#1f7a5a;--chip-line:#bfe3d4;--chip-bg:#eef9f4}
 .role-chip{font-size:12px;font-weight:600;letter-spacing:.03em;padding:5px 12px;border-radius:999px;border:1px solid var(--chip-line);color:var(--chip-ink);background:var(--chip-bg)}
 .ds-grid{display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start}
-@media(max-width:820px){.ds-grid{grid-template-columns:1fr}}
+/* `minmax(0,1fr)` et pas `1fr` : le minimum implicite de `1fr` est le min-content des cartes,
+   si bien qu'un contenu un peu large (un champ, un mot long) fait dépasser la colonne de son
+   conteneur au lieu de le comprimer — c'est exactement ce qui arrivait en passant les champs
+   à 16 px en mobile. Avec un minimum à 0, la colonne ne peut plus déborder. */
+@media(max-width:820px){.ds-grid{grid-template-columns:minmax(0,1fr)}}
 .ds-card{border:1px solid var(--line);border-radius:16px;background:var(--bg-card);padding:22px;margin-bottom:20px}
 .ds-card-h{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .ds-card-acts{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
@@ -985,3 +989,18 @@ footer a:hover{color:#fff8ef}
 @keyframes paintdraw{0%,6%{stroke-dashoffset:1}45%,64%{stroke-dashoffset:0}94%,100%{stroke-dashoffset:1}}
 @keyframes paintsoft{0%,22%{opacity:0}46%,64%{opacity:.92}90%,100%{opacity:0}}
 @media(prefers-reduced-motion:reduce){.painting .stroke{animation:none;stroke-dashoffset:0}.painting .soft{animation:none;opacity:.9}.ent-art.painting .scene{transition:none}}
+
+/* ---- Champs de saisie en mobile : éviter le zoom automatique d'iOS ----------------------
+   Safari sur iPhone AGRANDIT la page dès qu'on touche un champ dont la police fait moins de
+   16 px — le visiteur doit ensuite repincer pour revenir. Tous les champs du site étaient
+   entre 13,5 et 15 px : formulaire de contact, test de niveau, connexion, et tous les
+   formulaires de génération de documents. On force 16 px en dessous de 620 px, sans rien
+   changer en desktop.
+   ⚠️ Les deux `:not()` ne servent pas à filtrer mais à porter la spécificité au-dessus des
+   règles existantes (`.form input`, `.gf input`, `.quiz-card .field select`…) : sans eux,
+   un sélecteur d'élément nu perdrait contre elles et la règle serait sans effet. */
+@media(max-width:620px){
+  input:not([type=checkbox]):not([type=radio]),
+  select:not([hidden]):not(:disabled),
+  textarea:not([hidden]):not(:disabled){font-size:16px}
+}
