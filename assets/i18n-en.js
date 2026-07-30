@@ -381,7 +381,12 @@ window.__lsI18N && window.__lsI18N.register('en', {
   // dossiers à plusieurs formateurs + première connexion
   "Ce dossier compte plusieurs formateurs : le document sera établi au nom de celui choisi ici.": "This folder has several trainers: the document will be issued in the name of the one chosen here.",
   "Un dossier suit UN apprenant, avec autant de formateurs que nécessaire (au moins un). Toutes les personnes retenues seront notifiées et partageront la discussion commune ; l'administration est membre automatiquement.": "A folder follows ONE learner, with as many trainers as needed (at least one). Everyone selected will be notified and will share the common discussion; the administration is a member automatically.",
-  "L'apprenant d'un dossier ne change pas : ce dossier est le sien. Un formateur retiré perd l'accès au dossier, mais les documents et messages déjà déposés y restent.": "A folder's learner does not change: the folder is theirs. A trainer who is removed loses access to the folder, but documents and messages already posted remain.",
+  "Appliquer": "Apply",
+  "Retirer du dossier ?": "Remove from the folder?",
+  "Modifier les formateurs du dossier ?": "Change the folder's trainers?",
+  "Ajouter ou retirer des formateurs de ce dossier": "Add or remove trainers from this folder",
+  "👥 Formateurs": "👥 Trainers",
+  "L'apprenant d'un dossier ne change pas : ce dossier est le sien. Les formateurs, eux, se cochent et se décochent à tout moment — un formateur retiré perd l'accès au dossier, mais les documents et messages déjà déposés y restent.": "A folder's learner does not change: the folder is theirs. Trainers, however, can be ticked and unticked at any time — a trainer who is removed loses access to the folder, but documents and messages already posted remain.",
   "Choisissez l'apprenant du dossier.": "Choose the folder's learner.",
   "apprenant": "learner",
   "formateur": "trainer",

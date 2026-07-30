@@ -277,6 +277,8 @@
   // ---- membres d'un dossier (autant de formateurs et d'apprenants que voulu) ----
   function gProfs(g) { return (g && g.profs) || []; }
   function nameList(list) { return list.map(fullName).join(', '); }
+  // énumération à la française : « A », « A et B », « A, B et C »
+  function frList(noms) { return noms.length < 2 ? (noms[0] || '') : noms.slice(0, -1).join(', ') + ' et ' + noms[noms.length - 1]; }
   function groupTitle(g) {
     var P = gProfs(g), e = g && g.eleve;
     // chacun voit d'abord « les autres » : l'apprenant voit ses formateurs, le formateur son apprenant
@@ -375,8 +377,12 @@
   function groupView(g, messages, docs) {
     if (!g) return '<div class="ds-card space-empty"><div class="se-ic">📁</div><h3>Vos dossiers</h3><p class="ds-empty">Sélectionnez un dossier à gauche pour voir les documents et discuter.</p></div>';
     var canPrive = (ME.role === 'prof' || ME.role === 'admin');
+    // l'administration modifie la composition SANS quitter le dossier (le même bouton existe
+    // aussi sur chaque dossier de la vue globale, en bas de page)
+    var acts = (ME.role === 'admin' ? '<button class="btn-mini ghost grp-edit-btn" type="button" title="Ajouter ou retirer des formateurs de ce dossier">👥 Formateurs</button>' : '') +
+      (ME.role !== 'eleve' ? '<button class="btn-mini gen-btn">📄 Générer un document</button>' : '');
     return '<div class="ds-card"><div class="ds-card-h"><h3>Dossier — ' + esc(groupTitle(g)) + '</h3>' +
-      (ME.role !== 'eleve' ? '<button class="btn-mini gen-btn">📄 Générer un document</button>' : '') + '</div>' + membersChips(g) +
+      (acts ? '<div class="ds-card-acts">' + acts + '</div>' : '') + '</div>' + membersChips(g) +
       '<div class="chan-tabs"><button class="chan-tab' + (channel === 'commun' ? ' on' : '') + '" data-ch="commun">💬 Discussion commune</button>' +
       (canPrive ? '<button class="chan-tab' + (channel === 'prive' ? ' on' : '') + '" data-ch="prive">🔒 Privé · formateur + admin</button>' : '') + '</div>' +
       (channel === 'prive' ? '<p class="chan-note">Canal privé : l\'apprenant n\'a pas accès à ce canal.</p>' : '') +
@@ -473,6 +479,7 @@
     });
     el.querySelectorAll('.chan-tab').forEach(function (t) { t.onclick = function () { channel = t.getAttribute('data-ch'); renderDashboard(); }; });
     var gb = el.querySelector('.gen-btn'); if (gb) gb.onclick = openTemplatePicker;
+    var geb = el.querySelector('.grp-edit-btn'); if (geb && selG) geb.onclick = function () { openEditGroup(selG); };
     if (selG) { wireChat(); wireUpload(); }
     if (overview) wireAdmin();
     renderHeader();
@@ -947,25 +954,53 @@
       '<h4 class="gen-h" style="margin-top:18px">Formateurs</h4>' + pickListHTML('cg-profs', profs, selP) +
       '<p class="chan-note" style="margin-top:12px">' + note + '</p>';
   }
-  // modifier la composition d'un dossier existant (ajouter / retirer des membres)
+  // Modifier la composition d'un dossier existant, À TOUT MOMENT (pas seulement à la création) :
+  // on coche / décoche les formateurs. Rien n'est appliqué sans confirmation nommant les personnes
+  // concernées — retirer un formateur lui coupe l'accès, en ajouter un lui ouvre TOUT l'historique
+  // du canal privé déjà échangé. Deux entrées : le bouton « 👥 Formateurs » dans le dossier ouvert
+  // et le ✏️ de chaque dossier de la vue globale.
   function openEditGroup(g) {
     var users = (ADMIN_OVERVIEW && ADMIN_OVERVIEW.users) || [];
     var profs = users.filter(function (u) { return u.role === 'prof'; });
     var eleves = users.filter(function (u) { return u.role === 'eleve'; });
-    var selP = (g.profs || []).map(function (x) { return x.id; });
-    var body = groupComposerBody(profs, eleves, selP, { nom: (g.eleve && g.eleve.name) || '—' },
-      'L\'apprenant d\'un dossier ne change pas : ce dossier est le sien. Un formateur retiré perd l\'accès au dossier, mais les documents et messages déjà déposés y restent.');
+    var selP = gProfs(g).map(function (x) { return x.id; });
+    // la vue globale renvoie { id, name }, /api/groups renvoie une fiche { prenom, nom }
+    var nomEleve = g.eleve ? (g.eleve.name || fullName(g.eleve)) : '—';
+    var body = groupComposerBody(profs, eleves, selP, { nom: nomEleve },
+      'L\'apprenant d\'un dossier ne change pas : ce dossier est le sien. Les formateurs, eux, se cochent et se décochent à tout moment — un formateur retiré perd l\'accès au dossier, mais les documents et messages déjà déposés y restent.');
     var footer = '<p class="fe-err auth-err" id="cg-err" style="margin:0 12px 0 0"></p><button class="btn btn-primary cg-save" type="button" style="padding:11px 22px">Enregistrer</button>';
     var m = buildFsModal('cg-modal', 'Composition du dossier', body, footer);
-    m.querySelector('.cg-save').onclick = function () {
-      var ids = { profIds: pickedIds('cg-profs') };
-      if (!ids.profIds.length) { err('cg-err', 'Un dossier doit garder au moins un formateur.'); return; }
+    function noms(ids) {
+      return frList(ids.map(function (id) {
+        var u = profs.filter(function (x) { return x.id === id; })[0];
+        return u ? fullName(u) : 'ce formateur';
+      }));
+    }
+    function enregistrer(ids) {
       var btn = m.querySelector('.cg-save'); btn.disabled = true; btn.textContent = 'Enregistrement…';
-      apiJSON('/api/groups/' + encodeURIComponent(g.id), 'PATCH', ids).then(function (r) {
+      apiJSON('/api/groups/' + encodeURIComponent(g.id), 'PATCH', { profIds: ids }).then(function (r) {
         btn.disabled = false; btn.textContent = 'Enregistrer';
         if (!r.ok) { err('cg-err', (r.data && r.data.error) || 'Modification impossible.'); return; }
         closeFsModal('cg-modal');
         api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; renderDashboard(); } });
+      });
+    }
+    m.querySelector('.cg-save').onclick = function () {
+      var apres = pickedIds('cg-profs');
+      if (!apres.length) { err('cg-err', 'Un dossier doit garder au moins un formateur.'); return; }
+      var retires = selP.filter(function (id) { return apres.indexOf(id) < 0; });
+      var ajoutes = apres.filter(function (id) { return selP.indexOf(id) < 0; });
+      if (!retires.length && !ajoutes.length) { closeFsModal('cg-modal'); return; }
+      var txt = [];
+      if (retires.length) txt.push(noms(retires) + (retires.length > 1 ? ' ne verront plus ce dossier' : ' ne verra plus ce dossier') +
+        ' : accès aux documents, aux deux canaux et à la messagerie coupé. Ce qui a déjà été déposé reste dans le dossier.');
+      if (ajoutes.length) txt.push(noms(ajoutes) + (ajoutes.length > 1 ? ' auront accès' : ' aura accès') +
+        ' au dossier, y compris à tout l\'historique du canal privé déjà échangé.');
+      confirmDialog({
+        title: retires.length && !ajoutes.length ? 'Retirer du dossier ?' : 'Modifier les formateurs du dossier ?',
+        message: txt.join(' '),
+        confirm: 'Appliquer', cancel: 'Revenir',
+        onConfirm: function () { enregistrer(apres); }
       });
     };
   }

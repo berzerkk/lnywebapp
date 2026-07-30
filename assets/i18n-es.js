@@ -359,7 +359,12 @@ window.__lsI18N && window.__lsI18N.register('es', {
   // dossiers à plusieurs formateurs + première connexion
   "Ce dossier compte plusieurs formateurs : le document sera établi au nom de celui choisi ici.": "Este expediente tiene varios formadores: el documento se emitirá a nombre del elegido aquí.",
   "Un dossier suit UN apprenant, avec autant de formateurs que nécessaire (au moins un). Toutes les personnes retenues seront notifiées et partageront la discussion commune ; l'administration est membre automatiquement.": "Un expediente sigue a UN alumno, con tantos formadores como sea necesario (al menos uno). Todas las personas seleccionadas serán notificadas y compartirán la conversación común; la administración es miembro automáticamente.",
-  "L'apprenant d'un dossier ne change pas : ce dossier est le sien. Un formateur retiré perd l'accès au dossier, mais les documents et messages déjà déposés y restent.": "El alumno de un expediente no cambia: el expediente es suyo. Un formador retirado pierde el acceso, pero los documentos y mensajes ya publicados permanecen.",
+  "Appliquer": "Aplicar",
+  "Retirer du dossier ?": "¿Quitar del expediente?",
+  "Modifier les formateurs du dossier ?": "¿Modificar los formadores del expediente?",
+  "Ajouter ou retirer des formateurs de ce dossier": "Añadir o quitar formadores de este expediente",
+  "👥 Formateurs": "👥 Formadores",
+  "L'apprenant d'un dossier ne change pas : ce dossier est le sien. Les formateurs, eux, se cochent et se décochent à tout moment — un formateur retiré perd l'accès au dossier, mais les documents et messages déjà déposés y restent.": "El alumno de un expediente no cambia: el expediente es suyo. Los formadores, en cambio, se marcan y se desmarcan en cualquier momento: un formador retirado pierde el acceso, pero los documentos y mensajes ya publicados permanecen.",
   "Choisissez l'apprenant du dossier.": "Elija al alumno del expediente.",
   "apprenant": "alumno",
   "formateur": "formador",

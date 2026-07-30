@@ -359,7 +359,12 @@ window.__lsI18N && window.__lsI18N.register('it', {
   // dossiers à plusieurs formateurs + première connexion
   "Ce dossier compte plusieurs formateurs : le document sera établi au nom de celui choisi ici.": "Questo fascicolo ha più formatori: il documento sarà intestato a quello scelto qui.",
   "Un dossier suit UN apprenant, avec autant de formateurs que nécessaire (au moins un). Toutes les personnes retenues seront notifiées et partageront la discussion commune ; l'administration est membre automatiquement.": "Un fascicolo segue UN allievo, con tutti i formatori necessari (almeno uno). Tutte le persone selezionate saranno avvisate e condivideranno la discussione comune; l'amministrazione è membro automaticamente.",
-  "L'apprenant d'un dossier ne change pas : ce dossier est le sien. Un formateur retiré perd l'accès au dossier, mais les documents et messages déjà déposés y restent.": "L'allievo di un fascicolo non cambia: il fascicolo è suo. Un formatore rimosso perde l'accesso, ma i documenti e i messaggi già depositati restano.",
+  "Appliquer": "Applica",
+  "Retirer du dossier ?": "Rimuovere dal fascicolo?",
+  "Modifier les formateurs du dossier ?": "Modificare i formatori del fascicolo?",
+  "Ajouter ou retirer des formateurs de ce dossier": "Aggiungere o rimuovere formatori da questo fascicolo",
+  "👥 Formateurs": "👥 Formatori",
+  "L'apprenant d'un dossier ne change pas : ce dossier est le sien. Les formateurs, eux, se cochent et se décochent à tout moment — un formateur retiré perd l'accès au dossier, mais les documents et messages déjà déposés y restent.": "L'allievo di un fascicolo non cambia: il fascicolo è suo. I formatori, invece, si selezionano e si deselezionano in qualsiasi momento: un formatore rimosso perde l'accesso, ma i documenti e i messaggi già depositati restano.",
   "Choisissez l'apprenant du dossier.": "Scegliete l'allievo del fascicolo.",
   "apprenant": "allievo",
   "formateur": "formatore",

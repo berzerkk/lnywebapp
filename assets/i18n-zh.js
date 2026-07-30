@@ -360,7 +360,12 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   // dossiers à plusieurs formateurs + première connexion
   "Ce dossier compte plusieurs formateurs : le document sera établi au nom de celui choisi ici.": "本档案有多位培训师：文件将以此处所选培训师的名义出具。",
   "Un dossier suit UN apprenant, avec autant de formateurs que nécessaire (au moins un). Toutes les personnes retenues seront notifiées et partageront la discussion commune ; l'administration est membre automatiquement.": "一份档案跟进一名学员，可配置任意数量的培训师（至少一位）。所有选定的人都会收到通知并共享公共讨论；管理部门自动为成员。",
-  "L'apprenant d'un dossier ne change pas : ce dossier est le sien. Un formateur retiré perd l'accès au dossier, mais les documents et messages déjà déposés y restent.": "档案的学员不会更改：这是他的档案。被移除的培训师将失去访问权限，但已提交的文件和消息仍会保留。",
+  "Appliquer": "应用",
+  "Retirer du dossier ?": "从档案中移除？",
+  "Modifier les formateurs du dossier ?": "修改档案的培训师？",
+  "Ajouter ou retirer des formateurs de ce dossier": "在此档案中添加或移除培训师",
+  "👥 Formateurs": "👥 培训师",
+  "L'apprenant d'un dossier ne change pas : ce dossier est le sien. Les formateurs, eux, se cochent et se décochent à tout moment — un formateur retiré perd l'accès au dossier, mais les documents et messages déjà déposés y restent.": "档案的学员不会更改：这是他的档案。培训师则可随时勾选或取消勾选——被移除的培训师将失去访问权限，但已提交的文件和消息仍会保留。",
   "Choisissez l'apprenant du dossier.": "请选择档案的学员。",
   "apprenant": "名学员",
   "formateur": "名培训师",

@@ -359,7 +359,12 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   // dossiers à plusieurs formateurs + première connexion
   "Ce dossier compte plusieurs formateurs : le document sera établi au nom de celui choisi ici.": "В этой папке несколько преподавателей: документ будет оформлен на имя выбранного здесь.",
   "Un dossier suit UN apprenant, avec autant de formateurs que nécessaire (au moins un). Toutes les personnes retenues seront notifiées et partageront la discussion commune ; l'administration est membre automatiquement.": "Папка ведёт ОДНОГО слушателя, с любым числом преподавателей (минимум один). Все выбранные получат уведомление и общий чат; администрация входит в папку автоматически.",
-  "L'apprenant d'un dossier ne change pas : ce dossier est le sien. Un formateur retiré perd l'accès au dossier, mais les documents et messages déjà déposés y restent.": "Слушатель папки не меняется: это его папка. Исключённый преподаватель теряет доступ, но уже размещённые документы и сообщения остаются.",
+  "Appliquer": "Применить",
+  "Retirer du dossier ?": "Удалить из папки?",
+  "Modifier les formateurs du dossier ?": "Изменить преподавателей папки?",
+  "Ajouter ou retirer des formateurs de ce dossier": "Добавить или удалить преподавателей в этой папке",
+  "👥 Formateurs": "👥 Преподаватели",
+  "L'apprenant d'un dossier ne change pas : ce dossier est le sien. Les formateurs, eux, se cochent et se décochent à tout moment — un formateur retiré perd l'accès au dossier, mais les documents et messages déjà déposés y restent.": "Слушатель папки не меняется: это его папка. Преподавателей же можно отмечать и снимать отметку в любой момент — исключённый преподаватель теряет доступ, но уже размещённые документы и сообщения остаются.",
   "Choisissez l'apprenant du dossier.": "Выберите слушателя папки.",
   "apprenant": "слушатель",
   "formateur": "преподаватель",
