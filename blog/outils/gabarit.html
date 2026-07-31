@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{{TITRE}} · Blog Languages &amp; Success</title>
+<meta name="description" content="{{CHAPO}}" />
+<link rel="icon" type="image/png" href="../assets/ls-logo.png" />
+<link rel="stylesheet" href="../assets/fonts.css?v=BUILD" />
+<link rel="stylesheet" href="../assets/site.css?v=BUILD" />
+<!-- Fiche de l'article : c'est elle qui alimente la grille de blog.html. Ne pas la retirer. -->
+<script type="application/json" id="ls-meta">
+{
+  "titre": "{{TITRE}}",
+  "chapo": "{{CHAPO}}",
+  "categorie": "{{CATEGORIE}}",
+  "date": "{{DATE_ISO}}",
+  "statut": "brouillon"
+}
+</script>
+</head>
+<body>
+<div id="ls-nav"></div>
+
+<header class="page-hero" style="padding-bottom:20px">
+  <div class="wrap">
+    <div class="crumbs"><a href="../index.html">Accueil</a> · <a href="../blog.html">Blog</a> · {{CATEGORIE}}</div>
+    <span class="eyebrow">{{CATEGORIE}}</span>
+    <h1 style="font-size:clamp(30px,4.4vw,52px)">{{TITRE}}</h1>
+    <p class="lead">{{CHAPO}}</p>
+  </div>
+</header>
+
+<section class="sec" style="padding-top:14px">
+  <div class="wrap">
+    <div class="prose">
+      <p class="updated">Publié le {{DATE_LISIBLE}} · par l'équipe pédagogique Languages &amp; Success</p>
+
+{{CORPS}}
+
+      <p class="art-retour"><a href="../blog.html">← Tous les articles</a></p>
+    </div>
+  </div>
+</section>
+
+<div id="ls-footer"></div>
+<script>window.LS_CONFIG={key:'sub'};</script>
+<script src="../assets/partials.js?v=BUILD"></script>
+<script src="../ls-engine.js"></script>
+</body>
+</html>

@@ -138,10 +138,22 @@
       '</div>' +
     '</footer>';
 
+  // Les articles du blog vivent dans /blog/, toutes les autres pages à la racine. Le header et
+  // le pied sont écrits avec des chemins relatifs (« index.html », « assets/… ») : depuis un
+  // sous-dossier ils pointeraient sur /blog/index.html. On les préfixe donc à l'injection.
+  // Sont laissés intacts : les URL absolues, les mailto:/tel: et les ancres.
+  var RACINE = /\/blog\//.test(location.pathname) ? '../' : '';
+  function versRacine(html) {
+    if (!RACINE) return html;
+    return html.replace(/\b(href|src)="(?!https?:|mailto:|tel:|#|\/|data:)/g, '$1="' + RACINE);
+  }
+
   var navRoot = document.getElementById('ls-nav');
   var footRoot = document.getElementById('ls-footer');
-  if (navRoot) navRoot.outerHTML = navHTML;
-  if (footRoot) footRoot.outerHTML = footHTML;
+  if (navRoot) navRoot.outerHTML = versRacine(navHTML);
+  if (footRoot) footRoot.outerHTML = versRacine(footHTML);
+  // un article est une page de blog : c'est l'onglet « Blog » qui doit être actif
+  if (RACINE) { var lb = document.querySelector('#nav-links a[href$="blog.html"]'); if (lb) lb.classList.add('active'); }
 
   // réseaux sociaux : placeholders sans lien (href="#") → on neutralise le clic en attendant les vrais liens
   document.querySelectorAll('.soc[href="#"]').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
@@ -187,7 +199,7 @@
   if (!window.__lsI18nLoaded) {
     window.__lsI18nLoaded = true;
     var i18 = document.createElement('script');
-    i18.src = 'assets/i18n.js?v=' + Date.now(); // même stratégie anti-cache qu'account.js
+    i18.src = RACINE + 'assets/i18n.js?v=' + Date.now(); // même stratégie anti-cache qu'account.js
     document.body.appendChild(i18);
   }
 
@@ -198,7 +210,7 @@
     // cache-buster horodaté : account.js est injecté dynamiquement (le hard-refresh ne le
     // rafraîchit pas) → on force une URL unique pour toujours charger la dernière version,
     // y compris derrière le CDN Cloudflare.
-    acc.src = 'assets/account.js?v=' + Date.now();
+    acc.src = RACINE + 'assets/account.js?v=' + Date.now();
     document.body.appendChild(acc);
   }
 })();

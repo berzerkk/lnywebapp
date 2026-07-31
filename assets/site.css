@@ -1034,3 +1034,11 @@ footer a:hover{color:#fff8ef}
   select:not([hidden]):not(:disabled),
   textarea:not([hidden]):not(:disabled){font-size:16px}
 }
+
+/* ---- Blog : cartes cliquables et pastille de catégorie ----------------------------------
+   La carte entière est un lien (et non le seul titre) : sur un téléphone c'est la seule
+   surface assez grande pour être visée au pouce. */
+.post-lien{display:flex;flex-direction:column;height:100%;color:inherit}
+.post .thumb.cat{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,color-mix(in oklab,var(--accent) 16%,var(--bg-card)),color-mix(in oklab,var(--accent) 34%,var(--bg-card)))}
+.post .thumb.cat span{font-family:var(--ff-body);font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:color-mix(in oklab,var(--accent) 78%,var(--ink))}
+.art-retour{margin-top:38px;padding-top:20px;border-top:1px solid var(--line)}
