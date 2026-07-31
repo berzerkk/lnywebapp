@@ -63,7 +63,7 @@ FLE · CECRL. Vous pouvez en créer d'autres, elles s'afficheront telles quelles
 ### 2026-07-31 — CPF : financer sa formation en langue, mode d'emploi
 - **Fichier** : cpf-financer-sa-formation-en-langue-mode-d-emploi.html
 - **Catégorie** : Financement
-- **Statut** : publié
+- **Statut** : à relire
 - **Angle** : guide pas à pas pour un salarié qui n'a jamais mobilisé son CPF, du premier
   clic sur Mon Compte Formation jusqu'au démarrage des cours.
 - **Sources** :

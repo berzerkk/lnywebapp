@@ -14,6 +14,7 @@
 //   node blog/outils/blog.js index               → régénère la grille de blog.html + sitemap.xml
 //   node blog/outils/blog.js sitemap             → régénère seulement sitemap.xml
 //   node blog/outils/blog.js publier <slug>      → brouillon → en ligne, puis régénère l'index
+//   node blog/outils/blog.js depublier <slug>    → en ligne → brouillon (marche arrière)
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -256,6 +257,21 @@ function publier(slug) {
   return { meta, total: arts.length, chemin: 'blog/' + slug + '.html' };
 }
 
+// retirer un article du blog sans le perdre : il redevient un brouillon relisible
+function depublier(slug) {
+  const src = path.join(BLOG, slug + '.html');
+  if (!fs.existsSync(src)) throw new Error('article en ligne introuvable : blog/' + slug + '.html');
+  fs.mkdirSync(BROUILLONS, { recursive: true });
+  const dst = path.join(BROUILLONS, slug + '.html');
+  let html = fs.readFileSync(src, 'utf8').replace(/("statut"\s*:\s*")[^"]*(")/, '$1brouillon$2');
+  fs.writeFileSync(dst, html);
+  fs.unlinkSync(src);
+  try { majSujet(slug, { 'Statut': 'à relire' }); } catch (e) { console.error('  (sujets.md non mis à jour : ' + e.message + ')'); }
+  const arts = genererIndex();
+  genererSitemap();
+  return { total: arts.length, chemin: 'blog/brouillons/' + slug + '.html' };
+}
+
 // ------------------------------------------------------------------ commandes
 const [cmd, ...args] = process.argv.slice(2);
 try {
@@ -335,6 +351,9 @@ try {
   } else if (cmd === 'sitemap') {
     const u = genererSitemap();
     console.log('✔ sitemap.xml régénéré : ' + u.length + ' URL');
+  } else if (cmd === 'depublier') {
+    const r = depublier(args[0]);
+    console.log('✔ retiré du blog : ' + r.chemin + '  (' + r.total + ' article(s) encore en ligne)');
   } else if (cmd === 'publier') {
     const r = publier(args[0]);
     console.log('✔ en ligne : ' + r.chemin + '  (' + r.total + ' article(s) au total)');
