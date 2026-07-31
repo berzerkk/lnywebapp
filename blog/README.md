@@ -12,18 +12,23 @@ blog/
   outils/gabarit.html  ← modèle d'article, jamais publié tel quel
 ```
 
-## Une seule tâche planifiée : `blog-ls-semaine`
+## Deux tâches, deux portes de validation
 
-**Chaque lundi matin**, une exécution prépare toute la semaine :
+**Rien ne s'écrit et rien ne se publie sans l'accord de l'utilisateur.**
 
-1. veille sur le web si des créneaux de la semaine sont vides ;
-2. rédaction des **trois articles** (lundi, mercredi, vendredi), visuels de couverture compris ;
-3. **mise en ligne du seul article du lundi** ;
-4. mercredi et vendredi restent en **brouillon**, prêts à valider ;
-5. un message sur Slack `#blog_claude` avec les liens et les **six posts réseaux sociaux**
-   (LinkedIn + Facebook pour chacun des trois articles), prêts à copier.
+| Tâche | Quand | Ce qu'elle fait | Ce qu'elle ne fait PAS |
+|---|---|---|---|
+| `blog-ls-1-recherche-sujets` | jeudi | cherche des sujets, les inscrit en `proposé`, poste la liste sur Slack | n'écrit aucun article, ne valide rien |
+| `blog-ls-2-redaction` | lundi | rédige en brouillon **les seuls sujets `validé`**, poste les liens de relecture | ne publie rien, n'invente aucun sujet |
 
-Les articles de mercredi et vendredi ne partent **jamais** en ligne tout seuls. Pour valider :
+**Porte 1 — les sujets.** La recherche propose ; l'utilisateur valide (avec une date) ou refuse.
+Un sujet `refusé` reste dans `sujets.md` : c'est la mémoire, il ne sera **plus jamais reproposé**.
+
+**Porte 2 — les textes.** La rédaction ne touche qu'aux sujets `validé`. Elle produit un
+brouillon (non listé, exclu de l'indexation) et attend la relecture. Si la liste des sujets
+validés est vide, **elle ne fait rien** — elle ne comble jamais un trou toute seule.
+
+Pour mettre un article en ligne, une fois relu :
 
 ```bash
 node blog/outils/blog.js publier <identifiant>

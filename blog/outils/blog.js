@@ -2,6 +2,10 @@
 // brouillon. La RÉDACTION n'est pas ici — elle est faite par Claude lors de la tâche planifiée ;
 // ce script ne s'occupe que de ce qui doit être mécanique et reproductible.
 //
+//   node blog/outils/blog.js proposes           → ce qui attend VOTRE décision
+//   node blog/outils/blog.js valider <slug> [date] → vous acceptez le sujet
+//   node blog/outils/blog.js refuser <slug> [raison] → vous le refusez (mémorisé)
+//   node blog/outils/blog.js aecrire            → les sujets VALIDÉS de la semaine
 //   node blog/outils/blog.js sujets              → tous les sujets, en JSON
 //   node blog/outils/blog.js sujets --jour       → le sujet prévu aujourd'hui (rien sinon)
 //   node blog/outils/blog.js sujets --jour 2026-08-03
@@ -113,6 +117,21 @@ function lireSujets() {
       sources
     };
   });
+}
+
+// pose ou remplace la date dans l'entête « ### AAAA-MM-JJ — Titre » d'un sujet
+function majDate(slug, date) {
+  const sujets = lireSujets();
+  const cible = sujets.find(s => s.slug === slug);
+  if (!cible) throw new Error('sujet introuvable : ' + slug);
+  let texte = fs.readFileSync(SUJETS, 'utf8');
+  const lignes = texte.split(/\r?\n/);
+  for (let i = 0; i < lignes.length; i++) {
+    if (!/^###\s+/.test(lignes[i]) || lignes[i].indexOf(cible.titre) < 0) continue;
+    lignes[i] = '### ' + (date ? date + ' — ' : '') + cible.titre;
+    break;
+  }
+  fs.writeFileSync(SUJETS, lignes.join(NL));
 }
 
 // écrit/remplace un champ dans l'entrée dont le slug correspond
@@ -244,20 +263,63 @@ try {
     const sujets = lireSujets();
     const iJour = args.indexOf('--jour');
     if (iJour >= 0) {
+      // ⚠️ SEULS les sujets VALIDÉS par l'utilisateur peuvent être rédigés.
       const jour = args[iJour + 1] && /^\d{4}-\d{2}-\d{2}$/.test(args[iJour + 1]) ? args[iJour + 1] : aujourdhui();
-      const dujour = sujets.filter(s => s.date === jour && s.statut !== 'publié');
+      const dujour = sujets.filter(s => s.date === jour && s.statut === 'validé');
       console.log(JSON.stringify({ jour, dateLisible: dateLisible(jour), sujets: dujour }, null, 2));
     } else {
       console.log(JSON.stringify(sujets, null, 2));
     }
+  } else if (cmd === 'aecrire') {
+    // les sujets validés dont la date tombe dans les 7 prochains jours : la matière de la
+    // tâche de rédaction. Rien d'autre ne doit être rédigé.
+    const auj = aujourdhui();
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    const fin = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const l = lireSujets().filter(s => s.statut === 'validé' && s.date && s.date >= auj && s.date <= fin)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    console.log(JSON.stringify({ du: auj, au: fin, sujets: l }, null, 2));
+  } else if (cmd === 'proposes') {
+    // ce qui attend VOTRE décision
+    const l = lireSujets().filter(s => s.statut === 'proposé');
+    if (!l.length) { console.log('Aucun sujet en attente de décision.'); }
+    else {
+      console.log(l.length + ' sujet(s) en attente de votre décision :' + NL);
+      l.forEach(s => console.log('• ' + s.titre + '  [' + s.categorie + ']' + NL +
+        '    ' + (s.angle || '(pas d\'angle)') + NL +
+        '    valider : node blog/outils/blog.js valider ' + s.slug + ' AAAA-MM-JJ' + NL +
+        '    refuser : node blog/outils/blog.js refuser ' + s.slug + NL));
+    }
+  } else if (cmd === 'valider') {
+    const [slug, date] = args;
+    if (!slug) throw new Error('usage : valider <slug> [AAAA-MM-JJ]');
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('date attendue au format AAAA-MM-JJ');
+    majSujet(slug, { 'Statut': 'validé' });
+    if (date) majDate(slug, date);
+    console.log('✔ validé : ' + slug + (date ? ' → ' + dateLisible(date) : ' (sans date, en réserve)'));
+  } else if (cmd === 'refuser') {
+    const [slug, ...raison] = args;
+    if (!slug) throw new Error('usage : refuser <slug> [raison]');
+    const champs = { 'Statut': 'refusé' };
+    if (raison.length) champs['Refus'] = raison.join(' ');
+    majSujet(slug, champs);
+    majDate(slug, null);                       // un sujet refusé n'occupe plus de créneau
+    console.log('✔ refusé : ' + slug + ' — il ne sera plus reproposé');
   } else if (cmd === 'planning') {
     const sujets = lireSujets();
     const auj = aujourdhui();
-    const aVenir = sujets.filter(s => s.date && s.date >= auj && s.statut !== 'publié').sort((a, b) => a.date.localeCompare(b.date));
-    const reserve = sujets.filter(s => !s.date && s.statut !== 'publié');
-    const lignes = aVenir.map(s => '• ' + dateLisible(s.date) + ' — ' + s.titre + '  [' + s.categorie + ']');
-    if (reserve.length) lignes.push('', 'En réserve (sans date) : ' + reserve.length + ' sujet(s)');
-    console.log(lignes.join(NL) || 'Aucun sujet planifié.');
+    const par = (st) => sujets.filter(s => s.statut === st);
+    const aVenir = sujets.filter(s => s.date && s.date >= auj && ['validé', 'à relire'].indexOf(s.statut) >= 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const lignes = [];
+    lignes.push('Validés, à venir :');
+    lignes.push(...(aVenir.length ? aVenir.map(s => '  • ' + dateLisible(s.date) + ' — ' + s.titre + '  [' + s.statut + ']') : ['  (aucun)']));
+    const prop = par('proposé');
+    lignes.push('', 'En attente de votre décision : ' + prop.length + (prop.length ? '' : ' (aucun)'));
+    prop.forEach(s => lignes.push('  • ' + s.titre + '  [' + s.categorie + ']'));
+    const ref = par('refusé'), pub = par('publié');
+    lignes.push('', 'Refusés (jamais reproposés) : ' + ref.length + '   |   Publiés : ' + pub.length);
+    console.log(lignes.join(NL));
   } else if (cmd === 'statut') {
     const [slug, statut, fichier] = args;
     if (!slug || !statut) throw new Error('usage : statut <slug> <statut> [fichier]');
