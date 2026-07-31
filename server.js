@@ -121,7 +121,7 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
-const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], contratRefs: [], logins: [], docVersions: {}, secret: crypto.randomBytes(32).toString('hex') });
+const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], contratRefs: [], logins: [], docVersions: {}, articles: [], secret: crypto.randomBytes(32).toString('hex') });
 function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys(def)) { if (d[k] == null) d[k] = def[k]; } return migrateGroups(d); }
 // MIGRATION (27/07/2026) : un dossier passe de { prof, eleve } (une seule personne de chaque côté)
 // à { profs: [...], eleves: [...] }. Les bases existantes (dont la prod) sont converties au chargement ;
@@ -2567,16 +2567,381 @@ app.post('/api/presence/:id/cancel', auth, (req, res) => {
 app.get('/api/demo-accounts', (req, res) => res.json({ accounts: DEMO_ACCOUNTS.map(d => ({ email: d.email, password: DEMO_PASSWORD, role: d.role, name: `${d.prenom} ${d.nom}` })) }));
 
 // ---- statique (site) -------------------------------------------------------
+
+// ============================================================================
+//  BLOG — les articles vivent en BASE (db.articles), pas dans des fichiers.
+//  Raison : le conteneur est reconstruit à chaque déploiement, seul le volume
+//  data/ survit. Un article édité depuis la page admin doit donc être en base,
+//  sinon il disparaîtrait au prochain push.
+//  Visibilité : publié = tout le monde ; brouillon et programmé = ADMIN seul.
+// ============================================================================
+const SITE_URL_PUB = (process.env.SITE_URL || 'https://languagesandsuccess.com').replace(/\/$/, '');
+const ART_STATUTS = ['brouillon', 'programme', 'publie'];
+
+function artSlug(titre, exclureId) {
+  let base = String(titre || 'article').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/['\u2019]/g, ' ').replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '').slice(0, 70) || 'article';
+  let slug = base, n = 2;
+  while (db.articles.some(a => a.slug === slug && a.id !== exclureId)) slug = base + '-' + (n++);
+  return slug;
+}
+// un article est-il visible du public ? (programmé dont l'heure est passée = publié)
+function artEnLigne(a) {
+  if (a.statut === 'publie') return true;
+  if (a.statut === 'programme' && a.datePublication) return new Date(a.datePublication).getTime() <= Date.now();
+  return false;
+}
+function artVisiblePar(a, user) { return artEnLigne(a) || (user && user.role === 'admin'); }
+function artPub(a) {
+  return {
+    id: a.id, slug: a.slug, titre: a.titre, chapo: a.chapo, categorie: a.categorie,
+    statut: a.statut, enLigne: artEnLigne(a), datePublication: a.datePublication,
+    dateCreation: a.dateCreation, dateMaj: a.dateMaj, image: a.image, motCle: a.motCle,
+    url: '/blog/' + a.slug
+  };
+}
+// utilisateur éventuel porté par l'en-tête Authorization ou ?token= (pour la prévisualisation
+// d'un brouillon, une navigation de page ne pouvant pas poser d'en-tête)
+function userSiConnecte(req) {
+  const h = req.headers.authorization || '';
+  const t = h.startsWith('Bearer ') ? h.slice(7) : (req.query && req.query.token) || '';
+  if (!t) return null;
+  try { const d = jwt.verify(t, db.secret); return realUser(d.id) || null; } catch (e) { return null; }
+}
+function adminSeul(req, res) {
+  if (!req.user || req.user.role !== 'admin') { res.status(403).json({ error: 'Réservé à l\'administration.' }); return false; }
+  return true;
+}
+
+// ---- API ------------------------------------------------------------------
+app.get('/api/blog/articles', (req, res) => {
+  const u = userSiConnecte(req);
+  const liste = db.articles.filter(a => artVisiblePar(a, u))
+    .sort((x, y) => String(y.datePublication || y.dateCreation).localeCompare(String(x.datePublication || x.dateCreation)));
+  res.json({ articles: liste.map(artPub), admin: !!(u && u.role === 'admin') });
+});
+app.get('/api/blog/articles/:id', (req, res) => {
+  const u = userSiConnecte(req);
+  const a = db.articles.find(x => x.id === req.params.id || x.slug === req.params.id);
+  if (!a || !artVisiblePar(a, u)) return res.status(404).json({ error: 'Article introuvable.' });
+  res.json({ article: Object.assign({}, a, { enLigne: artEnLigne(a) }) });
+});
+app.post('/api/blog/articles', auth, (req, res) => {
+  if (!adminSeul(req, res)) return;
+  const b = req.body || {};
+  if (!b.titre) return res.status(400).json({ error: 'Le titre est obligatoire.' });
+  const now = new Date().toISOString();
+  const a = {
+    id: crypto.randomUUID(), slug: artSlug(b.slug || b.titre),
+    titre: b.titre, chapo: b.chapo || '', categorie: b.categorie || 'Conseils',
+    motCle: b.motCle || '', titreSeo: b.titreSeo || '', metaDescription: b.metaDescription || '',
+    corps: b.corps || '', faq: Array.isArray(b.faq) ? b.faq : [], sources: Array.isArray(b.sources) ? b.sources : [],
+    image: b.image || '', statut: 'brouillon', datePublication: null,
+    dateCreation: now, dateMaj: now, auteur: senderDisplay(req.user)
+  };
+  db.articles.push(a); save();
+  res.json({ article: artPub(a) });
+});
+app.patch('/api/blog/articles/:id', auth, (req, res) => {
+  if (!adminSeul(req, res)) return;
+  const a = db.articles.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Article introuvable.' });
+  const b = req.body || {};
+  for (const k of ['titre', 'chapo', 'categorie', 'motCle', 'titreSeo', 'metaDescription', 'corps', 'image']) {
+    if (b[k] != null) a[k] = b[k];
+  }
+  if (Array.isArray(b.faq)) a.faq = b.faq;
+  if (Array.isArray(b.sources)) a.sources = b.sources;
+  if (b.slug) a.slug = artSlug(b.slug, a.id);
+  a.dateMaj = new Date().toISOString();
+  save();
+  res.json({ article: artPub(a) });
+});
+app.delete('/api/blog/articles/:id', auth, (req, res) => {
+  if (!adminSeul(req, res)) return;
+  const i = db.articles.findIndex(x => x.id === req.params.id);
+  if (i < 0) return res.status(404).json({ error: 'Article introuvable.' });
+  const [a] = db.articles.splice(i, 1); save();
+  res.json({ ok: true, titre: a.titre });
+});
+// publier tout de suite, ou programmer pour plus tard
+app.post('/api/blog/articles/:id/publier', auth, (req, res) => {
+  if (!adminSeul(req, res)) return;
+  const a = db.articles.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Article introuvable.' });
+  const quand = (req.body || {}).datePublication;
+  if (quand) {
+    const t = new Date(quand).getTime();
+    if (isNaN(t)) return res.status(400).json({ error: 'Date de publication invalide.' });
+    a.statut = t <= Date.now() ? 'publie' : 'programme';
+    a.datePublication = new Date(quand).toISOString();
+  } else {
+    a.statut = 'publie';
+    a.datePublication = new Date().toISOString();
+  }
+  a.dateMaj = new Date().toISOString();
+  save();
+  if (a.statut === 'publie') diffusionSociale(a);
+  res.json({ article: artPub(a) });
+});
+app.post('/api/blog/articles/:id/depublier', auth, (req, res) => {
+  if (!adminSeul(req, res)) return;
+  const a = db.articles.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Article introuvable.' });
+  a.statut = 'brouillon'; a.datePublication = null; a.dateMaj = new Date().toISOString();
+  save();
+  res.json({ article: artPub(a) });
+});
+
+// ---- publication programmée ------------------------------------------------
+// Le serveur tourne en continu : c'est LUI qui bascule un article programmé à l'heure dite.
+// (Une tâche planifiée côté poste de travail ne le pourrait pas, l'application devant être ouverte.)
+function tickProgrammation() {
+  try {
+    let bouge = false;
+    for (const a of db.articles) {
+      if (a.statut !== 'programme' || !a.datePublication) continue;
+      if (new Date(a.datePublication).getTime() > Date.now()) continue;
+      a.statut = 'publie'; a.dateMaj = new Date().toISOString(); bouge = true;
+      console.log('📝 article publié automatiquement : ' + a.titre);
+      diffusionSociale(a);
+    }
+    if (bouge) save();
+  } catch (e) { console.error('programmation blog :', e.message); }
+}
+setInterval(tickProgrammation, 60 * 1000);
+
+// ---- diffusion sur les réseaux sociaux -------------------------------------
+// Branché sur la mise en ligne. Sans configuration, ne fait rien et le dit — comme les e-mails.
+// ⚠️ Vérifié le 31/07/2026 : seul Facebook (page) est automatisable sans revue ni délai.
+// LinkedIn exige un produit soumis à validation et ne délivre aucun jeton durable ; TikTok
+// refuse ce type d'usage ; les stories n'acceptent ni lien ni légende exploitables.
+function configSociale() {
+  try {
+    let t = fs.readFileSync(path.join(DATA_DIR, 'social.json'), 'utf8');
+    if (t.charCodeAt(0) === 0xfeff) t = t.slice(1);
+    return JSON.parse(t);
+  } catch (e) { return null; }
+}
+async function diffusionSociale(a) {
+  const cfg = configSociale();
+  if (!cfg || !cfg.facebook || !cfg.facebook.pageId || !cfg.facebook.token) {
+    console.log('↗ diffusion sociale désactivée (pas de data/social.json) — ' + a.titre);
+    return;
+  }
+  const lien = SITE_URL_PUB + '/blog/' + a.slug;
+  const message = (a.chapo ? a.chapo + '\n\n' : '') + lien;
+  try {
+    const r = await fetch('https://graph.facebook.com/v21.0/' + cfg.facebook.pageId + '/feed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, link: lien, access_token: cfg.facebook.token }),
+      signal: AbortSignal.timeout(20000)
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+    console.log('↗ publié sur la page Facebook : ' + (j.id || '(sans id)'));
+  } catch (e) {
+    console.error('↗ ÉCHEC de la publication Facebook : ' + e.message);
+    // ⚠️ La panne de jeton est SILENCIEUSE par nature : sans cette alerte, on s'aperçoit deux
+    // mois plus tard que plus rien n'est parti. Alerter sur l'échec, pas au moment de l'expiration.
+    try {
+      sendMailSafe(cfg.alerte || MAIL.user, 'Blog L&S — la publication Facebook a échoué',
+        'L\'article « ' + a.titre + ' » est bien en ligne sur le site, mais sa publication sur la page Facebook a échoué.\n\nErreur : ' + e.message + '\n\nLe jeton d\'accès est peut-être expiré.',
+        mailHtml('La publication Facebook a échoué',
+          ['L\'article « ' + a.titre + ' » est bien en ligne sur le site.',
+           'En revanche, sa publication sur la page Facebook a échoué.',
+           'Erreur : ' + e.message,
+           'Le jeton d\'accès est peut-être expiré.'], 'Voir l\'article', lien));
+    } catch (e2) {}
+  }
+}
+
+
+// ---- rendu des pages du blog ----------------------------------------------
+const NL = '\n';   // retour à la ligne des gabarits HTML ci-dessous
+const MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const JOURS_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+function artDateLisible(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return JOURS_FR[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS_FR[d.getMonth()] + ' ' + d.getFullYear();
+}
+const artIso = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
+
+// carte d'un article dans la grille de blog.html
+function artCarte(a) {
+  const vignette = a.image
+    ? '<img class="thumb" src="' + htmlEsc(a.image) + '" alt="' + htmlEsc(a.categorie + ' — ' + a.titre) + '" loading="lazy" width="1200" height="630" />'
+    : '<div class="thumb cat"><span>' + htmlEsc(a.categorie) + '</span></div>';
+  const etat = artEnLigne(a) ? '' :
+    '<span class="art-etat ' + (a.statut === 'programme' ? 'prog' : 'brou') + '">' +
+    (a.statut === 'programme' ? 'Programmé · ' + artDateLisible(a.datePublication) : 'Brouillon') + '</span>';
+  return '      <article class="post' + (artEnLigne(a) ? '' : ' post-hors') + '" data-art="' + a.id + '" data-reveal>' + NL
+    + '        <a class="post-lien" href="/blog/' + htmlEsc(a.slug) + '">' + NL
+    + '          ' + vignette + NL
+    + '          <div class="pad">' + etat + '<span class="tag">' + htmlEsc(a.categorie) + '</span><h3>' + htmlEsc(a.titre) + '</h3>'
+    + '<p>' + htmlEsc(a.chapo) + '</p><div class="date">' + htmlEsc(artDateLisible(a.datePublication) || 'Non publié') + '</div></div>' + NL
+    + '        </a>' + NL
+    + '      </article>';
+}
+
+// page complète d'un article, balisage SEO compris
+function artPage(a) {
+  const url = SITE_URL_PUB + '/blog/' + a.slug;
+  const img = a.image ? (a.image.startsWith('http') ? a.image : SITE_URL_PUB + '/' + a.image.replace(/^\//, '')) : SITE_URL_PUB + '/assets/og-cover.png';
+  const desc = a.metaDescription || a.chapo || '';
+  const faq = (a.faq || []).filter(q => q && q.q && q.r);
+  const graphe = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Article', headline: a.titre, description: desc, image: img,
+        datePublished: artIso(a.datePublication) || artIso(a.dateCreation),
+        dateModified: artIso(a.dateMaj) || artIso(a.dateCreation),
+        inLanguage: 'fr-FR', articleSection: a.categorie, mainEntityOfPage: url,
+        author: { '@type': 'Organization', name: 'Languages & Success' },
+        publisher: { '@type': 'Organization', name: 'Languages & Success', logo: { '@type': 'ImageObject', url: SITE_URL_PUB + '/assets/ls-logo.png' } }
+      },
+      {
+        '@type': 'BreadcrumbList', itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Accueil', item: SITE_URL_PUB + '/' },
+          { '@type': 'ListItem', position: 2, name: 'Blog', item: SITE_URL_PUB + '/blog.html' },
+          { '@type': 'ListItem', position: 3, name: a.titre }
+        ]
+      }
+    ]
+  };
+  if (faq.length) graphe['@graph'].push({
+    '@type': 'FAQPage',
+    mainEntity: faq.map(q => ({ '@type': 'Question', name: q.q, acceptedAnswer: { '@type': 'Answer', text: q.r } }))
+  });
+
+  const faqHtml = faq.length
+    ? '      <h2>Questions fréquentes</h2>' + NL + '      <div class="faq">' + NL
+      + faq.map(q => '        <h3>' + htmlEsc(q.q) + '</h3>' + NL + '        <p>' + htmlEsc(q.r) + '</p>').join(NL) + NL
+      + '      </div>' + NL
+    : '';
+  const srcHtml = (a.sources || []).length
+    ? '      <h2>Sources</h2>' + NL + '      <ul>' + NL
+      + (a.sources || []).map(x => '        <li><a href="' + htmlEsc(x.url) + '" target="_blank" rel="noopener">' + htmlEsc(x.titre || x.url) + '</a></li>').join(NL) + NL
+      + '      </ul>' + NL
+    : '';
+  const bandeau = artEnLigne(a) ? '' :
+    '    <div class="art-bandeau">' + (a.statut === 'programme'
+      ? 'Article programmé pour le ' + htmlEsc(artDateLisible(a.datePublication)) + ' — visible de vous seul en attendant.'
+      : 'Brouillon — visible de vous seul, il n\'apparaît pas sur le blog.') + '</div>' + NL;
+
+  return '<!DOCTYPE html>' + NL + '<html lang="fr">' + NL + '<head>' + NL
+    + '<meta charset="UTF-8" />' + NL
+    + '<meta name="viewport" content="width=device-width, initial-scale=1.0" />' + NL
+    + '<title>' + htmlEsc(a.titreSeo || a.titre) + '</title>' + NL
+    + '<meta name="description" content="' + htmlEsc(desc) + '" />' + NL
+    + (artEnLigne(a) ? '<link rel="canonical" href="' + url + '" />' + NL : '<meta name="robots" content="noindex,nofollow" />' + NL)
+    + '<meta property="og:type" content="article" />' + NL
+    + '<meta property="og:locale" content="fr_FR" />' + NL
+    + '<meta property="og:site_name" content="Languages &amp; Success" />' + NL
+    + '<meta property="og:title" content="' + htmlEsc(a.titre) + '" />' + NL
+    + '<meta property="og:description" content="' + htmlEsc(desc) + '" />' + NL
+    + '<meta property="og:url" content="' + url + '" />' + NL
+    + '<meta property="og:image" content="' + htmlEsc(img) + '" />' + NL
+    + '<meta name="twitter:card" content="summary_large_image" />' + NL
+    + '<meta name="theme-color" content="#be6e54" />' + NL
+    + '<link rel="icon" type="image/png" href="/assets/ls-logo.png" />' + NL
+    + '<link rel="stylesheet" href="/assets/fonts.css?v=' + ASSET_VER + '" />' + NL
+    + '<link rel="stylesheet" href="/assets/site.css?v=' + ASSET_VER + '" />' + NL
+    + '<script type="application/ld+json">' + NL + JSON.stringify(graphe, null, 2) + NL + '</script>' + NL
+    + '</head>' + NL + '<body>' + NL + '<div id="ls-nav"></div>' + NL + NL
+    + '<header class="page-hero" style="padding-bottom:20px">' + NL
+    + '  <div class="wrap">' + NL
+    + '    <div class="crumbs"><a href="/index.html">Accueil</a> · <a href="/blog.html">Blog</a> · ' + htmlEsc(a.categorie) + '</div>' + NL
+    + '    <span class="eyebrow">' + htmlEsc(a.categorie) + '</span>' + NL
+    + '    <h1 style="font-size:clamp(30px,4.4vw,52px)">' + htmlEsc(a.titre) + '</h1>' + NL
+    + '    <p class="lead">' + htmlEsc(a.chapo) + '</p>' + NL
+    + '  </div>' + NL + '</header>' + NL + NL
+    + '<section class="sec" style="padding-top:14px">' + NL + '  <div class="wrap">' + NL
+    + bandeau
+    + (a.image ? '    <img class="art-cover" src="' + htmlEsc(a.image) + '" alt="' + htmlEsc(a.titre) + '" width="1200" height="630" />' + NL : '')
+    + '    <div class="prose">' + NL
+    + '      <p class="updated">' + (artEnLigne(a) ? 'Publié le ' + htmlEsc(artDateLisible(a.datePublication)) : 'Non publié') + ' · par l\'équipe pédagogique Languages &amp; Success</p>' + NL + NL
+    + (a.corps || '') + NL + NL
+    + faqHtml + srcHtml
+    + '      <p class="art-retour"><a href="/blog.html">← Tous les articles</a></p>' + NL
+    + '    </div>' + NL + '  </div>' + NL + '</section>' + NL + NL
+    + '<div id="ls-footer"></div>' + NL
+    + '<script>window.LS_CONFIG={key:\'sub\'};</script>' + NL
+    + '<script src="/assets/partials.js?v=' + ASSET_VER + '"></script>' + NL
+    + '<script src="/ls-engine.js"></script>' + NL
+    + '</body>' + NL + '</html>' + NL;
+}
+
+// sitemap.xml généré à la volée : les articles étant en base, un plan de site figé dans un
+// fichier mentirait dès la première publication.
+const PRIO_PAGES = { 'index.html': '1.0', 'formations.html': '0.9', 'financement.html': '0.9', 'entreprises.html': '0.9', 'blog.html': '0.8', 'a-propos.html': '0.7', 'contact.html': '0.7', 'test-de-niveau.html': '0.7' };
+const HORS_PLAN = ['espace-documents.html'];
+app.get('/sitemap.xml', (req, res) => {
+  const urls = [];
+  try {
+    for (const f of fs.readdirSync(ROOT).filter(x => /\.html$/i.test(x)).sort()) {
+      if (HORS_PLAN.includes(f)) continue;
+      let maj = null;
+      try { maj = fs.statSync(path.join(ROOT, f)).mtime.toISOString().slice(0, 10); } catch (e) {}
+      urls.push({ loc: SITE_URL_PUB + (f === 'index.html' ? '/' : '/' + f), maj, prio: PRIO_PAGES[f] || '0.5' });
+    }
+  } catch (e) {}
+  db.articles.filter(artEnLigne).forEach(a => {
+    urls.push({ loc: SITE_URL_PUB + '/blog/' + a.slug, maj: artIso(a.dateMaj || a.datePublication), prio: '0.6' });
+  });
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    + urls.map(u => '  <url>\n    <loc>' + u.loc + '</loc>\n'
+      + (u.maj ? '    <lastmod>' + u.maj + '</lastmod>\n' : '')
+      + '    <priority>' + u.prio + '</priority>\n  </url>').join('\n')
+    + '\n</urlset>\n';
+  res.setHeader('Cache-Control', 'no-cache');
+  res.type('application/xml').send(xml);
+});
+
+// /blog/<slug> : un brouillon n'est servi qu'à l'administration (jeton en en-tête ou ?token=)
+app.get('/blog/:slug', (req, res, next) => {
+  const slug = String(req.params.slug || '').replace(/\.html$/, '');
+  const a = db.articles.find(x => x.slug === slug);
+  if (!a) return next();
+  const u = userSiConnecte(req);
+  if (!artVisiblePar(a, u)) return next();
+  res.setHeader('Cache-Control', 'no-cache');
+  res.type('html').send(artPage(a));
+});
+
+// blog.html : la grille est injectée côté SERVEUR (donc indexable). Les articles hors ligne
+// n'y figurent que pour l'administration.
+const MARQUE_A = '<!-- ARTICLES:DEBUT -->', MARQUE_B = '<!-- ARTICLES:FIN -->';
+function blogIndexHtml(html, user) {
+  const i = html.indexOf(MARQUE_A), j = html.indexOf(MARQUE_B);
+  if (i < 0 || j < 0) return html;
+  const liste = db.articles.filter(a => artVisiblePar(a, user))
+    .sort((x, y) => String(y.datePublication || y.dateCreation).localeCompare(String(x.datePublication || x.dateCreation)));
+  const dedans = liste.length
+    ? NL + liste.map(artCarte).join(NL) + NL + '    '
+    : NL + '      <p class="ds-empty" style="grid-column:1/-1;text-align:center">Les premiers articles arrivent très bientôt.</p>' + NL + '    ';
+  return html.slice(0, i + MARQUE_A.length) + dedans + html.slice(j);
+}
+
 // Cache-busting AUTOMATIQUE : version d'assets calculée au démarrage (donc nouvelle à CHAQUE
 // déploiement, puisque le conteneur redémarre). Les pages HTML écrivent `?v=BUILD`, et le serveur
 // remplace `BUILD` par cette version à la volée → le navigateur et Cloudflare rechargent forcément
 // le CSS/JS frais après un déploiement, sans bump manuel. (account.js est injecté avec ?v=Date.now().)
 const ASSET_VER = Date.now().toString(36);
-function sendHtml(res, file) {
+function sendHtml(res, file, req) {
   fs.readFile(file, 'utf8', (err, html) => {
     if (err) { res.status(404).json({ error: 'Not found' }); return; }
     res.setHeader('Cache-Control', 'no-cache');
-    res.type('html').send(html.replace(/\?v=BUILD/g, '?v=' + ASSET_VER));
+    let out = html.replace(/\?v=BUILD/g, '?v=' + ASSET_VER);
+    // la grille du blog est remplie côté serveur : le contenu est indexable, et un brouillon
+    // n'apparaît que si c'est l'administration qui regarde
+    if (/blog\.html$/i.test(file)) out = blogIndexHtml(out, req ? userSiConnecte(req) : null);
+    res.type('html').send(out);
   });
 }
 // HTML (pages + extensionless + "/") : injection de version + no-cache, avant le statique
@@ -2587,7 +2952,7 @@ app.get(/.*/, (req, res, next) => {
   let file;
   try { file = path.normalize(path.join(ROOT, decodeURIComponent(p))); } catch (e) { return next(); }
   if (!file.startsWith(ROOT)) return next();
-  fs.access(file, fs.constants.F_OK, (err) => sendHtml(res, err ? path.join(ROOT, 'index.html') : file));
+  fs.access(file, fs.constants.F_OK, (err) => sendHtml(res, err ? path.join(ROOT, 'index.html') : file, req));
 });
 // assets (css/js/images…) : no-cache sur js/css (ETag → 304 si inchangé)
 app.use(express.static(ROOT, {
