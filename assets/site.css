@@ -461,7 +461,7 @@ body.menu-open{overflow:hidden}
 .cta-actions{display:flex;gap:13px;margin-top:30px;flex-wrap:wrap}
 .testcard{background:rgba(255,248,239,.12);border:1px solid rgba(255,248,239,.25);border-radius:14px;padding:28px}
 .testcard .q{font-size:13px;text-transform:uppercase;letter-spacing:.1em;opacity:.85}
-.testcard h4{font-family:var(--ff-head);font-size:24px;margin:8px 0 18px}
+.testcard h3{font-family:var(--ff-head);font-size:24px;font-weight:700;line-height:1.62;letter-spacing:normal;margin:8px 0 18px}
 .testcard .ans{display:flex;flex-direction:column;gap:9px}
 .testcard .ans button{text-align:left;background:rgba(255,248,239,.1);border:1px solid rgba(255,248,239,.28);color:#fff8ef;border-radius:9px;padding:12px 15px;font:inherit;font-size:14.5px;cursor:pointer;transition:background .15s}
 .testcard .ans button:hover{background:rgba(255,248,239,.24)}
@@ -564,7 +564,7 @@ footer a:hover{color:#fff8ef}
 /* listes de spécifications (modalités formations) */
 .spec{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .spec .cell{background:var(--bg-card);padding:24px 26px}
-.spec .cell h4{font-family:var(--ff-body);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.spec .cell h3{font-family:var(--ff-body);font-size:12px;font-weight:700;line-height:1.62;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
 .spec .cell p{font-size:16px}
 .spec .cell small{color:var(--ink-soft)}
 @media(max-width:620px){.spec{grid-template-columns:1fr}}
@@ -617,7 +617,7 @@ footer a:hover{color:#fff8ef}
 .split{display:grid;grid-template-columns:1.5fr 1fr;gap:54px;align-items:start}
 @media(max-width:880px){.split{grid-template-columns:1fr;gap:36px}}
 .aside-card{border:1px solid var(--line);border-radius:14px;padding:28px;background:var(--bg-card)}
-.aside-card h4{font-family:var(--ff-head);font-size:22px;margin-bottom:14px}
+.aside-card h2,.aside-card h3{font-family:var(--ff-head);font-size:22px;font-weight:700;line-height:1.62;letter-spacing:normal;margin-bottom:14px}
 .aside-card .line{display:flex;gap:11px;align-items:flex-start;font-size:15px;color:var(--ink-soft);margin-bottom:12px}
 .aside-card .line .tick{color:var(--accent);font-style:italic;font-family:var(--ff-head)}
 

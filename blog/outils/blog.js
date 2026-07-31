@@ -7,7 +7,8 @@
 //   node blog/outils/blog.js sujets --jour 2026-08-03
 //   node blog/outils/blog.js planning            → le planning en clair (pour Slack)
 //   node blog/outils/blog.js statut <slug> <statut> [fichier]
-//   node blog/outils/blog.js index               → régénère la grille d'articles de blog.html
+//   node blog/outils/blog.js index               → régénère la grille de blog.html + sitemap.xml
+//   node blog/outils/blog.js sitemap             → régénère seulement sitemap.xml
 //   node blog/outils/blog.js publier <slug>      → brouillon → en ligne, puis régénère l'index
 'use strict';
 const fs = require('fs');
@@ -191,6 +192,33 @@ function genererIndex() {
   return arts;
 }
 
+// ------------------------------------------------------ plan du site (sitemap)
+// Régénéré à chaque mise en ligne : un nouvel article y entre tout seul. Les pages privées
+// et les brouillons en sont exclus (ils le sont aussi dans robots.txt).
+const SITE = 'https://languagesandsuccess.com';
+const HORS_PLAN = ['espace-documents.html'];
+const PRIORITE = { 'index.html': '1.0', 'formations.html': '0.9', 'financement.html': '0.9', 'entreprises.html': '0.9', 'blog.html': '0.8', 'a-propos.html': '0.7', 'contact.html': '0.7', 'test-de-niveau.html': '0.7' };
+
+function genererSitemap() {
+  const urls = [];
+  const jour = (f) => { try { return fs.statSync(f).mtime.toISOString().slice(0, 10); } catch (e) { return null; } };
+  for (const f of fs.readdirSync(RACINE).filter(x => /\.html$/i.test(x)).sort()) {
+    if (HORS_PLAN.indexOf(f) >= 0) continue;
+    urls.push({ loc: SITE + (f === 'index.html' ? '/' : '/' + f), maj: jour(path.join(RACINE, f)), prio: PRIORITE[f] || '0.5' });
+  }
+  for (const a of articlesEnLigne()) {
+    urls.push({ loc: SITE + '/blog/' + a.fichier, maj: a.date || jour(path.join(BLOG, a.fichier)), prio: '0.6' });
+  }
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>' + NL +
+    '<urlset xmlns="http://www.sitemap.org/schemas/sitemap/0.9">'.replace('sitemap.org', 'sitemaps.org') + NL +
+    urls.map(u => '  <url>' + NL + '    <loc>' + u.loc + '</loc>' + NL +
+      (u.maj ? '    <lastmod>' + u.maj + '</lastmod>' + NL : '') +
+      '    <priority>' + u.prio + '</priority>' + NL + '  </url>').join(NL) + NL +
+    '</urlset>' + NL;
+  fs.writeFileSync(path.join(RACINE, 'sitemap.xml'), xml);
+  return urls;
+}
+
 // --------------------------------------------------- brouillon → mise en ligne
 function publier(slug) {
   const src = path.join(BROUILLONS, slug + '.html');
@@ -205,6 +233,7 @@ function publier(slug) {
   const meta = metaArticle(dst);
   try { majSujet(slug, { 'Statut': 'publié', 'Fichier': slug + '.html' }); } catch (e) { console.error('  (sujets.md non mis à jour : ' + e.message + ')'); }
   const arts = genererIndex();
+  genererSitemap();
   return { meta, total: arts.length, chemin: 'blog/' + slug + '.html' };
 }
 
@@ -238,8 +267,12 @@ try {
     console.log('✔ ' + slug + ' → ' + statut);
   } else if (cmd === 'index') {
     const arts = genererIndex();
-    console.log('✔ blog.html régénéré : ' + arts.length + ' article(s) en ligne');
+    const u = genererSitemap();
+    console.log('✔ blog.html régénéré : ' + arts.length + ' article(s) en ligne, sitemap.xml : ' + u.length + ' URL');
     arts.forEach(a => console.log('   · ' + a.date + '  ' + a.titre));
+  } else if (cmd === 'sitemap') {
+    const u = genererSitemap();
+    console.log('✔ sitemap.xml régénéré : ' + u.length + ' URL');
   } else if (cmd === 'publier') {
     const r = publier(args[0]);
     console.log('✔ en ligne : ' + r.chemin + '  (' + r.total + ' article(s) au total)');

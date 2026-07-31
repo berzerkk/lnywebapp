@@ -1,0 +1,10 @@
+# Languages & Success — https://languagesandsuccess.com
+User-agent: *
+Allow: /
+
+# Espace privé et brouillons d'articles : accessibles par leur adresse, jamais indexés
+Disallow: /espace-documents.html
+Disallow: /blog/brouillons/
+Disallow: /data/
+
+Sitemap: https://languagesandsuccess.com/sitemap.xml
