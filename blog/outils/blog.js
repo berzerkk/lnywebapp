@@ -164,9 +164,14 @@ const MARQUE_DEBUT = '<!-- ARTICLES:DEBUT -->';
 const MARQUE_FIN = '<!-- ARTICLES:FIN -->';
 
 function carte(a) {
+  // la vignette est l'image de couverture de l'article ; on retombe sur la pastille de
+  // catégorie pour un article ancien qui n'en aurait pas encore
+  const vignette = a.image
+    ? '<img class="thumb" src="blog/' + echapper(a.image) + '" alt="' + echapper(a.categorie) + ' — ' + echapper(a.titre) + '" loading="lazy" width="1200" height="630" />'
+    : '<div class="thumb cat"><span>' + echapper(a.categorie) + '</span></div>';
   return '      <article class="post" data-reveal>' + NL
     + '        <a class="post-lien" href="blog/' + echapper(a.fichier) + '">' + NL
-    + '          <div class="thumb cat"><span>' + echapper(a.categorie) + '</span></div>' + NL
+    + '          ' + vignette + NL
     + '          <div class="pad"><span class="tag">' + echapper(a.categorie) + '</span><h3>' + echapper(a.titre) + '</h3>'
     + '<p>' + echapper(a.chapo) + '</p><div class="date">' + echapper(dateLisible(a.date)) + '</div></div>' + NL
     + '        </a>' + NL

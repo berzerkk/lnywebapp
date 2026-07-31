@@ -1042,3 +1042,15 @@ footer a:hover{color:#fff8ef}
 .post .thumb.cat{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,color-mix(in oklab,var(--accent) 16%,var(--bg-card)),color-mix(in oklab,var(--accent) 34%,var(--bg-card)))}
 .post .thumb.cat span{font-family:var(--ff-body);font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:color-mix(in oklab,var(--accent) 78%,var(--ink))}
 .art-retour{margin-top:38px;padding-top:20px;border-top:1px solid var(--line)}
+
+/* ---- Article de blog : couverture, illustrations, FAQ ----------------------------------- */
+.art-cover{display:block;width:100%;max-width:900px;height:auto;aspect-ratio:1200/630;object-fit:cover;border:1px solid var(--line);border-radius:16px;margin:0 0 34px}
+.art-illu{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px;margin:26px 0}
+.prose .faq{margin-top:6px}
+.prose .faq h3{font-size:18.5px;margin:22px 0 6px;color:var(--ink)}
+.prose .faq h3::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);vertical-align:middle;margin-right:10px}
+/* ⚠️ `height:auto` est indispensable : l'attribut HTML height="630" de la vignette est une
+   indication de présentation qui l'emporterait sur `aspect-ratio`, et la carte afficherait une
+   image de 630 px de haut. Les attributs width/height restent utiles (ils réservent la place
+   avant le chargement et évitent le saut de mise en page). */
+.post img.thumb{width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;display:block;background:var(--bg)}

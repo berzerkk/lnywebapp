@@ -12,14 +12,18 @@ blog/
   outils/gabarit.html  ← modèle d'article, jamais publié tel quel
 ```
 
-## Les deux tâches planifiées
+## Une seule tâche planifiée : `blog-ls-semaine`
 
-| Quand | Quoi |
-|---|---|
-| **Dimanche** | Veille : recherche de sujets sur le web, ajout dans `sujets.md` avec des dates proposées, notification du nouveau planning. |
-| **Lundi, mercredi, vendredi** | Publication : lecture de `sujets.md`, rédaction de l'article du jour **en brouillon**, notification avec le lien de prévisualisation et les posts réseaux sociaux prêts à copier. |
+**Chaque lundi matin**, une exécution prépare toute la semaine :
 
-Un article ne part **jamais** en ligne tout seul. Pour valider :
+1. veille sur le web si des créneaux de la semaine sont vides ;
+2. rédaction des **trois articles** (lundi, mercredi, vendredi), visuels de couverture compris ;
+3. **mise en ligne du seul article du lundi** ;
+4. mercredi et vendredi restent en **brouillon**, prêts à valider ;
+5. un message sur Slack `#blog_claude` avec les liens et les **six posts réseaux sociaux**
+   (LinkedIn + Facebook pour chacun des trois articles), prêts à copier.
+
+Les articles de mercredi et vendredi ne partent **jamais** en ligne tout seuls. Pour valider :
 
 ```bash
 node blog/outils/blog.js publier <identifiant>
@@ -66,6 +70,48 @@ Ces règles s'appliquent à **tout** article généré. Elles priment sur l'envi
   délai d'obtention, ni un niveau atteint. L&S est tenue d'une obligation de moyens.
 - En cas de doute sur un fait, **ne pas l'écrire**. Un article plus court est préférable à un
   article inexact.
+
+## SEO — écrire pour être lu ET pour être trouvé
+
+- **Un mot-clé principal par article**, choisi comme une expression que quelqu'un taperait
+  vraiment (« financer sa formation en langue avec le CPF », pas « CPF »). Il doit figurer
+  dans le `<h1>`, dans le **premier paragraphe**, et dans **au moins un `<h2>`**. Deux ou trois
+  expressions secondaires suffisent — pas de bourrage : un texte qui se lit mal est pénalisé.
+- **Hiérarchie stricte** : un seul `<h1>` (le titre), les sections en `<h2>`, les sous-parties
+  en `<h3>`. Jamais de saut de niveau, jamais deux `<h1>`.
+- **`<title>` ≤ 60 caractères** (au-delà Google tronque) avec le mot-clé en tête. Il peut
+  différer du `<h1>` : le `<h1>` séduit, le `<title>` cible.
+- **Meta description de 150 à 160 caractères**, contenant le mot-clé, écrite comme une promesse
+  de lecture — c'est elle qui décide du clic.
+- **`<link rel="canonical">`** sur l'URL définitive de l'article.
+- **2 à 3 liens internes** vers d'autres pages du site (formations, financement, contact…) :
+  c'est ce qui fait circuler l'autorité entre les pages.
+- **Open Graph + Twitter card** renseignés : sans eux, un partage LinkedIn ou Facebook affiche
+  une vignette vide.
+- **Données structurées** obligatoires dans le gabarit : `Article`, `BreadcrumbList` et
+  `FAQPage`. ⚠️ Le JSON-LD de la FAQ doit reprendre **exactement** les questions et réponses
+  visibles, même texte et même ordre — sinon Google rejette le balisage.
+- **Slug court et parlant**, contenant le mot-clé, sans mot vide inutile.
+
+## FAQ de fin d'article
+
+Chaque article se termine par une section **Questions fréquentes** : **5 questions**, ou 4 si on
+n'en trouve pas 5 qui soient réellement posées. Ce sont de vraies questions de lecteur (« Mon
+employeur est-il informé si j'utilise mon CPF ? »), pas des relances commerciales. Réponse de
+2 à 4 phrases, autonome. Les questions sont des `<h3>` dans un `<div class="faq">`, et se
+retrouvent à l'identique dans le `FAQPage` du JSON-LD.
+
+## Images
+
+- **Une couverture par article**, générée automatiquement :
+  `node blog/outils/couverture.js <slug> "<Catégorie>"` → `blog/img/<slug>.svg`
+  Visuel SVG aux couleurs du site, composition déterministe (même article = même image, deux
+  articles = deux images). Elle sert à la fois de vignette sur `blog.html`, d'illustration en
+  tête d'article, et d'`og:image` au partage.
+- **Illustrations en cours d'article** bienvenues quand elles aident :
+  `<img class="art-illu" src="img/…" alt="…" />`
+- **Toujours un `alt` descriptif**, jamais « image » ni le nom du fichier : il sert aux lecteurs
+  d'écran et au référencement des images.
 
 ## Forme
 
