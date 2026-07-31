@@ -74,7 +74,10 @@
       dialogue({
         titre: 'Programmer la publication', confirmer: 'Programmer', annuler: 'Annuler',
         message: 'L’article partira tout seul à la date choisie — le serveur s’en charge, même si votre ordinateur est éteint.',
-        champ: '<label class="gf" style="margin-top:14px;display:block">Date et heure<input id="d-val" type="datetime-local" value="' + val + '" /></label>',
+        // le champ datetime-local est interprété dans le fuseau du navigateur, donc à l'heure de
+        // Paris depuis Nice ; le serveur, lui, compare des millisecondes absolues et affiche
+        // toujours la date à l'heure de Paris (cf. artDateLisible dans server.js)
+        champ: '<label class="gf" style="margin-top:14px;display:block">Date et heure <small style="font-weight:400;color:var(--ink-soft)">— heure de Paris</small><input id="d-val" type="datetime-local" value="' + val + '" /></label>',
         onOui: function (v) {
           if (!v) return;
           api(API + '/' + art.id + '/publier', 'POST', { datePublication: new Date(v).toISOString() }).then(recharger);

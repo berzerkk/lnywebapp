@@ -2761,15 +2761,31 @@ async function diffusionSociale(a) {
 
 // ---- rendu des pages du blog ----------------------------------------------
 const NL = '\n';   // retour à la ligne des gabarits HTML ci-dessous
+// ⚠️ TOUTES les dates d'articles s'affichent à l'HEURE DE PARIS, jamais à celle du processus :
+// le conteneur de production tourne en UTC, et un article programmé entre minuit et 2 h du matin
+// affichait donc la date de la VEILLE — y compris dans le datePublished envoyé à Google.
+// Le déclenchement, lui, n'est pas concerné : il compare des millisecondes absolues.
+const TZ_FR = 'Europe/Paris';
 const MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const JOURS_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+// composantes de date telles qu'on les lit à Paris
+function partsParis(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  const p = {};
+  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: TZ_FR, weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d)) {
+    if (x.type !== 'literal') p[x.type] = x.value;
+  }
+  return p;
+}
 function artDateLisible(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d)) return '';
-  return JOURS_FR[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS_FR[d.getMonth()] + ' ' + d.getFullYear();
+  const p = partsParis(iso);
+  if (!p) return '';
+  const jour = new Date(Date.UTC(+p.year, +p.month - 1, +p.day)).getUTCDay();
+  return JOURS_FR[jour] + ' ' + (+p.day) + ' ' + MOIS_FR[+p.month - 1] + ' ' + p.year;
 }
-const artIso = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
+const artIso = (iso) => { const p = iso ? partsParis(iso) : null; return p ? p.year + '-' + p.month + '-' + p.day : ''; };
 
 // carte d'un article dans la grille de blog.html
 function artCarte(a) {
