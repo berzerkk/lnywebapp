@@ -2012,8 +2012,14 @@
     if (!CLIP_OK) { voile.style.clipPath = ''; m.classList.toggle('vieux-voile', !!c); }
     else if (!rc) voile.style.clipPath = '';
     else {
+      // ⚠️ polygon() est UN SEUL tracé, pas plusieurs sous-chemins : entre deux trous, le
+      // segment qui va de la fin du premier au début du second est une vraie arête, et la règle
+      // pair-impair la compte — une bande entière de l'écran cessait d'être assombrie
+      // (893 points sur 14 400 mesurés). On repasse donc par l'origine entre chaque trou : le
+      // trajet aller et le trajet retour se superposent exactement et s'annulent.
       var trous = [trouPoly(rc, 8)].concat(c2 ? [trouPoly(c2.r, 8)] : []);
-      voile.style.clipPath = 'polygon(evenodd, 0px 0px, 100% 0px, 100% 100%, 0px 100%, 0px 0px, ' + trous.join(', ') + ')';
+      voile.style.clipPath = 'polygon(evenodd, 0px 0px, 100% 0px, 100% 100%, 0px 100%, 0px 0px, '
+        + trous.join(', 0px 0px, ') + ', 0px 0px)';
     }
     return c;
   }
