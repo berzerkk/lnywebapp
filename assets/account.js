@@ -1798,68 +1798,65 @@
   //     pas. Ancre absente ou non montrable : le projecteur s'éteint, la carte se centre, le texte
   //     et le numéro d'étape ne changent pas. Une étape qui saute, c'est une explication perdue.
   // ==========================================================================
+  // Règles d'écriture : phrases COURTES, mots simples, deux paragraphes au plus par étape.
+  // Chaque étape dit UNE chose et nomme le bouton dont elle parle.
   var TUTO_BIENVENUE = {
     ancre: '.ds-top',
     titre: 'Bienvenue dans votre espace documents',
-    paras: ['Cet espace réunit vos dossiers de formation, les documents et les échanges qui vont avec. La visite prend deux minutes, et le bouton Revoir la visite guidée, en haut de cette page, la relance quand vous voulez.']
+    paras: ['Vos dossiers, vos documents et vos échanges sont ici. La visite dure deux minutes. Le bouton Revoir la visite guidée, en haut de la page, la relance quand vous voulez.']
   };
+  // deux ancres : la case Notifications et la cloche de l'en-tête
   var TUTO_NOTIFS = {
-    ancre: '.ds-card-notifs',
-    titre: 'Ne rien manquer',
-    paras: ['Chaque message et chaque document reçu crée une notification, reprise par la cloche en haut de page, qui se met à jour sans recharger. Un dossier dans lequel quelque chose vous attend porte une pastille colorée dans la case Mes dossiers, et l\'ouvrir efface ses notifications.']
+    ancre: '.ds-card-notifs', ancre2: '#acct-bell-btn', ouvrirDossier: true,
+    titre: 'Les notifications',
+    paras: [
+      'Chaque message et chaque document reçu allume la cloche, en haut de la page.',
+      'Un dossier qui vous attend porte une pastille de couleur. Ouvrir le dossier éteint la pastille.'
+    ]
   };
   var TUTO_REVOIR = {
     ancre: '.tuto-replay',
-    titre: 'Revoir cette visite quand vous voulez',
-    paras: ['Ce bouton relance la visite guidée en entier, à tout moment, sans rien changer à vos dossiers. Bonne formation.']
+    titre: 'Revoir la visite',
+    paras: ['Ce bouton relance la visite en entier, quand vous voulez. Bonne formation.']
   };
   var TUTO_PROF = [
     TUTO_BIENVENUE,
-    { ancre: '.ds-card-dossiers', titre: 'Tout est rangé par dossier', paras: [
-      'Un dossier suit un apprenant et réunit ses formateurs et l\'administration. C\'est l\'administration qui crée les dossiers et décide qui y figure. Ceux qui vous sont confiés sont listés dans la case Mes dossiers, et un clic sur l\'un d\'eux ouvre ses documents et sa messagerie.',
-      'Si la liste est encore vide, aucun dossier ne vous a été confié pour l\'instant. Vous recevrez une notification dès qu\'un dossier vous sera attribué.'
+    { ancre: '.ds-card-dossiers', ouvrirDossier: true, titre: 'Vos dossiers', paras: [
+      'Chaque apprenant a son dossier. Vous y trouvez ses documents et sa messagerie. Les dossiers sont créés par l\'administration.',
+      'Cliquez sur un dossier pour l\'ouvrir. Nous venons d\'en ouvrir un, pour l\'exemple : il disparaîtra à la fin de la visite.'
     ] },
-    { ancre: '.chan-tabs', titre: 'Deux canaux, deux publics', ouvrirDossier: true, paras: [
-      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir. Celui qui est ouvert ici est un exemple, monté pour la visite, avec un message et une notification pour de faux — il disparaîtra en même temps qu\'elle.',
-      'Chaque dossier a deux canaux. La discussion commune est partagée avec l\'apprenant. Le canal privé est réservé aux formateurs du dossier et à l\'administration : l\'apprenant n\'y a accès ni en lecture, ni en téléchargement, et c\'est par là que vous transmettez vos documents à l\'administration.',
-      'Un formateur ajouté plus tard au dossier accède à tout l\'historique déjà échangé dans le canal privé.'
+    { ancre: '.chan-tabs', ouvrirDossier: true, titre: 'Deux canaux', paras: [
+      'La discussion commune est partagée avec l\'apprenant.',
+      'Le canal privé est réservé aux formateurs et à l\'administration : l\'apprenant n\'y voit rien. C\'est par là que vous envoyez vos documents à l\'administration.'
     ] },
-    { ancre: '.upload-zone', titre: 'Déposer un document, écrire un message', ouvrirDossier: true, paras: [
-      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir. Celui qui est ouvert ici est un exemple, monté pour la visite, avec un message et une notification pour de faux — il disparaîtra en même temps qu\'elle.',
-      'La zone de dépôt accepte un fichier de 25 Mo au maximum, la liste des documents s\'affiche en dessous, et la messagerie du dossier se trouve encore plus bas.',
-      'Le canal ouvert au moment de l\'envoi décide qui verra le fichier ou le message : vérifiez l\'onglet avant d\'envoyer. Vous pouvez retirer un document que vous avez envoyé vous-même, mais pas celui d\'une autre personne, ni une pièce déjà signée.'
+    { ancre: '.upload-zone', ouvrirDossier: true, titre: 'Envoyer un document ou un message', paras: [
+      'Cliquez sur la zone de dépôt pour choisir un fichier, 25 Mo au maximum. Les documents du dossier s\'affichent juste en dessous, la messagerie encore plus bas.',
+      'Attention à l\'onglet ouvert : c\'est lui qui décide qui verra le fichier.'
     ] },
-    { ancre: '.gen-btn', titre: 'Générer un document', ouvrirDossier: true, paras: [
-      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir. Celui qui est ouvert ici est un exemple, monté pour la visite, avec un message et une notification pour de faux — il disparaîtra en même temps qu\'elle.',
-      'Le bouton Générer un document, en haut du dossier, ouvre la liste des modèles : Interactive Worksheet, questionnaires de satisfaction, tests de mi-parcours et de fin, attestation de fin de formation, fiche satisfaction formateur, Level Test et feuilles de présence. Son onglet Historique des documents liste tout ce qui a déjà été produit dans le dossier.',
-      'L\'intitulé, la langue, les dates, la société et les coordonnées sont repris de la fiche de l\'apprenant à l\'ouverture du formulaire. Si un champ arrive vide, c\'est que la fiche est incomplète : demandez à l\'administration de la compléter plutôt que de ressaisir la même information sur chaque document.',
-      'L\'Interactive Worksheet garde un brouillon par dossier, que tous ses formateurs retrouvent et complètent ; les autres modèles repartent d\'un formulaire vierge. La plupart produisent un fichier téléchargé directement sur votre ordinateur, sans passer par le dossier, et toujours rédigé en français, même lorsque le site est affiché dans une autre langue.'
+    { ancre: '.gen-btn', ouvrirDossier: true, titre: 'Générer un document', paras: [
+      'Ce bouton ouvre la liste des modèles : worksheet, questionnaires, tests, attestation, Level Test, feuilles de présence.',
+      'Les informations de l\'apprenant viennent de sa fiche. Un champ vide veut dire que la fiche est incomplète : demandez à l\'administration de la remplir.'
     ] },
     { ancre: 'centre', titre: 'Questionnaires et feuilles de présence', paras: [
-      'Les questionnaires de satisfaction et les feuilles de présence ne se téléchargent pas : ils partent chez l\'apprenant. Une carte apparaît dans la discussion commune, avec une notification et un e-mail. Une fois le questionnaire rempli ou la feuille signée, le document final est déposé tout seul dans la discussion commune.',
-      'Sur une feuille présentiel ou distanciel, vous signez avant d\'envoyer : tant que votre signature manque, l\'envoi est refusé. Sur le suivi d\'assiduité et sur la feuille Test, c\'est l\'administration qui signe, vous n\'avez rien à signer. Tant que l\'apprenant n\'a pas répondu, la carte affichée dans la discussion permet de modifier ou d\'annuler la demande.'
+      'Ces deux-là ne se téléchargent pas : ils partent chez l\'apprenant, qui reçoit une notification et un e-mail.',
+      'Une fois rempli ou signé, le document revient tout seul dans la discussion commune.'
     ] },
     TUTO_NOTIFS,
     TUTO_REVOIR
   ];
   var TUTO_ELEVE = [
     TUTO_BIENVENUE,
-    { ancre: '.ds-card-dossiers', titre: 'Votre dossier', paras: [
-      'Votre formation est suivie dans un dossier créé par l\'administration, qui réunit vos formateurs et l\'administration Languages and Success. Il apparaît dans la case Mes dossiers, sous le nom de vos formateurs, et un clic dessus ouvre ses documents et sa messagerie.',
-      'Si la liste est encore vide, votre dossier n\'a pas encore été créé. Vous recevrez une notification dès qu\'il sera prêt.'
+    { ancre: '.ds-card-dossiers', ouvrirDossier: true, titre: 'Votre dossier', paras: [
+      'Votre formation est suivie dans un dossier, créé par l\'administration. Il porte le nom de vos formateurs.',
+      'Cliquez dessus pour voir vos documents et votre messagerie. Nous venons d\'en ouvrir un, pour l\'exemple : il disparaîtra à la fin de la visite.'
     ] },
-    { ancre: '.upload-zone', titre: 'Vos documents et la messagerie', ouvrirDossier: true, paras: [
-      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir. Celui qui est ouvert ici est un exemple, monté pour la visite, avec un message et une notification pour de faux — il disparaîtra en même temps qu\'elle.',
-      'Les documents de votre formation s\'affichent sous la zone de dépôt, avec un bouton pour les télécharger. Pour envoyer un fichier à vos formateurs, cliquez sur la zone de dépôt et choisissez un fichier de 25 Mo au maximum.',
-      'Un document que vous avez envoyé ne peut plus être retiré que par l\'administration : vérifiez le fichier avant de l\'envoyer. La messagerie du dossier, sous la liste des documents, sert à échanger avec vos formateurs et l\'administration.'
+    { ancre: '.upload-zone', ouvrirDossier: true, titre: 'Vos documents', paras: [
+      'Vos documents s\'affichent sous la zone de dépôt, avec un bouton pour les télécharger.',
+      'Pour envoyer un fichier, cliquez sur la zone de dépôt et choisissez-le. Vérifiez-le avant : ensuite, seule l\'administration peut le retirer.'
     ] },
-    // ⚠️ ancré sur le CONTENEUR de la discussion, jamais sur un bouton « Remplir »/« Signer » :
-    // ceux-là n'existent que s'il y a une demande en attente, et ils vivent dans un cadre à
-    // défilement (max-height:300px) forcé au bas — un halo s'y dessinerait sur du vide.
-    { ancre: '#chat-msgs', titre: 'Questionnaires et feuilles à signer', ouvrirDossier: true, paras: [
-      'Lorsqu\'un formateur vous envoie un questionnaire de satisfaction ou une feuille de présence, une carte apparaît dans la discussion du dossier, avec un bouton pour la remplir ou la signer. Vous en êtes averti par une notification et par un e-mail.',
-      'Avant de signer une feuille de présence, relisez le récapitulatif affiché au-dessus de la signature : les séances, ou les heures de connexion selon la feuille. Vous signez à la souris ou au doigt, ou vous téléversez une image de votre signature.',
-      'L\'envoi est définitif : une fois confirmé, vous ne pouvez plus revenir sur vos réponses ni sur votre signature. Le document final est aussitôt déposé dans le dossier.'
+    { ancre: '#chat-msgs', ouvrirDossier: true, titre: 'Questionnaires et signatures', paras: [
+      'Quand un formateur vous envoie un questionnaire ou une feuille de présence, une carte apparaît dans la discussion, avec un bouton pour répondre.',
+      'Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.'
     ] },
     TUTO_NOTIFS,
     TUTO_REVOIR
@@ -1930,7 +1927,7 @@
     m = document.createElement('div');
     m.id = 'tuto'; m.className = 'tuto';
     m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-labelledby', 'tuto-title');
-    m.innerHTML = '<div class="tuto-catch"></div><div class="tuto-spot off" aria-hidden="true"></div>' +
+    m.innerHTML = '<div class="tuto-catch"></div><div class="tuto-spot off" aria-hidden="true"></div><div class="tuto-spot tuto-spot2 off" aria-hidden="true"></div>' +
       '<div class="tuto-card centre" tabindex="-1">' +
         '<button type="button" class="nm-close tuto-close" aria-label="Fermer">&times;</button>' +
         '<p class="tuto-eyebrow">Visite guidée</p>' +
@@ -1953,7 +1950,9 @@
   }
 
   // La cible est-elle réellement MONTRABLE ? Retourne son rectangle, ou null (→ carte centrée).
-  function tutoCible(sel) {
+  // `second` = cible d'appoint (la cloche) : on l'éclaire si elle est visible, sans exiger qu'elle
+  // laisse la place à la carte — ce n'est pas elle qui commande le placement.
+  function tutoCible(sel, second) {
     if (!sel || sel === 'centre') return null;
     var t = document.querySelector(sel);
     if (!t || !t.offsetParent) return null;                       // absente ou display:none
@@ -1961,7 +1960,7 @@
     if (r.width < 8 || r.height < 8) return null;
     if (r.height > vh * 0.6 || (r.width * r.height) > vw * vh * 0.6) return null;  // trop grande : le trou ne désignerait rien
     if (r.bottom < 8 || r.top > vh - 8) return null;              // hors écran
-    if (Math.max(r.top, vh - r.bottom) < 200) return null;        // pas la place de poser la carte sans recouvrir la cible
+    if (!second && Math.max(r.top, vh - r.bottom) < 200) return null;   // pas la place de poser la carte sans recouvrir la cible
     // rognage par un ancêtre à défilement (le cadre de la discussion, par exemple).
     // ⚠️ on s'arrête AVANT body, qui porte overflow-x:hidden et rendrait tout le monde inéligible.
     var p = t.parentElement;
@@ -1980,18 +1979,35 @@
   // n'est conservée — c'est ce qui absorbe sans une ligne de synchronisation la reconstruction
   // complète du tableau de bord, l'allongement des textes par la traduction, et le remplacement
   // de l'en-tête. Retourne la cible retenue, ou null.
+  // Le voile est découpé par clip-path, ce qui permet PLUSIEURS trous : une étape peut donc
+  // désigner deux endroits à la fois (la case Notifications et la cloche de l'en-tête).
+  // Repli pour les navigateurs sans `polygon(evenodd, …)` : un seul trou, à l'ancienne.
+  var CLIP_OK = !!(window.CSS && CSS.supports && CSS.supports('clip-path', 'polygon(evenodd, 0px 0px, 100% 0px, 100% 100%)'));
+  function trouPoly(r, m) {
+    var g = (r.left - m) + 'px', d = (r.right + m) + 'px', h = (r.top - m) + 'px', b = (r.bottom + m) + 'px';
+    return g + ' ' + h + ', ' + d + ' ' + h + ', ' + d + ' ' + b + ', ' + g + ' ' + b + ', ' + g + ' ' + h;
+  }
+  function halo(spot, c) {
+    if (!c) { spot.classList.add('off'); return; }
+    spot.classList.remove('off');
+    spot.style.top = (c.r.top - 8) + 'px'; spot.style.left = (c.r.left - 8) + 'px';
+    spot.style.width = (c.r.width + 16) + 'px'; spot.style.height = (c.r.height + 16) + 'px';
+    spot.style.borderRadius = (getComputedStyle(c.el).borderRadius || '12px');
+  }
   function tutoDessiner() {
     var m = tutoEl(); if (!m) return null;
-    var spot = m.querySelector('.tuto-spot'), e = TUTO_ETAPES[TUTO_I], c = e ? tutoCible(e.ancre) : null;
-    // sans projecteur, c'est .tuto-catch qui assombrit l'écran (même teinte) — sinon on verrait
-    // le tableau de bord en pleine lumière derrière une carte flottante
+    var e = TUTO_ETAPES[TUTO_I];
+    var c = e ? tutoCible(e.ancre) : null;
+    var c2 = (e && e.ancre2 && c) ? tutoCible(e.ancre2, true) : null;
+    halo(m.querySelector('.tuto-spot'), c);
+    halo(m.querySelector('.tuto-spot2'), c2);
     m.classList.toggle('sans-spot', !c);
-    if (!c) spot.classList.add('off');
+    var voile = m.querySelector('.tuto-catch');
+    if (!CLIP_OK) { voile.style.clipPath = ''; m.classList.toggle('vieux-voile', !!c); }
+    else if (!c) voile.style.clipPath = '';
     else {
-      spot.classList.remove('off');
-      spot.style.top = (c.r.top - 8) + 'px'; spot.style.left = (c.r.left - 8) + 'px';
-      spot.style.width = (c.r.width + 16) + 'px'; spot.style.height = (c.r.height + 16) + 'px';
-      spot.style.borderRadius = (getComputedStyle(c.el).borderRadius || '12px');
+      var trous = [trouPoly(c.r, 8)].concat(c2 ? [trouPoly(c2.r, 8)] : []);
+      voile.style.clipPath = 'polygon(evenodd, 0px 0px, 100% 0px, 100% 100%, 0px 100%, 0px 0px, ' + trous.join(', ') + ')';
     }
     return c;
   }
@@ -2021,19 +2037,30 @@
     racine.style.scrollBehavior = 'auto';
     racine.classList.remove('tuto-lock');
     void racine.offsetHeight;
+    var vh = window.innerHeight;
     var t = (e && e.ancre !== 'centre') ? document.querySelector(e.ancre) : null;
-    // block:'center' et non 'start' : l'en-tête du site est fixe et recouvrirait la cible
-    if (t) { try { t.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (x) { t.scrollIntoView(); } }
+    // ⚠️ PAS block:'center'. Centrer la cible ne laisse qu'une demi-fenêtre de chaque côté, et la
+    // carte s'y retrouve écrasée avec son texte qui défile dans une boîte minuscule. On pose donc
+    // la cible HAUT dans l'écran pour dégager toute la place en dessous ; si elle est trop grande
+    // pour ça, on la pose bas et la carte passe au-dessus.
+    if (t) {
+      var ht = t.getBoundingClientRect().height;
+      var vise = (ht > vh * 0.42) ? Math.max(0, vh * 0.9 - ht) : vh * 0.15;
+      window.scrollTo(0, Math.max(0, window.scrollY + t.getBoundingClientRect().top - vise));
+    }
     racine.classList.add('tuto-lock');
     racine.style.scrollBehavior = sb;
 
     var c = tutoDessiner();          // dessin synchrone : ne dépend pas de la boucle d'animation
-    card.style.maxHeight = '';
+    card.style.maxHeight = ''; card.style.top = ''; card.style.bottom = '';
     if (!c) { card.className = 'tuto-card centre'; }
     else {
-      var haut = c.r.top, bas = window.innerHeight - c.r.bottom;
-      card.className = 'tuto-card ' + (bas >= haut ? 'bas' : 'haut');
-      card.style.maxHeight = (Math.max(haut, bas) - 24) + 'px';
+      // la carte se pose CONTRE la cible, pas au bord de l'écran : on lit le texte à côté de
+      // ce qu'il désigne, au lieu de balayer la page du regard
+      var haut = c.r.top, bas = vh - c.r.bottom;
+      card.className = 'tuto-card ancre';
+      if (bas >= haut) { card.style.top = Math.round(c.r.bottom + 14) + 'px'; card.style.maxHeight = Math.max(160, Math.round(bas - 30)) + 'px'; }
+      else { card.style.bottom = Math.round(vh - c.r.top + 14) + 'px'; card.style.maxHeight = Math.max(160, Math.round(haut - 30)) + 'px'; }
     }
     // la transition n'existe QUE le temps du changement d'étape : laissée en permanence, le halo
     // traînerait derrière sa cible pendant tout le suivi image par image.

@@ -1113,18 +1113,24 @@ footer a:hover{color:#fff8ef}
    des 16 px plus haut et rouvrirait le zoom de Safari iOS. */
 .tuto{position:fixed;inset:0;z-index:1400;visibility:hidden;pointer-events:none;opacity:0;transition:opacity .3s,visibility 0s linear .3s}
 .tuto.open{visibility:visible;pointer-events:auto;opacity:1;transition:opacity .3s,visibility 0s}
-.tuto-catch{position:absolute;inset:0;z-index:1;background:transparent}
-.tuto.sans-spot .tuto-catch{background:rgba(42,33,24,.55)}
+/* Le voile porte l'assombrissement ET les trous (clip-path à plusieurs sous-chemins) : c'est ce
+   qui permet à une étape d'éclairer DEUX endroits, la case Notifications et la cloche. */
+.tuto-catch{position:absolute;inset:0;z-index:1;background:rgba(42,33,24,.55)}
 html.tuto-lock{overflow:hidden}
-.tuto-spot{position:fixed;z-index:2;pointer-events:none;border-radius:12px;box-shadow:0 0 0 9999px rgba(42,33,24,.55),0 0 0 2px var(--accent),0 0 26px -6px var(--accent)}
+.tuto-spot{position:fixed;z-index:2;pointer-events:none;border-radius:12px;box-shadow:0 0 0 2px var(--accent),0 0 26px -6px var(--accent)}
 .tuto-spot.off{display:none}
+/* repli : sans clip-path multi-trous, on revient à l'ancien voile percé par une ombre géante,
+   avec un seul trou (la cible principale) */
+.tuto.vieux-voile .tuto-catch{background:transparent}
+.tuto.vieux-voile .tuto-spot{box-shadow:0 0 0 9999px rgba(42,33,24,.55),0 0 0 2px var(--accent),0 0 26px -6px var(--accent)}
+.tuto.vieux-voile .tuto-spot2{display:none}
 /* la transition n'est posée QUE le temps d'un changement d'étape (classe .anim) : laissée en
    permanence, le halo traînerait derrière sa cible pendant tout le suivi image par image */
 .tuto-spot.anim{transition:top .35s cubic-bezier(.2,.85,.25,1),left .35s cubic-bezier(.2,.85,.25,1),width .35s cubic-bezier(.2,.85,.25,1),height .35s cubic-bezier(.2,.85,.25,1)}
 .tuto-card{position:fixed;z-index:3;left:50%;transform:translateX(-50%);width:min(430px,calc(100vw - 24px));display:flex;flex-direction:column;background:var(--bg-card);border:1px solid var(--line);border-radius:18px;box-shadow:0 36px 80px -34px rgba(42,33,24,.55);padding:22px 24px 20px}
 .tuto-card.centre{top:50%;transform:translate(-50%,-50%);max-height:min(80vh,calc(100dvh - 32px))}
-.tuto-card.haut{top:16px}
-.tuto-card.bas{bottom:16px}
+/* en mode ancré, top ou bottom est posé en ligne par tutoPlacer : la carte se colle à la cible */
+.tuto-card.ancre{top:auto;bottom:auto}
 .tuto-card .nm-close{position:absolute;top:12px;right:14px}
 /* la croix ne mesure que 15 × 26 px : son ::after porte la zone tactile à 45 × 44, sans rien
    déplacer (elle est seule dans son coin, elle n'empiète sur aucune commande voisine) */
