@@ -36,6 +36,8 @@
   // du panneau admin — filtrage, suppression — mais pas au rechargement de la page)
   var admFilesHidden = {};
   var CUR_GROUP = null, qsFillState = null, notifTimer = null, DEMO = null;
+  // visite guidée à jouer dès que le tableau de bord sera peint (première connexion)
+  var TUTO_PENDING = false;
   // Un dossier = UN apprenant, mais autant de FORMATEURS que voulu. GEN_PROF = le formateur au
   // nom duquel le document en cours est établi (choisi dans la modale « Générer un document »
   // quand le dossier en compte plusieurs ; sinon, soi-même).
@@ -132,6 +134,7 @@
     api('/api/me').then(function (r) {
       if (!r.ok) { setToken(null); ME = null; renderHeader(); if (app()) renderAuth(); return; }
       ME = r.data.user;
+      TUTO_PENDING = !!ME.tutoAVoir;
       return api('/api/notifications').then(function (n) { NOTIFS = (n.ok && n.data.notifs) || []; renderHeader(); if (app()) renderDashboard(); startNotifPoll(); });
     });
   }
@@ -218,7 +221,8 @@
     if (role === 'prof') return { langue: val('su-p-langue'), siret: val('su-siret'), nda: val('su-nda'), adresse: val('su-adresse'), tel: val('su-p-tel'), dateNaissance: val('su-naissance'), nationalite: val('su-nationalite') };
     return {};
   }
-  function afterAuth() { api('/api/notifications').then(function (n) { NOTIFS = (n.ok && n.data.notifs) || []; renderHeader(); renderDashboard(); startNotifPoll(); window.scrollTo({ top: 0, behavior: 'smooth' }); }); }
+  // connexion, connexion rapide démo ET activation par lien e-mail passent tous par ici
+  function afterAuth() { TUTO_PENDING = !!(ME && ME.tutoAVoir); api('/api/notifications').then(function (n) { NOTIFS = (n.ok && n.data.notifs) || []; renderHeader(); renderDashboard(); startNotifPoll(); window.scrollTo({ top: 0, behavior: 'smooth' }); }); }
   function demoBoxHTML() {
     if (!DEMO || !DEMO.length) return '';
     return '<div class="demo-box"><div class="demo-box-h">⚡ Connexion rapide — comptes de démonstration</div>' +
@@ -266,11 +270,18 @@
 
   // ---- briques communes ---------------------------------------------------
   function topHTML() {
+    // ⚠️ les deux boutons sont groupés dans .ds-top-acts : .ds-top est en justify-content:space-between,
+    // un second bouton posé directement dedans flotterait au milieu du bandeau sur ordinateur et
+    // ferait déborder l'en-tête à 375 px (précédent .adm-grp-acts).
     return '<div class="ds-top"><div class="ds-id"><span class="ds-hi">Bonjour ' + esc(ME.prenom) + ' ' + esc(ME.nom) + '</span>' +
-      '<span class="role-chip role-' + ME.role + '">' + ROLES[ME.role] + '</span></div><button class="btn btn-ghost ds-logout">Se déconnecter</button></div>';
+      '<span class="role-chip role-' + ME.role + '">' + ROLES[ME.role] + '</span></div><div class="ds-top-acts">' +
+      (ME.role === 'admin' ? '' : '<button type="button" class="btn btn-ghost tuto-replay">Revoir la visite guidée</button>') +
+      '<button class="btn btn-ghost ds-logout">Se déconnecter</button></div></div>';
   }
   function notifCardHTML(unread) {
-    return '<div class="ds-card"><div class="ds-card-h"><h3>Notifications' + (unread ? ' <span class="mini-badge">' + unread + '</span>' : '') + '</h3>' +
+    // ds-card-notifs : ancre stable de la visite guidée (une ancre positionnelle du type
+    // « .ds-side > .ds-card:first-child » se déplacerait en silence si une carte était ajoutée).
+    return '<div class="ds-card ds-card-notifs"><div class="ds-card-h"><h3>Notifications' + (unread ? ' <span class="mini-badge">' + unread + '</span>' : '') + '</h3>' +
       (NOTIFS.length ? '<button class="link-btn ds-seeall">Voir tout</button>' : '') + '</div>' +
       '<p class="ds-empty" style="margin:0">' + (NOTIFS.length ? (unread ? unread + (unread > 1 ? ' notifications non lues' : ' notification non lue') : 'Tout est lu.') : 'Aucune notification pour le moment.') + '</p></div>';
   }
@@ -394,7 +405,7 @@
   // Les dossiers sont constitués par l'administration UNIQUEMENT (30/07/2026) : ni l'apprenant
   // ni le formateur n'ajoute qui que ce soit, il n'y a donc plus de bouton loupe ici.
   function dossiersCardHTML(groups) {
-    return '<div class="ds-card"><h3>Mes dossiers</h3>' +
+    return '<div class="ds-card ds-card-dossiers"><h3>Mes dossiers</h3>' +
       (groups.length ? '<ul class="contact-list">' + groups.map(function (g) {
         // Le nombre de formateurs est désormais variable : chaque mot est dans son propre nœud
         // texte pour rester une clé de traduction stable malgré le nombre qui change.
@@ -444,6 +455,8 @@
     el.innerHTML = topHTML() + '<div class="ds-grid"><aside class="ds-side">' + notifCardHTML(unread) + dossiersCardHTML(groups) +
       '</aside><main class="ds-main">' + groupView(selG, messages, docs) + '</main></div>' + (overview ? adminPanel(overview) : '');
     el.querySelector('.ds-logout').onclick = function () { logout(); };
+    // le bouton est détruit et recréé à chaque rendu, et n'existe pas pour un admin
+    var tb = el.querySelector('.tuto-replay'); if (tb) tb.onclick = function () { ouvrirTuto(); };
     var sa = el.querySelector('.ds-seeall'); if (sa) sa.onclick = openNotifModal;
     el.querySelectorAll('.contact').forEach(function (li) {
       li.onclick = function () {
@@ -476,6 +489,12 @@
     if (selG) { wireChat(); wireUpload(); }
     if (overview) wireAdmin();
     renderHeader();
+    // Première connexion : c'est ICI qu'on lance la visite, et nulle part ailleurs — c'est le seul
+    // instant où le tableau de bord existe vraiment (renderUserDash enchaîne 4 requêtes avant de peindre).
+    if (TUTO_PENDING && ME && ME.role !== 'admin' && !document.querySelector('.notif-modal.open')) {
+      TUTO_PENDING = false;
+      ouvrirTuto();
+    }
   }
 
   // ---- générateur de documents (Interactive Worksheet) -------------------
@@ -1755,6 +1774,299 @@
         });
       };
     });
+  }
+
+  // ==========================================================================
+  //  VISITE GUIDÉE de l'espace documents — formateurs et apprenants uniquement.
+  //
+  //  Deux règles ont dicté la construction :
+  //  1. La visite NE TOUCHE À RIEN. Elle n'ouvre pas un dossier à la place de la personne (cela
+  //     effacerait pour de bon ses notifications non lues, cf. clear-group), n'écrit jamais
+  //     `selected`/`channel`, n'appelle jamais renderDashboard(). Son seul appel réseau est
+  //     POST /api/tuto/vu, une fois par visite.
+  //  2. AUCUNE étape n'est jamais supprimée. Sur un compte tout neuf — le cas normal d'une
+  //     première connexion — le tableau de bord est presque vide et la moitié des ancres n'existe
+  //     pas. Ancre absente ou non montrable : le projecteur s'éteint, la carte se centre, le texte
+  //     et le numéro d'étape ne changent pas. Une étape qui saute, c'est une explication perdue.
+  // ==========================================================================
+  var TUTO_BIENVENUE = {
+    ancre: '.ds-top',
+    titre: 'Bienvenue dans votre espace documents',
+    paras: ['Cet espace réunit vos dossiers de formation, les documents et les échanges qui vont avec. La visite dure moins d\'une minute, et le bouton Revoir la visite guidée, en haut de cette page, la relance quand vous voulez.']
+  };
+  var TUTO_NOTIFS = {
+    ancre: '.ds-card-notifs',
+    titre: 'Ne rien manquer',
+    paras: ['Chaque message et chaque document reçu crée une notification, reprise par la cloche en haut de page, qui se met à jour sans recharger. Un dossier dans lequel quelque chose vous attend porte une pastille colorée dans la case Mes dossiers, et l\'ouvrir efface ses notifications.']
+  };
+  var TUTO_REVOIR = {
+    ancre: '.tuto-replay',
+    titre: 'Revoir cette visite quand vous voulez',
+    paras: ['Ce bouton relance la visite guidée en entier, à tout moment, sans rien changer à vos dossiers. Bonne formation.']
+  };
+  var TUTO_PROF = [
+    TUTO_BIENVENUE,
+    { ancre: '.ds-card-dossiers', titre: 'Tout est rangé par dossier', paras: [
+      'Un dossier suit un apprenant et réunit ses formateurs et l\'administration. C\'est l\'administration qui crée les dossiers et décide qui y figure. Ceux qui vous sont confiés sont listés dans la case Mes dossiers, et un clic sur l\'un d\'eux ouvre ses documents et sa messagerie.',
+      'Si la liste est encore vide, aucun dossier ne vous a été confié pour l\'instant. Vous recevrez une notification dès qu\'un dossier vous sera attribué.'
+    ] },
+    { ancre: '.chan-tabs', titre: 'Deux canaux, deux publics', paras: [
+      'Chaque dossier a deux canaux. La discussion commune est partagée avec l\'apprenant. Le canal privé est réservé aux formateurs du dossier et à l\'administration : l\'apprenant n\'y a accès ni en lecture, ni en téléchargement, et c\'est par là que vous transmettez vos documents à l\'administration.',
+      'Un formateur ajouté plus tard au dossier accède à tout l\'historique déjà échangé dans le canal privé.'
+    ] },
+    { ancre: '.upload-zone', titre: 'Déposer un document, écrire un message', paras: [
+      'La zone de dépôt accepte un fichier de 25 Mo au maximum, la liste des documents s\'affiche en dessous, et la messagerie du dossier se trouve encore plus bas.',
+      'Le canal ouvert au moment de l\'envoi décide qui verra le fichier ou le message : vérifiez l\'onglet avant d\'envoyer. Vous pouvez retirer un document que vous avez envoyé vous-même, mais pas celui d\'une autre personne.'
+    ] },
+    { ancre: '.gen-btn', titre: 'Générer un document', paras: [
+      'Le bouton Générer un document, en haut du dossier, ouvre la liste des modèles : Interactive Worksheet, questionnaires de satisfaction, tests de mi-parcours et de fin, attestation de fin de formation, fiche satisfaction formateur, Level Test et feuilles de présence. Son onglet Historique des documents rouvre un document déjà produit, pour éviter de tout ressaisir.',
+      'L\'intitulé, la langue, les dates, la société et les coordonnées sont repris de la fiche de l\'apprenant à chaque génération. Si un champ arrive vide, c\'est que la fiche est incomplète : demandez à l\'administration de la compléter plutôt que de ressaisir la même information sur chaque document.',
+      'La plupart des modèles produisent un fichier téléchargé directement sur votre ordinateur, sans passer par le dossier. Les documents produits sont toujours en français, même lorsque le site est affiché dans une autre langue.'
+    ] },
+    { ancre: 'centre', titre: 'Questionnaires et feuilles de présence', paras: [
+      'Les questionnaires de satisfaction et les feuilles de présence ne se téléchargent pas : ils partent chez l\'apprenant. Une carte apparaît dans la discussion commune, avec une notification et un e-mail. Une fois le questionnaire rempli ou la feuille signée, le document final est déposé tout seul dans la discussion commune.',
+      'Sur une feuille de présence, vous signez avant d\'envoyer : tant que votre signature manque, l\'envoi est refusé. Tant que l\'apprenant n\'a pas répondu, la carte affichée dans la discussion permet de modifier ou d\'annuler la demande.'
+    ] },
+    TUTO_NOTIFS,
+    TUTO_REVOIR
+  ];
+  var TUTO_ELEVE = [
+    TUTO_BIENVENUE,
+    { ancre: '.ds-card-dossiers', titre: 'Votre dossier', paras: [
+      'Votre formation est suivie dans un dossier créé par l\'administration, qui réunit vos formateurs et l\'administration Languages and Success. Il apparaît dans la case Mes dossiers, sous le nom de vos formateurs, et un clic dessus ouvre ses documents et sa messagerie.',
+      'Si la liste est encore vide, votre dossier n\'a pas encore été créé. Vous recevrez une notification dès qu\'il sera prêt.'
+    ] },
+    { ancre: '.upload-zone', titre: 'Vos documents et la messagerie', paras: [
+      'Les documents de votre formation s\'affichent sous la zone de dépôt, avec un bouton pour les télécharger. Pour envoyer un fichier à vos formateurs, cliquez sur la zone de dépôt ou déposez-y un fichier de 25 Mo au maximum.',
+      'Un document que vous avez envoyé ne peut plus être retiré que par l\'administration : vérifiez le fichier avant de l\'envoyer. La messagerie du dossier, sous la liste des documents, sert à échanger avec vos formateurs et l\'administration.'
+    ] },
+    // ⚠️ ancré sur le CONTENEUR de la discussion, jamais sur un bouton « Remplir »/« Signer » :
+    // ceux-là n'existent que s'il y a une demande en attente, et ils vivent dans un cadre à
+    // défilement (max-height:300px) forcé au bas — un halo s'y dessinerait sur du vide.
+    { ancre: '#chat-msgs', titre: 'Questionnaires et feuilles à signer', paras: [
+      'Lorsqu\'un formateur vous envoie un questionnaire de satisfaction ou une feuille de présence, une carte apparaît dans la discussion du dossier, avec un bouton pour la remplir ou la signer. Vous en êtes averti par une notification et par un e-mail.',
+      'Avant de signer une feuille de présence, relisez le récapitulatif des séances affiché au-dessus de la signature. Vous signez à la souris ou au doigt, ou vous téléversez une image de votre signature.',
+      'L\'envoi est définitif : une fois confirmé, vous ne pouvez plus revenir sur vos réponses ni sur votre signature. Le document final est aussitôt déposé dans le dossier.'
+    ] },
+    TUTO_NOTIFS,
+    TUTO_REVOIR
+  ];
+
+  var TUTO_ETAPES = [], TUTO_I = 0, TUTO_RAF = null, TUTO_RETOUR = null, TUTO_OBS = null, TUTO_ANIM = null;
+
+  function tutoEl() { return document.getElementById('tuto'); }
+  // Le calque est créé UNE fois et vit sur document.body, jamais dans #docspace qui est
+  // intégralement reconstruit (el.innerHTML = …) par une vingtaine d'appelants.
+  // ⚠️ enfant direct de body : un position:fixed se recale sur tout ancêtre portant transform.
+  function ensureTuto() {
+    var m = tutoEl(); if (m) return m;
+    m = document.createElement('div');
+    m.id = 'tuto'; m.className = 'tuto';
+    m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-labelledby', 'tuto-title');
+    m.innerHTML = '<div class="tuto-catch"></div><div class="tuto-spot off" aria-hidden="true"></div>' +
+      '<div class="tuto-card centre" tabindex="-1">' +
+        '<button type="button" class="nm-close tuto-close" aria-label="Fermer">&times;</button>' +
+        '<p class="tuto-eyebrow">Visite guidée</p>' +
+        '<div class="tuto-txt" aria-live="polite"><h3 id="tuto-title"></h3></div>' +
+        '<div class="tuto-dots" aria-hidden="true"></div>' +
+        '<div class="tuto-foot">' +
+          '<button type="button" class="btn btn-ghost tuto-skip">Passer la visite</button>' +
+          '<button type="button" class="btn btn-ghost tuto-prev">← Revenir</button>' +
+          '<button type="button" class="btn btn-primary tuto-next">Continuer →</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(m);
+    m.querySelector('.tuto-close').onclick = fermerTuto;
+    m.querySelector('.tuto-skip').onclick = fermerTuto;
+    m.querySelector('.tuto-prev').onclick = function () { allerTuto(TUTO_I - 1); };
+    m.querySelector('.tuto-next').onclick = function () { if (TUTO_I >= TUTO_ETAPES.length - 1) fermerTuto(); else allerTuto(TUTO_I + 1); };
+    // ⚠️ un clic sur le fond ne ferme PAS (contrairement aux autres modales du site) : une
+    // fermeture accidentelle consommerait la première connexion, qui ne revient jamais.
+    return m;
+  }
+
+  // La cible est-elle réellement MONTRABLE ? Retourne son rectangle, ou null (→ carte centrée).
+  function tutoCible(sel) {
+    if (!sel || sel === 'centre') return null;
+    var t = document.querySelector(sel);
+    if (!t || !t.offsetParent) return null;                       // absente ou display:none
+    var r = t.getBoundingClientRect(), vh = window.innerHeight, vw = window.innerWidth;
+    if (r.width < 8 || r.height < 8) return null;
+    if (r.height > vh * 0.6 || (r.width * r.height) > vw * vh * 0.6) return null;  // trop grande : le trou ne désignerait rien
+    if (r.bottom < 8 || r.top > vh - 8) return null;              // hors écran
+    if (Math.max(r.top, vh - r.bottom) < 200) return null;        // pas la place de poser la carte sans recouvrir la cible
+    // rognage par un ancêtre à défilement (le cadre de la discussion, par exemple).
+    // ⚠️ on s'arrête AVANT body, qui porte overflow-x:hidden et rendrait tout le monde inéligible.
+    var p = t.parentElement;
+    while (p && p !== document.body) {
+      var st = getComputedStyle(p);
+      if (/(auto|scroll|hidden)/.test(st.overflowX + ' ' + st.overflowY)) {
+        var pr = p.getBoundingClientRect();
+        if (r.bottom > pr.bottom + 1 || r.top < pr.top - 1 || r.right > pr.right + 1 || r.left < pr.left - 1) return null;
+      }
+      p = p.parentElement;
+    }
+    return { r: r, el: t };
+  }
+
+  // Dessin du projecteur. Le sélecteur est RE-RÉSOLU à chaque appel, aucune référence de nœud
+  // n'est conservée — c'est ce qui absorbe sans une ligne de synchronisation la reconstruction
+  // complète du tableau de bord, l'allongement des textes par la traduction, et le remplacement
+  // de l'en-tête. Retourne la cible retenue, ou null.
+  function tutoDessiner() {
+    var m = tutoEl(); if (!m) return null;
+    var spot = m.querySelector('.tuto-spot'), e = TUTO_ETAPES[TUTO_I], c = e ? tutoCible(e.ancre) : null;
+    // sans projecteur, c'est .tuto-catch qui assombrit l'écran (même teinte) — sinon on verrait
+    // le tableau de bord en pleine lumière derrière une carte flottante
+    m.classList.toggle('sans-spot', !c);
+    if (!c) spot.classList.add('off');
+    else {
+      spot.classList.remove('off');
+      spot.style.top = (c.r.top - 8) + 'px'; spot.style.left = (c.r.left - 8) + 'px';
+      spot.style.width = (c.r.width + 16) + 'px'; spot.style.height = (c.r.height + 16) + 'px';
+      spot.style.borderRadius = (getComputedStyle(c.el).borderRadius || '12px');
+    }
+    return c;
+  }
+  // ⚠️ Le dessin doit être fait une première fois de façon SYNCHRONE (cf. tutoPlacer) et pas
+  // seulement par cette boucle : requestAnimationFrame ne s'exécute pas dans un onglet en
+  // arrière-plan, le projecteur y resterait éteint pour toute la visite.
+  function tutoSuivre() {
+    var m = tutoEl(); if (!m || !m.classList.contains('open')) { TUTO_RAF = null; return; }
+    tutoDessiner();
+    TUTO_RAF = requestAnimationFrame(tutoSuivre);
+  }
+
+  // Placement de la carte : au changement d'étape et au redimensionnement SEULEMENT — jamais dans
+  // la boucle, sinon la carte scintillerait à chaque image.
+  function tutoPlacer() {
+    var m = tutoEl(); if (!m) return;
+    var card = m.querySelector('.tuto-card'), spot = m.querySelector('.tuto-spot');
+    var e = TUTO_ETAPES[TUTO_I];
+    // on déverrouille le temps de recentrer la cible, puis on reverrouille
+    document.documentElement.classList.remove('tuto-lock');
+    var t = (e && e.ancre !== 'centre') ? document.querySelector(e.ancre) : null;
+    // ⚠️ block:'center' et non 'start' : l'en-tête du site est fixe et recouvrirait la cible.
+    // ⚠️ behavior:'auto' : html{scroll-behavior:smooth} ferait sinon mesurer un état intermédiaire.
+    if (t) { try { t.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' }); } catch (x) { t.scrollIntoView(); } }
+    document.documentElement.classList.add('tuto-lock');
+
+    var c = tutoDessiner();          // dessin synchrone : ne dépend pas de la boucle d'animation
+    card.style.maxHeight = '';
+    if (!c) { card.className = 'tuto-card centre'; }
+    else {
+      var haut = c.r.top, bas = window.innerHeight - c.r.bottom;
+      card.className = 'tuto-card ' + (bas >= haut ? 'bas' : 'haut');
+      card.style.maxHeight = (Math.max(haut, bas) - 24) + 'px';
+    }
+    // la transition n'existe QUE le temps du changement d'étape : laissée en permanence, le halo
+    // traînerait derrière sa cible pendant tout le suivi image par image.
+    spot.classList.add('anim');
+    if (TUTO_ANIM) clearTimeout(TUTO_ANIM);
+    TUTO_ANIM = setTimeout(function () { var s = tutoEl(); if (s) s.querySelector('.tuto-spot').classList.remove('anim'); }, 400);
+  }
+
+  function allerTuto(i) {
+    var m = ensureTuto(), e;
+    TUTO_I = Math.max(0, Math.min(i, TUTO_ETAPES.length - 1));
+    e = TUTO_ETAPES[TUTO_I];
+    var txt = m.querySelector('.tuto-txt');
+    // on REMPLACE les nœuds texte (textContent) : c'est ce qui déclenche l'observateur du moteur
+    // de traduction, qui ne surveille que les nœuds ajoutés.
+    txt.innerHTML = '<h3 id="tuto-title"></h3>';
+    txt.querySelector('h3').textContent = e.titre;
+    e.paras.forEach(function (p) { var el = document.createElement('p'); el.textContent = p; txt.appendChild(el); });
+    txt.scrollTop = 0;
+
+    var dots = m.querySelector('.tuto-dots'); dots.innerHTML = '';
+    TUTO_ETAPES.forEach(function (x, k) { var d = document.createElement('i'); d.className = 'tuto-dot' + (k === TUTO_I ? ' on' : ''); dots.appendChild(d); });
+
+    var dernier = TUTO_I >= TUTO_ETAPES.length - 1;
+    m.querySelector('.tuto-prev').hidden = TUTO_I === 0;
+    m.querySelector('.tuto-skip').hidden = dernier;
+    m.querySelector('.tuto-next').textContent = dernier ? 'Terminer' : 'Continuer →';
+    tutoPlacer();
+  }
+
+  function tutoBoutons() {
+    var m = tutoEl(); if (!m) return [];
+    return ['.tuto-close', '.tuto-skip', '.tuto-prev', '.tuto-next'].map(function (s) { return m.querySelector(s); })
+      .filter(function (b) { return b && !b.hidden; });
+  }
+  // ⚠️ écouteur en CAPTURE : trois écouteurs Échap coexistent en phase bouillonnante sur document,
+  // dont closeNotifModal qui relance un renderDashboard() complet SANS vérifier qu'une modale est
+  // ouverte. Un simple stopPropagation() ne suffirait pas.
+  function tutoClavier(ev) {
+    if (!tutoEl() || !tutoEl().classList.contains('open')) return;
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopImmediatePropagation(); fermerTuto(); return; }
+    if (ev.key !== 'Tab') return;
+    // piège de focus : sans lui, deux tabulations amènent sur « Se déconnecter », invisible sous
+    // l'ombre — et Entrée déconnecte la personne au milieu de sa visite.
+    var b = tutoBoutons(); if (!b.length) return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    var i = b.indexOf(document.activeElement);
+    i = ev.shiftKey ? (i <= 0 ? b.length - 1 : i - 1) : (i < 0 || i >= b.length - 1 ? 0 : i + 1);
+    b[i].focus();
+  }
+  function tutoResize() { if (tutoEl() && tutoEl().classList.contains('open')) requestAnimationFrame(tutoPlacer); }
+
+  function ouvrirTuto() {
+    if (!ME || ME.role === 'admin') return;
+    TUTO_ETAPES = (ME.role === 'prof') ? TUTO_PROF : TUTO_ELEVE;
+    // un dialogue du site est ouvert (z-index 1300) : le calque (1400) le masquerait
+    if (document.querySelector('.notif-modal.open')) return;
+    var m = ensureTuto();
+    if (m.classList.contains('open')) return;
+    closeMobileMenu();
+    TUTO_RETOUR = document.activeElement;
+    // une navigation douce encore en cours (afterAuth) continuerait à faire défiler la page
+    // sous le calque : on l'arrête net avant de verrouiller.
+    try { window.scrollTo({ top: window.scrollY, behavior: 'auto' }); } catch (x) {}
+    m.classList.add('open');
+    document.documentElement.classList.add('tuto-lock');
+    document.addEventListener('keydown', tutoClavier, true);
+    window.addEventListener('resize', tutoResize);
+    window.addEventListener('orientationchange', tutoResize);
+    // Un confirmDialog ou un alertDialog (z-index 1300) resterait INVISIBLE sous le calque (1400)
+    // et son Échap serait avalé par la capture : dès qu'il en apparaît un, la visite s'efface.
+    TUTO_OBS = new MutationObserver(function (muts) {
+      for (var a = 0; a < muts.length; a++) {
+        for (var b = 0; b < muts[a].addedNodes.length; b++) {
+          var n = muts[a].addedNodes[b];
+          if (n.nodeType === 1 && n.classList && n.classList.contains('confirm-modal')) { fermerTuto(); return; }
+        }
+      }
+    });
+    TUTO_OBS.observe(document.body, { childList: true });
+    allerTuto(0);
+    m.querySelector('.tuto-card').focus();
+    if (!TUTO_RAF) TUTO_RAF = requestAnimationFrame(tutoSuivre);
+  }
+
+  function fermerTuto() {
+    var m = tutoEl(); if (!m || !m.classList.contains('open')) return;
+    m.classList.remove('open');
+    document.documentElement.classList.remove('tuto-lock');
+    document.removeEventListener('keydown', tutoClavier, true);
+    window.removeEventListener('resize', tutoResize);
+    window.removeEventListener('orientationchange', tutoResize);
+    if (TUTO_OBS) { TUTO_OBS.disconnect(); TUTO_OBS = null; }
+    if (TUTO_RAF) { cancelAnimationFrame(TUTO_RAF); TUTO_RAF = null; }
+    if (TUTO_ANIM) { clearTimeout(TUTO_ANIM); TUTO_ANIM = null; }
+    // On retient « vue » à la PREMIÈRE sortie, quelle qu'elle soit (Terminer, Passer, croix,
+    // Échap) : quelqu'un qui ferme au premier écran a décidé, on ne le relance pas à chaque visite.
+    // Le drapeau local sert d'anti-double-envoi ; l'appel ne bloque rien et son échec est sans effet
+    // (la visite se rejouera simplement à la connexion suivante).
+    if (ME && ME.tutoAVoir) { ME.tutoAVoir = false; apiJSON('/api/tuto/vu', 'POST', {}); }
+    var r = TUTO_RETOUR; TUTO_RETOUR = null;
+    if (r && r !== document.body && document.contains(r) && r.focus) r.focus();
+    // ⚠️ le repli doit viser un élément RÉELLEMENT focusable : appeler focus() sur <body> ne
+    // déplace rien, et le focus resterait sur la carte, désormais invisible — quelqu'un au
+    // clavier se retrouverait à taper dans le vide.
+    if (m.contains(document.activeElement)) {
+      var rb = document.querySelector('.tuto-replay');
+      if (rb) rb.focus(); else if (document.activeElement.blur) document.activeElement.blur();
+    }
   }
 
   boot();

@@ -521,6 +521,22 @@ const ADMIN_MEMBER = { id: ADMIN_ID, prenom: 'Administration', nom: 'L&S', role:
 
 const pub = (u) => u ? ({ id: u.id, prenom: u.prenom, nom: u.nom, role: u.role, email: u.email }) : null;
 const pubFull = (u) => u ? Object.assign(pub(u), { profile: u.profile || {} }) : null;
+
+// ---- visite guidée de l'espace documents ----------------------------------
+// La version VUE est enregistrée sur le COMPTE, pas dans le navigateur : elle suit la personne
+// d'un poste à l'autre et survit à un vidage du cache. (Un localStorage obligerait en plus à
+// rouvrir confidentialite.html § 6, qui énumère nommément ce que le site écrit dans le navigateur.)
+// ⚠️ Le champ vit au premier niveau du user, JAMAIS dans `profile` : cleanProfile reconstruit
+// `profile` par liste blanche à chaque PATCH /api/users/:id, le drapeau y serait effacé au premier
+// enregistrement de fiche par l'admin — et `profile` est exposé aux tiers par pubFull.
+// ⚠️ N'incrémenter TUTO_VERSION que si la visite doit être revue par TOUT LE MONDE (refonte de
+// l'interface) : tous les formateurs et apprenants la reverraient à leur connexion suivante.
+const TUTO_VERSION = 1;
+const tutoAVoir = (u) => !!u && u.role !== 'admin' && +(u.tutoVu || 0) < TUTO_VERSION;
+// Vue de SOI-MÊME. ⚠️ pubFull sert AUSSI à sérialiser les AUTRES membres d'un dossier (groupView)
+// et tous les comptes (/api/admin/overview) : ce qui ne regarde que la personne elle-même se pose
+// ici, jamais dans pub/pubFull — sinon un formateur saurait si son apprenant a vu la visite.
+const meFull = (u) => Object.assign(pubFull(u), { tutoAVoir: tutoAVoir(u) });
 const sTrim = (v) => String(v == null ? '' : v).trim();
 function cleanProfile(role, p) {
   p = p || {};
@@ -669,7 +685,10 @@ app.post('/api/activate', async (req, res) => {
   db.logins.push({ id: crypto.randomUUID(), user: u.id, email: u.email, ip: clientIp(req), date: Date.now() });
   if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
   save();
-  res.json({ token: sign(u), user: pubFull(u) });
+  // ⚠️ meFull et non pubFull : l'activation par lien e-mail CONNECTE automatiquement et alimente
+  // ME depuis cette réponse, sans jamais passer par /api/me. C'est exactement la « première
+  // connexion » visée par la visite guidée : l'oublier ici la ferait rater dans le seul cas qui compte.
+  res.json({ token: sign(u), user: meFull(u) });
 });
 // l'administration renvoie le lien (perdu, expiré, adresse corrigée)
 app.post('/api/admin/users/:id/reinvite', auth, (req, res) => {
@@ -704,7 +723,7 @@ app.post('/api/login', async (req, res) => {
   db.logins.push({ id: crypto.randomUUID(), user: user.id, email: user.email, ip: clientIp(req), date: Date.now() });
   if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
   save();
-  res.json({ token: sign(user), user: pubFull(user) });
+  res.json({ token: sign(user), user: meFull(user) });
 });
 // sauvegarde offsite : statut (admin) + déclenchement manuel (admin)
 app.get('/api/admin/backup-status', auth, (req, res) => {
@@ -730,7 +749,18 @@ app.get('/api/admin/logins', auth, (req, res) => {
   });
   res.json({ logins: list });
 });
-app.get('/api/me', auth, (req, res) => res.json({ user: pubFull(req.user) }));
+app.get('/api/me', auth, (req, res) => res.json({ user: meFull(req.user) }));
+
+// ---- visite guidée : « je l'ai vue » ---------------------------------------
+// Appelé une seule fois par visite, à la première sortie quelle qu'elle soit (Terminer, Passer,
+// croix, Échap). Le bouton « Revoir la visite guidée » ne passe PAS par ici : il n'écrit rien.
+app.post('/api/tuto/vu', auth, (req, res) => {
+  if (req.user.role === 'admin') return res.json({ ok: true });                 // sans objet
+  if (+(req.user.tutoVu || 0) >= TUTO_VERSION) return res.json({ ok: true });   // déjà fait : pas de save() inutile
+  req.user.tutoVu = TUTO_VERSION;   // req.user EST l'objet vivant de db.users (auth → realUser)
+  save();
+  res.json({ ok: true });
+});
 app.get('/api/users', auth, (req, res) => {
   let list = db.users.filter(u => u.id !== req.user.id);
   if (req.user.role !== 'admin') list = list.filter(u => u.role !== 'admin'); // non-admins ne voient pas les admins

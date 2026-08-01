@@ -1079,6 +1079,54 @@ footer a:hover{color:#fff8ef}
 .post-acts button.danger:hover{background:#c0392b;border-color:#c0392b;color:#fff}
 .post-acts button.go{background:var(--accent);border-color:var(--accent);color:#fff}
 .post-acts button.go:hover{background:#a85c44;border-color:#a85c44;color:#fff}
+/* ---- visite guidée de l'espace documents ---------------------------------
+   ⚠️ z-index 1400 : au-dessus de TOUT (en-tête 200, tiroir mobile 210, menu de langue 300,
+   splash 1000, modales vitrine 1200, modales de l'espace documents 1300).
+   ⚠️ le fond n'est PAS flouté, contrairement aux autres modales : on ne peut pas rendre flou ce
+   qu'on est en train de désigner. C'est l'ombre de 9999 px du projecteur qui assombrit ; quand il
+   n'y a pas de projecteur, c'est .tuto-catch qui prend le relais.
+   ⚠️ aucune règle font-size sur input/select/textarea ici : elle l'emporterait sur l'imposition
+   des 16 px plus haut et rouvrirait le zoom de Safari iOS. */
+.tuto{position:fixed;inset:0;z-index:1400;visibility:hidden;pointer-events:none;opacity:0;transition:opacity .3s,visibility 0s linear .3s}
+.tuto.open{visibility:visible;pointer-events:auto;opacity:1;transition:opacity .3s,visibility 0s}
+.tuto-catch{position:absolute;inset:0;z-index:1;background:transparent}
+.tuto.sans-spot .tuto-catch{background:rgba(42,33,24,.55)}
+html.tuto-lock{overflow:hidden}
+.tuto-spot{position:fixed;z-index:2;pointer-events:none;border-radius:12px;box-shadow:0 0 0 9999px rgba(42,33,24,.55),0 0 0 2px var(--accent),0 0 26px -6px var(--accent)}
+.tuto-spot.off{display:none}
+/* la transition n'est posée QUE le temps d'un changement d'étape (classe .anim) : laissée en
+   permanence, le halo traînerait derrière sa cible pendant tout le suivi image par image */
+.tuto-spot.anim{transition:top .35s cubic-bezier(.2,.85,.25,1),left .35s cubic-bezier(.2,.85,.25,1),width .35s cubic-bezier(.2,.85,.25,1),height .35s cubic-bezier(.2,.85,.25,1)}
+.tuto-card{position:fixed;z-index:3;left:50%;transform:translateX(-50%);width:min(430px,calc(100vw - 24px));display:flex;flex-direction:column;background:var(--bg-card);border:1px solid var(--line);border-radius:18px;box-shadow:0 36px 80px -34px rgba(42,33,24,.55);padding:22px 24px 20px}
+.tuto-card.centre{top:50%;transform:translate(-50%,-50%);max-height:min(80vh,calc(100dvh - 32px))}
+.tuto-card.haut{top:16px}
+.tuto-card.bas{bottom:16px}
+.tuto-card .nm-close{position:absolute;top:12px;right:14px}
+.tuto-card .nm-close::after{content:'';position:absolute;inset:-10px -12px}
+.tuto-eyebrow{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.tuto-txt{overflow:auto;min-height:0;padding-right:2px}
+.tuto-txt h3{margin:0 0 10px;font-size:21px;padding-right:26px}
+.tuto-txt p{margin:0 0 11px;font-size:14.5px;line-height:1.62;color:var(--ink-soft)}
+.tuto-txt p:last-child{margin-bottom:0}
+.tuto-dots{display:flex;gap:6px;margin:16px 0 14px}
+.tuto-dot{width:7px;height:7px;border-radius:50%;background:var(--line);transition:background .2s,transform .2s}
+.tuto-dot.on{background:var(--accent);transform:scale(1.25)}
+.tuto-foot{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end}
+.tuto-foot .btn{padding:11px 20px;font-size:14px;justify-content:center;text-align:center}
+.tuto-foot .tuto-skip{margin-right:auto;border-color:var(--line);color:var(--ink-soft)}
+.tuto-foot .tuto-skip:hover{background:var(--line);color:var(--ink)}
+/* les deux commandes du bandeau sont groupées : .ds-top est en justify-content:space-between,
+   un second bouton posé directement dedans flotterait au milieu et déborderait à 375 px */
+.ds-top-acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:620px){
+  .tuto-card{left:12px;right:12px;width:auto;transform:none;padding:20px 18px 18px}
+  .tuto-card.centre{transform:translateY(-50%)}
+  .tuto-foot .btn{padding:13px 18px}   /* « Terminer » tombait à 43 px, sous la cible des 44 */
+  .tuto-foot .tuto-skip{margin-right:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .tuto,.tuto-card,.tuto-spot,.tuto-spot.anim,.tuto-dot{transition:none}
+}
 /* au doigt, ces commandes se touchent : « Supprimer » voisine de « Dupliquer » à 32 px de haut
    invite à la faute. On les monte à ~40 px sous 620 px, sans rien changer sur ordinateur. */
 @media (max-width:620px){
