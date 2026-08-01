@@ -50,7 +50,11 @@
     return b;
   }
 
-  function actions(art) {
+  // `apres` = ce qu'on fait une fois l'action passée. Sur la grille on recharge la page ;
+  // sur la page d'un article il faut suivre l'article, dont l'adresse et la visibilité viennent
+  // de changer (un article repassé en brouillon n'est plus servi sans jeton).
+  function actions(art, apres) {
+    apres = apres || recharger;
     var w = document.createElement('div');
     w.className = 'post-acts';
     var boutons = [];
@@ -58,6 +62,7 @@
     if (art.statut !== 'programme') boutons.push('<button class="a-programmer" type="button">Programmer</button>');
     if (art.enLigne || art.statut === 'programme') boutons.push('<button class="a-brouillon" type="button">Repasser en brouillon</button>');
     boutons.push('<button class="a-modifier" type="button">Modifier</button>');
+    boutons.push('<button class="a-dupliquer" type="button">Dupliquer</button>');
     boutons.push('<button class="danger a-supprimer" type="button">Supprimer</button>');
     w.innerHTML = boutons.join('');
 
@@ -65,7 +70,7 @@
       dialogue({
         titre: 'Publier cet article ?', confirmer: 'Publier', annuler: 'Annuler',
         message: '« ' + art.titre +' » sera visible de tous, immédiatement, et une publication partira sur les réseaux configurés.',
-        onOui: function () { api(API + '/' + art.id + '/publier', 'POST', {}).then(recharger); }
+        onOui: function () { api(API + '/' + art.id + '/publier', 'POST', {}).then(apres); }
       });
     });
     w.querySelector('.a-programmer') && (w.querySelector('.a-programmer').onclick = function () {
@@ -80,7 +85,7 @@
         champ: '<label class="gf" style="margin-top:14px;display:block">Date et heure <small style="font-weight:400;color:var(--ink-soft)">— heure de Paris</small><input id="d-val" type="datetime-local" value="' + val + '" /></label>',
         onOui: function (v) {
           if (!v) return;
-          api(API + '/' + art.id + '/publier', 'POST', { datePublication: new Date(v).toISOString() }).then(recharger);
+          api(API + '/' + art.id + '/publier', 'POST', { datePublication: new Date(v).toISOString() }).then(apres);
         }
       });
     });
@@ -88,17 +93,32 @@
       dialogue({
         titre: 'Repasser en brouillon ?', confirmer: 'Repasser en brouillon', annuler: 'Annuler',
         message: '« ' + art.titre + ' » sortira du blog. Rien n’est perdu : vous seul continuerez à le voir.',
-        onOui: function () { api(API + '/' + art.id + '/depublier', 'POST', {}).then(recharger); }
+        onOui: function () { api(API + '/' + art.id + '/depublier', 'POST', {}).then(apres); }
       });
     });
+    w.querySelector('.a-dupliquer').onclick = function () {
+      dialogue({
+        titre: 'Dupliquer cet article ?', confirmer: 'Dupliquer', annuler: 'Annuler',
+        message: 'Une copie sera créée en brouillon, sous le titre « Copie — ' + art.titre + ' ». L’original n’est pas touché.',
+        // on suit toujours la COPIE : c'est elle qu'on veut retravailler, et elle est en brouillon
+        // (donc son adresse a besoin du jeton pour être ouverte).
+        onOui: function () {
+          api(API + '/' + art.id + '/dupliquer', 'POST', {}).then(function (r) {
+            if (!r.ok || !r.data.article) { info((r.data && r.data.error) || 'Duplication impossible.'); return; }
+            location.href = '/blog/' + r.data.article.slug + '?token=' + encodeURIComponent(token());
+          });
+        }
+      });
+    };
     w.querySelector('.a-supprimer').onclick = function () {
       dialogue({
         titre: 'Supprimer définitivement ?', confirmer: 'Supprimer', annuler: 'Annuler',
         message: '« ' + art.titre + ' » sera effacé. Cette action est irréversible.',
-        onOui: function () { api(API + '/' + art.id, 'DELETE').then(recharger); }
+        // après une suppression il n'y a plus de page où revenir : on repart du blog
+        onOui: function () { api(API + '/' + art.id, 'DELETE').then(function () { if (SUR_PAGE) location.href = '/blog.html'; else recharger(); }); }
       });
     };
-    w.querySelector('.a-modifier').onclick = function () { ouvrirEditeur(art.id); };
+    w.querySelector('.a-modifier').onclick = function () { ouvrirEditeur(art.id, apres); };
     return w;
   }
 
@@ -112,7 +132,8 @@
       '<textarea id="' + id + '" rows="' + (lignes || 4) + '">' + esc(valeur || '') + '</textarea></label>';
   }
 
-  function ouvrirEditeur(id) {
+  function ouvrirEditeur(id, apres) {
+    apres = apres || recharger;
     var charger = id ? api(API + '/' + id) : Promise.resolve({ ok: true, data: { article: {} } });
     charger.then(function (r) {
       var a = (r.data && r.data.article) || {};
@@ -172,7 +193,9 @@
         api(id ? API + '/' + id : API, id ? 'PATCH' : 'POST', corps).then(function (rr) {
           b.disabled = false; b.textContent = 'Enregistrer';
           if (!rr.ok) { document.getElementById('e-err').textContent = (rr.data && rr.data.error) || 'Enregistrement impossible.'; return; }
-          fermer(); recharger();
+          // ⚠️ l'adresse a pu changer (le slug est modifiable) : on suit la réponse du serveur,
+          // sans quoi un rechargement sur la page d'un article tomberait sur une 404
+          fermer(); apres(rr);
         });
       };
     });
@@ -183,11 +206,19 @@
   // ---- carte d'article (même rendu que le serveur) --------------------------
   var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
   var JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  // ⚠️ toujours l'HEURE DE PARIS, comme le serveur (cf. artDateLisible) : sinon un article
+  // programmé la nuit s'afficherait à la veille pour qui consulte depuis un autre fuseau.
   function dateLisible(iso) {
     if (!iso) return '';
     var d = new Date(iso);
     if (isNaN(d)) return '';
-    return JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()] + ' ' + d.getFullYear();
+    var p = {};
+    try {
+      new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' })
+        .formatToParts(d).forEach(function (x) { if (x.type !== 'literal') p[x.type] = x.value; });
+    } catch (e) { return JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()] + ' ' + d.getFullYear(); }
+    var j = new Date(Date.UTC(+p.year, +p.month - 1, +p.day)).getUTCDay();
+    return JOURS[j] + ' ' + (+p.day) + ' ' + MOIS[+p.month - 1] + ' ' + p.year;
   }
   function carte(a) {
     var art = document.createElement('article');
@@ -207,17 +238,49 @@
     return art;
   }
 
+  // ---- page d'un article ----------------------------------------------------
+  // Mêmes commandes que sur la grille, sans avoir à revenir en arrière. Après une action,
+  // on suit l'article : son adresse (le slug est modifiable) et sa visibilité changent.
+  function suivre(art) {
+    return function (r) {
+      var a = (r && r.data && r.data.article) || art;
+      location.href = '/blog/' + a.slug + (a.enLigne ? '' : '?token=' + encodeURIComponent(token()));
+    };
+  }
+  function barreArticle(art) {
+    var etat = art.enLigne ? 'En ligne'
+      : art.statut === 'programme' ? 'Programmé pour le ' + dateLisible(art.datePublication)
+      : 'Brouillon';
+    var b = document.createElement('div');
+    b.className = 'blog-adm blog-adm-art';
+    b.innerHTML = '<h4>Administration du blog</h4><span class="etat">' + esc(etat) + '</span><span class="sep"></span>';
+    b.appendChild(actions(art, suivre(art)));
+    return b;
+  }
+
   // ---- mise en place --------------------------------------------------------
   // ⚠️ Le serveur ne rend que les articles PUBLIÉS sur une navigation ordinaire : une page
   // demandée par un lien n'envoie ni jeton ni cookie, il ne peut donc pas savoir qui regarde.
   // C'est donc ici, avec le jeton du navigateur, qu'on reconstruit la grille complète pour
   // l'administration. La sécurité tient côté serveur : l'API ne renvoie un brouillon qu'à un
   // compte admin, quoi qu'on fasse de ce script.
+  var ANCRE = document.getElementById('ls-art-adm');   // présente sur la page d'UN article
+  var SUR_PAGE = !!ANCRE;
+
   api(API).then(function (r) {
     if (!r.ok || !r.data.admin) return;         // seul l'admin voit les commandes
+    var arts = r.data.articles || [];
+
+    if (SUR_PAGE) {
+      var id = ANCRE.getAttribute('data-art');
+      var art = null;
+      for (var k = 0; k < arts.length; k++) if (arts[k].id === id) art = arts[k];
+      if (art) ANCRE.appendChild(barreArticle(art));
+      return;
+    }
+
     var grille = document.querySelector('.blog-grid');
     if (!grille) return;
-    var arts = r.data.articles || [];
     var b = barre(arts.length);
     grille.parentNode.insertBefore(b, grille);
     b.querySelector('.adm-nouvel').onclick = function () { ouvrirEditeur(null); };

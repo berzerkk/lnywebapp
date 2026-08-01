@@ -1067,6 +1067,11 @@ footer a:hover{color:#fff8ef}
 .blog-adm{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 24px;padding:14px 18px;border:1px solid var(--line);border-radius:14px;background:var(--bg-card)}
 .blog-adm h4{margin:0;font-family:var(--ff-body);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
 .blog-adm .sep{flex:1}
+.blog-adm .etat{font-size:13px;font-weight:600;color:var(--ink-soft)}
+/* même barre, mais en tête de la page d'UN article : les boutons y sont un élément de la barre,
+   ils ne doivent donc pas garder le retrait qu'ils ont dans une carte */
+.blog-adm-art{margin:0 0 22px}
+.blog-adm .post-acts{padding:0}
 .post-acts{display:flex;flex-wrap:wrap;gap:7px;padding:0 24px 20px}
 .post-acts button{flex:none;border:1px solid var(--line);background:var(--bg-card);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;transition:.15s;appearance:none;line-height:1.3}
 .post-acts button:hover{border-color:var(--accent);color:var(--accent);background:color-mix(in oklab,var(--accent) 9%,#fff)}
@@ -1074,3 +1079,9 @@ footer a:hover{color:#fff8ef}
 .post-acts button.danger:hover{background:#c0392b;border-color:#c0392b;color:#fff}
 .post-acts button.go{background:var(--accent);border-color:var(--accent);color:#fff}
 .post-acts button.go:hover{background:#a85c44;border-color:#a85c44;color:#fff}
+/* au doigt, ces commandes se touchent : « Supprimer » voisine de « Dupliquer » à 32 px de haut
+   invite à la faute. On les monte à ~40 px sous 620 px, sans rien changer sur ordinateur. */
+@media (max-width:620px){
+  .post-acts{gap:9px}
+  .post-acts button{padding:11px 14px}
+}

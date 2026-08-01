@@ -2685,6 +2685,23 @@ app.post('/api/blog/articles/:id/publier', auth, (req, res) => {
   if (a.statut === 'publie') diffusionSociale(a);
   res.json({ article: artPub(a) });
 });
+// dupliquer : une copie en brouillon, « Copie — » en tête du titre (et donc du slug)
+app.post('/api/blog/articles/:id/dupliquer', auth, (req, res) => {
+  if (!adminSeul(req, res)) return;
+  const a = db.articles.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Article introuvable.' });
+  const now = new Date().toISOString();
+  const titre = 'Copie — ' + a.titre;
+  const copie = Object.assign({}, a, {
+    id: crypto.randomUUID(), slug: artSlug(titre), titre,
+    faq: (a.faq || []).map(q => Object.assign({}, q)),
+    sources: (a.sources || []).map(s => Object.assign({}, s)),
+    statut: 'brouillon', datePublication: null,
+    dateCreation: now, dateMaj: now, auteur: senderDisplay(req.user)
+  });
+  db.articles.push(copie); save();
+  res.json({ article: artPub(copie) });
+});
 app.post('/api/blog/articles/:id/depublier', auth, (req, res) => {
   if (!adminSeul(req, res)) return;
   const a = db.articles.find(x => x.id === req.params.id);
@@ -2879,6 +2896,8 @@ function artPage(a) {
     + '  </div>' + NL + '</header>' + NL + NL
     + '<section class="sec" style="padding-top:14px">' + NL + '  <div class="wrap">' + NL
     + bandeau
+    // point d'accroche des commandes d'administration (blog-admin.js n'y écrit que pour un admin)
+    + '    <div id="ls-art-adm" data-art="' + a.id + '"></div>' + NL
     + (a.image ? '    <img class="art-cover" src="' + htmlEsc(a.image) + '" alt="' + htmlEsc(a.titre) + '" width="1200" height="630" />' + NL : '')
     + '    <div class="prose">' + NL
     + '      <p class="updated">' + (artEnLigne(a) ? 'Publié le ' + htmlEsc(artDateLisible(a.datePublication)) : 'Non publié') + ' · par l\'équipe pédagogique Languages &amp; Success</p>' + NL + NL
@@ -2889,6 +2908,7 @@ function artPage(a) {
     + '<div id="ls-footer"></div>' + NL
     + '<script>window.LS_CONFIG={key:\'sub\'};</script>' + NL
     + '<script src="/assets/partials.js?v=' + ASSET_VER + '"></script>' + NL
+    + '<script src="/assets/blog-admin.js?v=' + ASSET_VER + '"></script>' + NL
     + '<script src="/ls-engine.js"></script>' + NL
     + '</body>' + NL + '</html>' + NL;
 }
