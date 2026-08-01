@@ -1994,79 +1994,145 @@
     spot.style.width = (c.r.width + 16) + 'px'; spot.style.height = (c.r.height + 16) + 'px';
     spot.style.borderRadius = (getComputedStyle(c.el).borderRadius || '12px');
   }
-  function tutoDessiner() {
+  // `p` = avancement de la transition en cours (1 = arrivée). Le halo et le trou du voile sont
+  // dessinés au rectangle INTERPOLÉ, pour qu'ils glissent d'une cible à l'autre au lieu de sauter.
+  function tutoDessiner(p) {
     var m = tutoEl(); if (!m) return null;
     var e = TUTO_ETAPES[TUTO_I];
     var c = e ? tutoCible(e.ancre) : null;
     var c2 = (e && e.ancre2 && c) ? tutoCible(e.ancre2, true) : null;
-    halo(m.querySelector('.tuto-spot'), c);
+    var rc = c ? tutoRectCourant(c, p == null ? 1 : p) : null;
+    halo(m.querySelector('.tuto-spot'), rc ? { r: rc, el: c.el } : null);
     halo(m.querySelector('.tuto-spot2'), c2);
     m.classList.toggle('sans-spot', !c);
     var voile = m.querySelector('.tuto-catch');
     if (!CLIP_OK) { voile.style.clipPath = ''; m.classList.toggle('vieux-voile', !!c); }
-    else if (!c) voile.style.clipPath = '';
+    else if (!rc) voile.style.clipPath = '';
     else {
-      var trous = [trouPoly(c.r, 8)].concat(c2 ? [trouPoly(c2.r, 8)] : []);
+      var trous = [trouPoly(rc, 8)].concat(c2 ? [trouPoly(c2.r, 8)] : []);
       voile.style.clipPath = 'polygon(evenodd, 0px 0px, 100% 0px, 100% 100%, 0px 100%, 0px 0px, ' + trous.join(', ') + ')';
     }
     return c;
   }
+  // ---- une seule ligne du temps pour tout ce qui bouge ---------------------
+  // Le défilement de la page, le déplacement du halo et celui de la carte sont animés ENSEMBLE,
+  // image par image, sur la même durée et la même courbe. Avant, chacun sautait de son côté :
+  // la page d'un coup, le halo par une transition CSS, la carte pas du tout — d'où l'impression
+  // de diaporama.
+  var TUTO_T0 = 0, TUTO_DUREE = 0, TUTO_R0 = null, TUTO_Y0 = 0, TUTO_Y1 = 0, TUTO_FILET = null, TUTO_SB = '';
+  var DOUX = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var lerp = function (a, b, p) { return a + (b - a) * p; };
+  // départ franc, arrivée qui se pose : c'est la courbe du reste du site (cubic-bezier .2 .85 .25 1)
+  var adoucir = function (p) { return 1 - Math.pow(1 - p, 3); };
+
+  function tutoMax() { return Math.max(0, document.documentElement.scrollHeight - window.innerHeight); }
+
+  // rectangle affiché à l'instant t : pendant une transition, on interpole entre le rectangle
+  // d'où l'on vient et celui, VIVANT, où l'on va — vivant parce que la page défile en même temps,
+  // ce qui fait converger les deux sans le moindre décalage à l'arrivée.
+  function tutoRectCourant(c, p) {
+    if (!c) return null;
+    if (!TUTO_R0 || p >= 1) return c.r;
+    var a = TUTO_R0, b = c.r;
+    return { top: lerp(a.top, b.top, p), left: lerp(a.left, b.left, p),
+             width: lerp(a.width, b.width, p), height: lerp(a.height, b.height, p),
+             bottom: lerp(a.top + a.height, b.top + b.height, p), right: lerp(a.left + a.width, b.left + b.width, p) };
+  }
+
+  function tutoPoserCarte(r) {
+    var m = tutoEl(); if (!m) return;
+    var card = m.querySelector('.tuto-card'), vh = window.innerHeight;
+    if (!r) {
+      card.className = 'tuto-card centre';
+      card.style.top = ''; card.style.bottom = ''; card.style.maxHeight = '';
+      return;
+    }
+    // la carte se pose CONTRE la cible, pas au bord de l'écran : on lit le texte à côté de ce
+    // qu'il désigne, au lieu de balayer la page du regard
+    var haut = r.top, bas = vh - r.bottom;
+    card.className = 'tuto-card ancre';
+    if (bas >= haut) { card.style.top = Math.round(r.bottom + 14) + 'px'; card.style.bottom = ''; card.style.maxHeight = Math.max(160, Math.round(bas - 30)) + 'px'; }
+    else { card.style.bottom = Math.round(vh - r.top + 14) + 'px'; card.style.top = ''; card.style.maxHeight = Math.max(160, Math.round(haut - 30)) + 'px'; }
+  }
+
   // ⚠️ Le dessin doit être fait une première fois de façon SYNCHRONE (cf. tutoPlacer) et pas
   // seulement par cette boucle : requestAnimationFrame ne s'exécute pas dans un onglet en
   // arrière-plan, le projecteur y resterait éteint pour toute la visite.
+  // Arrivée de la transition : on se pose exactement sur la cible et on reverrouille.
+  // ⚠️ Appelée AUSSI par un minuteur de secours : requestAnimationFrame ne s'exécute pas dans un
+  // onglet en arrière-plan. Sans ce filet, quelqu'un qui change d'onglet en plein changement
+  // d'étape retrouverait la visite figée à mi-chemin, page déverrouillée et halo au mauvais
+  // endroit — vérifié, ça arrive pour de vrai.
+  function tutoFinir() {
+    if (TUTO_FILET) { clearTimeout(TUTO_FILET); TUTO_FILET = null; }
+    if (!TUTO_DUREE) return;
+    TUTO_DUREE = 0; TUTO_R0 = null;
+    var racine = document.documentElement;
+    window.scrollTo(0, TUTO_Y1);
+    racine.classList.add('tuto-lock');
+    // ⚠️ on ne rend son scroll-behavior au document QU'ICI : tant que la transition court, nos
+    // scrollTo doivent rester instantanés, sinon le site les reprend en « smooth » et le
+    // verrou posé à l'arrivée les fige à mi-chemin.
+    racine.style.scrollBehavior = TUTO_SB;
+    var c = tutoDessiner(1);
+    tutoPoserCarte(c ? c.r : null);
+  }
   function tutoSuivre() {
     var m = tutoEl(); if (!m || !m.classList.contains('open')) { TUTO_RAF = null; return; }
-    tutoDessiner();
+    if (TUTO_DUREE > 0) {
+      var p = Math.min(1, (Date.now() - TUTO_T0) / TUTO_DUREE);
+      if (p >= 1) tutoFinir();
+      else {
+        var q = adoucir(p);
+        window.scrollTo(0, Math.round(lerp(TUTO_Y0, TUTO_Y1, q)));
+        var c = tutoDessiner(q);
+        tutoPoserCarte(c ? tutoRectCourant(c, q) : null);
+      }
+    } else tutoDessiner(1);
     TUTO_RAF = requestAnimationFrame(tutoSuivre);
   }
 
-  // Placement de la carte : au changement d'étape et au redimensionnement SEULEMENT — jamais dans
-  // la boucle, sinon la carte scintillerait à chaque image.
-  function tutoPlacer() {
+  // Départ d'une transition : on calcule où il faut aller, on déverrouille, et la boucle fait
+  // le reste. `direct` = sans animation (redimensionnement, ouverture, mouvement réduit).
+  function tutoPlacer(direct) {
     var m = tutoEl(); if (!m) return;
-    var card = m.querySelector('.tuto-card'), spot = m.querySelector('.tuto-spot');
-    var e = TUTO_ETAPES[TUTO_I];
-    // On déverrouille le temps de recentrer la cible, puis on reverrouille.
-    // ⚠️ Deux pièges, tous deux vérifiés à la mesure :
-    //  1. il faut FORCER le recalcul de style après avoir retiré la classe, sinon le document est
-    //     encore en overflow:hidden au moment du défilement, qui ne fait rien ;
-    //  2. le site déclare html{scroll-behavior:smooth}, et l'option behavior:'auto' ne l'emporte
-    //     PAS dessus ici : le défilement partait en douceur et se faisait geler par la remise du
-    //     verrou, une image plus tard. La messagerie restait alors jugée « hors écran ».
-    var racine = document.documentElement, sb = racine.style.scrollBehavior;
+    var e = TUTO_ETAPES[TUTO_I], vh = window.innerHeight;
+    var racine = document.documentElement;
+    // ⚠️ le site déclare html{scroll-behavior:smooth} : sans le neutraliser, NOS scrollTo
+    // partiraient eux-mêmes en douceur et se marcheraient dessus d'une image à l'autre.
+    // Il n'est rendu au document QU'À L'ARRIVÉE (tutoFinir), pas ici.
+    if (!TUTO_DUREE) TUTO_SB = racine.style.scrollBehavior;
     racine.style.scrollBehavior = 'auto';
     racine.classList.remove('tuto-lock');
-    void racine.offsetHeight;
-    var vh = window.innerHeight;
+    void racine.offsetHeight;                          // sans ce recalcul, overflow:hidden tient encore
+
+    var avant = tutoCible(e && e.ancre);
+    TUTO_R0 = avant ? { top: avant.r.top, left: avant.r.left, width: avant.r.width, height: avant.r.height } : null;
+    TUTO_Y0 = window.scrollY;
+    TUTO_Y1 = TUTO_Y0;
     var t = (e && e.ancre !== 'centre') ? document.querySelector(e.ancre) : null;
-    // ⚠️ PAS block:'center'. Centrer la cible ne laisse qu'une demi-fenêtre de chaque côté, et la
-    // carte s'y retrouve écrasée avec son texte qui défile dans une boîte minuscule. On pose donc
-    // la cible HAUT dans l'écran pour dégager toute la place en dessous ; si elle est trop grande
-    // pour ça, on la pose bas et la carte passe au-dessus.
+    // ⚠️ PAS de centrage vertical : centrer la cible ne laisse qu'une demi-fenêtre de chaque côté
+    // et la carte s'y retrouve écrasée. On pose la cible HAUT et la carte prend toute la place
+    // en dessous ; si la cible est trop grande, on la pose bas et la carte passe au-dessus.
     if (t) {
       var ht = t.getBoundingClientRect().height;
       var vise = (ht > vh * 0.42) ? Math.max(0, vh * 0.9 - ht) : vh * 0.15;
-      window.scrollTo(0, Math.max(0, window.scrollY + t.getBoundingClientRect().top - vise));
+      TUTO_Y1 = Math.max(0, Math.min(tutoMax(), TUTO_Y0 + t.getBoundingClientRect().top - vise));
     }
-    racine.classList.add('tuto-lock');
-    racine.style.scrollBehavior = sb;
 
-    var c = tutoDessiner();          // dessin synchrone : ne dépend pas de la boucle d'animation
-    card.style.maxHeight = ''; card.style.top = ''; card.style.bottom = '';
-    if (!c) { card.className = 'tuto-card centre'; }
-    else {
-      // la carte se pose CONTRE la cible, pas au bord de l'écran : on lit le texte à côté de
-      // ce qu'il désigne, au lieu de balayer la page du regard
-      var haut = c.r.top, bas = vh - c.r.bottom;
-      card.className = 'tuto-card ancre';
-      if (bas >= haut) { card.style.top = Math.round(c.r.bottom + 14) + 'px'; card.style.maxHeight = Math.max(160, Math.round(bas - 30)) + 'px'; }
-      else { card.style.bottom = Math.round(vh - c.r.top + 14) + 'px'; card.style.maxHeight = Math.max(160, Math.round(haut - 30)) + 'px'; }
+    if (TUTO_FILET) { clearTimeout(TUTO_FILET); TUTO_FILET = null; }
+    if (direct || !DOUX) {                             // pas d'animation : on saute à l'arrivée
+      TUTO_DUREE = 1;                                  // pour que tutoFinir ne sorte pas tout de suite
+      tutoFinir();
+      return;
     }
-    // la transition n'existe QUE le temps du changement d'étape : laissée en permanence, le halo
-    // traînerait derrière sa cible pendant tout le suivi image par image.
-    spot.classList.add('anim');
-    if (TUTO_ANIM) clearTimeout(TUTO_ANIM);
-    TUTO_ANIM = setTimeout(function () { var s = tutoEl(); if (s) s.querySelector('.tuto-spot').classList.remove('anim'); }, 400);
+    // durée proportionnée au chemin à parcourir : un petit déplacement ne doit pas traîner
+    var chemin = Math.abs(TUTO_Y1 - TUTO_Y0);
+    TUTO_DUREE = Math.max(260, Math.min(620, 260 + chemin * 0.45));
+    TUTO_T0 = Date.now();
+    tutoDessiner(0);                                   // première image tout de suite, sans attendre rAF
+    TUTO_FILET = setTimeout(tutoFinir, TUTO_DUREE + 260);   // filet si rAF est gelé (onglet en arrière-plan)
+    if (!TUTO_RAF) TUTO_RAF = requestAnimationFrame(tutoSuivre);
   }
 
   function allerTuto(i) {
@@ -2074,6 +2140,10 @@
     TUTO_I = Math.max(0, Math.min(i, TUTO_ETAPES.length - 1));
     e = TUTO_ETAPES[TUTO_I];
     var txt = m.querySelector('.tuto-txt');
+    // fondu du texte à chaque étape : sans lui, le contenu est remplacé d'un seul coup et
+    // l'ensemble donne l'impression d'un diaporama. On relance l'animation en la retirant puis
+    // en la remettant (sans le recalcul forcé, le navigateur ne voit aucun changement).
+    txt.classList.remove('paru'); void txt.offsetWidth; txt.classList.add('paru');
     // on REMPLACE les nœuds texte (textContent) : c'est ce qui déclenche l'observateur du moteur
     // de traduction, qui ne surveille que les nœuds ajoutés.
     txt.innerHTML = '<h3 id="tuto-title"></h3>';
@@ -2114,7 +2184,9 @@
     i = ev.shiftKey ? (i <= 0 ? b.length - 1 : i - 1) : (i < 0 || i >= b.length - 1 ? 0 : i + 1);
     b[i].focus();
   }
-  function tutoResize() { if (tutoEl() && tutoEl().classList.contains('open')) requestAnimationFrame(tutoPlacer); }
+  // redimensionnement : replacement DIRECT, sans animation — on ne fait pas glisser une carte
+  // pendant que l'utilisateur redimensionne sa fenêtre
+  function tutoResize() { if (tutoEl() && tutoEl().classList.contains('open')) requestAnimationFrame(function () { tutoPlacer(true); }); }
 
   function ouvrirTuto() {
     if (!ME || ME.role === 'admin') return;
@@ -2164,6 +2236,8 @@
     TUTO_ATTENTE = null;   // une peinture en vol ne doit pas replacer une carte refermée
     if (TUTO_RAF) { cancelAnimationFrame(TUTO_RAF); TUTO_RAF = null; }
     if (TUTO_ANIM) { clearTimeout(TUTO_ANIM); TUTO_ANIM = null; }
+    if (TUTO_FILET) { clearTimeout(TUTO_FILET); TUTO_FILET = null; }
+    TUTO_DUREE = 0; TUTO_R0 = null;
     // On retient « vue » à la PREMIÈRE sortie, quelle qu'elle soit (Terminer, Passer, croix,
     // Échap) : quelqu'un qui ferme au premier écran a décidé, on ne le relance pas à chaque visite.
     // Le drapeau local sert d'anti-double-envoi ; l'appel ne bloque rien et son échec est sans effet
