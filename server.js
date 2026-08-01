@@ -1157,7 +1157,10 @@ const HEADBG = 'F3E7E0', LBLBG = 'F7EEE9', ACCENTC = 'BE6E54', DARKC = 'A8593C',
 function dxCell(text, o) {
   o = o || {};
   const children = String(text == null ? '' : text).split('\n').map(ln => new Paragraph({ alignment: o.align || AlignmentType.LEFT, children: [new TextRun({ text: ln, bold: !!o.bold, italics: !!o.italics, color: o.color || INKC, size: o.size || 19 })] }));
-  return new TableCell({ width: o.width, columnSpan: o.span, verticalMerge: o.vMerge, borders: TBL_CELLBORDERS, verticalAlign: o.valign || V_CENTER, shading: o.fill ? { type: SH_CLEAR, color: 'auto', fill: o.fill } : undefined, margins: { top: 36, bottom: 36, left: 90, right: 90 }, children });
+  // ⚠️ marges surchargeables : le PDF utilise 7 pt horizontaux et 11 pt verticaux (pdfCell),
+  // les 90/36 twips par défaut valent 4,5 et 3,6 pt — le texte ne démarre pas au même endroit
+  // et les lignes sont plus plates que dans le PDF.
+  return new TableCell({ width: o.width, columnSpan: o.span, verticalMerge: o.vMerge, borders: TBL_CELLBORDERS, verticalAlign: o.valign || V_CENTER, shading: o.fill ? { type: SH_CLEAR, color: 'auto', fill: o.fill } : undefined, margins: o.margins || { top: 36, bottom: 36, left: 90, right: 90 }, children });
 }
 function dxPara(text, o) {
   o = o || {};
@@ -1170,6 +1173,26 @@ const dxTable = (rows, cols) => new Table(cols
   ? { rows, layout: TableLayoutType.FIXED, columnWidths: cols, width: { size: cols.reduce((a, b) => a + b, 0), type: WidthType.DXA } }
   : { width: { size: 100, type: WidthType.PERCENTAGE }, rows });
 const dxSpacer = () => new Paragraph({ text: '', spacing: { after: 120 } });
+// ⚠️ dxSpacer occupe une LIGNE ENTIÈRE (≈13 pt) en plus de son espacement : entre deux tableaux
+// il creuse ~19 pt là où le PDF laisse 4 à 5 pt. dxGap ne coûte que 1 pt de hauteur de ligne.
+const dxGap = (after) => new Paragraph({ children: [new TextRun({ text: '', size: 2 })], spacing: { after: after == null ? 80 : after } });
+// grille de colonnes en twips à partir de proportions (la largeur utile d'une page est 9026 tw)
+// Dimensions réelles d'un PNG (bloc IHDR) : sans elles on ne peut pas préserver le rapport
+// d'aspect d'une signature, et l'image sort écrasée ou étirée dans le Word.
+function pngDims(buf) {
+  try { if (buf && buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50) return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) }; } catch (e) {}
+  return null;
+}
+// Cadre en POINTS (comme le PDF) → taille en PIXELS pour la bibliothèque docx, qui compte en
+// 96 dpi. Sans la conversion, une signature calée sur 150 pt sort 25 % trop petite dans le Word.
+function sigBox(sig, wPt, hPt) {
+  const K = 96 / 72;
+  const d = sig && pngDims(sig.buffer);
+  let w = wPt, h = hPt;
+  if (d && d.w && d.h) { const r = Math.min(wPt / d.w, hPt / d.h); w = d.w * r; h = d.h * r; }
+  return { width: Math.max(1, Math.round(w * K)), height: Math.max(1, Math.round(h * K)) };
+}
+const dxCols = (parts) => { const t = parts.reduce((a, b) => a + b, 0); const c = parts.map(p => Math.round(9026 * p / t)); c[c.length - 1] = 9026 - c.slice(0, -1).reduce((a, b) => a + b, 0); return c; };
 const dxRowMin = (children, twips) => new TableRow({ children, height: twips ? { value: twips, rule: HeightRule.ATLEAST } : undefined });
 // cellule pdf (fond + bordure + texte ; valign 'top'|'center')
 function pdfCell(doc, x, y, w, hh, text, o) {
@@ -1251,34 +1274,36 @@ function wsRows(w) {
 function buildWorksheetDocx(w, user, ver) {
   const h = w.header || {}, n = h.notes || {}, sess = wsRows(w).sessions;
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
+  // marges internes calées sur pdfCell (7 pt horizontaux, 11 pt verticaux)
+  const M = { top: 110, bottom: 110, left: 140, right: 140 };
   const kids = [];
-  // bandeau titre
+  // bandeau titre — grille fixe pleine largeur, sinon Word recalcule tout seul
   kids.push(dxTable([
-    new TableRow({ children: [dxCell('INTERACTIVE WORKSHEET', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 30, fill: HEADBG })] }),
-    new TableRow({ children: [dxCell('Intitulé de la formation : ' + (h.intitule || ''), { bold: true })] }),
-    new TableRow({ children: [dxCell("Interactive Worksheet à partager à l'apprenant après chaque cours.", { italics: true, color: SOFTC, align: AlignmentType.CENTER, size: 17 })] })
-  ]));
-  kids.push(dxSpacer());
-  // en-tête infos (label/valeur sur 2 colonnes) + notes
-  const lc = (t) => dxCell(t, { width: PC(20), fill: LBLBG, bold: true }), vc = (t, span) => dxCell(t || '', { width: span ? undefined : PC(30), span });
+    new TableRow({ children: [dxCell('INTERACTIVE WORKSHEET', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 30, fill: HEADBG, margins: M })] }),
+    new TableRow({ children: [dxCell('Intitulé de la formation : ' + (h.intitule || ''), { bold: true, size: 20, margins: M })] }),
+    new TableRow({ children: [dxCell("Interactive Worksheet à partager à l'apprenant après chaque cours.", { italics: true, color: SOFTC, align: AlignmentType.CENTER, size: 17, margins: M })] })
+  ], [9026]));
+  kids.push(dxGap());
+  // en-tête infos (label/valeur sur 2 colonnes) + notes — proportions du PDF : 20/30/20/30
+  const lc = (t) => dxCell(t, { width: PC(20), fill: LBLBG, bold: true, size: 18, margins: M }), vc = (t, span) => dxCell(t || '', { width: span ? undefined : PC(30), span, size: 18, margins: M });
   const inforows = [
     new TableRow({ children: [lc("Nom de l'apprenant"), vc(h.nomApprenant), lc('Langue'), vc(h.langue)] }),
     new TableRow({ children: [lc('Société'), vc(h.societe), lc('Nom du formateur'), vc(h.nomFormateur)] }),
     new TableRow({ children: [lc('Tél apprenant'), vc(h.telApprenant), lc('Tél formateur'), vc(h.telFormateur)] }),
     new TableRow({ children: [lc('Mail apprenant'), vc(h.mailApprenant), lc('Mail formateur'), vc(h.mailFormateur)] })
   ];
-  if (h.certification) inforows.push(new TableRow({ children: [lc('Certification'), dxCell(h.certification, { span: 3 })] }));
-  inforows.push(new TableRow({ children: [dxCell('Objectifs et organisation de la formation — notes du formateur', { span: 4, fill: HEADBG, bold: true, color: DARKC })] }));
+  if (h.certification) inforows.push(new TableRow({ children: [lc('Certification'), dxCell(h.certification, { span: 3, size: 18, margins: M })] }));
+  inforows.push(new TableRow({ children: [dxCell('Objectifs et organisation de la formation — notes du formateur', { span: 4, fill: HEADBG, bold: true, color: DARKC, size: 20, margins: M })] }));
   [['Vocabulaire', n.vocabulaire], ['Structure', n.structure], ['Communication', n.communication], ['Autre', n.autre]].forEach(p =>
-    inforows.push(dxRowMin([dxCell(p[0], { width: PC(20), fill: LBLBG, bold: true }), dxCell(p[1] || '', { span: 3, valign: VerticalAlign ? VerticalAlign.TOP : 'top' })], 420)));
-  kids.push(dxTable(inforows));
-  kids.push(dxSpacer());
-  // séances (un tableau par séance)
+    inforows.push(dxRowMin([dxCell(p[0], { width: PC(20), fill: LBLBG, bold: true, size: 18, margins: M }), dxCell(p[1] || '', { span: 3, valign: VerticalAlign ? VerticalAlign.TOP : 'top', size: 18, margins: M })], 520)));
+  kids.push(dxTable(inforows, dxCols([20, 30, 20, 30])));
+  kids.push(dxGap());
+  // séances (un tableau par séance) — proportions du PDF : 34/66
   if (!sess.length) kids.push(new Paragraph({ children: [new TextRun({ text: 'Aucune séance renseignée.', italics: true, color: SOFTC, size: 20 })] }));
   sess.forEach((s, i) => {
-    const rows = [new TableRow({ children: [dxCell('Séance ' + (i + 1), { span: 2, fill: HEADBG, bold: true, color: ACCENTC, size: 22 })] })];
-    s.forEach(p => rows.push(dxRowMin([dxCell(p[0], { width: PC(34), fill: LBLBG, bold: true }), dxCell(p[1] || '', { width: PC(66), valign: VerticalAlign ? VerticalAlign.TOP : 'top' })], 380)));
-    kids.push(dxTable(rows)); kids.push(dxSpacer());
+    const rows = [new TableRow({ children: [dxCell('Séance ' + (i + 1), { span: 2, fill: HEADBG, bold: true, color: ACCENTC, size: 22, margins: M })] })];
+    s.forEach(p => rows.push(dxRowMin([dxCell(p[0], { width: PC(34), fill: LBLBG, bold: true, size: 18, margins: M }), dxCell(p[1] || '', { width: PC(66), valign: VerticalAlign ? VerticalAlign.TOP : 'top', size: 18, margins: M })], 480)));
+    kids.push(dxTable(rows, dxCols([34, 66]))); kids.push(dxGap());
   });
   const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
@@ -1388,7 +1413,9 @@ function richToDocx(blocks) {
     if (b.type === 'p') kids.push(new Paragraph({ children: rtDxRuns(b.runs), spacing: { after: 60 } }));
     else if (b.type === 'ul') (b.items || []).forEach(it => kids.push(new Paragraph({ children: rtDxRuns(it), bullet: { level: 0 }, spacing: { after: 40 } })));
     else if (b.type === 'ol') (b.items || []).forEach((it, i) => kids.push(new Paragraph({ children: [new TextRun({ text: (i + 1) + '. ', size: 20 })].concat(rtDxRuns(it)), spacing: { after: 40 } })));
-    else if (b.type === 'table') { const rows = (b.rows || []).map(cells => new TableRow({ children: (cells || []).map(cr => new TableCell({ borders: TBL_CELLBORDERS, margins: { top: 30, bottom: 30, left: 70, right: 70 }, children: [new Paragraph({ children: rtDxRuns(cr) })] })) })); if (rows.length) { kids.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows })); kids.push(dxSpacer()); } }
+    // ⚠️ colonnes ÉGALES et fixes, comme richToPdf (cw = totalW / n) : sans grille, Word
+    // recalcule d'après le contenu et une colonne courte devient minuscule.
+    else if (b.type === 'table') { const nb = Math.max(1, ((b.rows || [])[0] || []).length); const cols = dxCols(new Array(nb).fill(1)); const rows = (b.rows || []).map(cells => new TableRow({ children: (cells || []).map(cr => new TableCell({ borders: TBL_CELLBORDERS, margins: { top: 30, bottom: 30, left: 70, right: 70 }, children: [new Paragraph({ children: rtDxRuns(cr) })] })) })); if (rows.length) { kids.push(dxTable(rows, cols)); kids.push(dxSpacer()); } }
     else if (b.type === 'qcm') {
       kids.push(new Paragraph({ children: [new TextRun({ text: b.question || '', bold: true, color: '000000', size: 21 })], spacing: { before: 80, after: 50 } }));
       (b.options || []).forEach((opt, i) => {
@@ -1443,19 +1470,21 @@ function richToPdf(doc, blocks, left, totalW) {
 // --- Test mi-parcours / fin → Word (tableau comme l'original) ---
 function buildTestDocx(title, header, extra, user, ver) {
   const H = header || {}, X = extra || {}, PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
-  const cellH = (l, v) => dxCell(l + ' : ' + (v || ''), { width: PC(50) });
+  const M = { top: 110, bottom: 110, left: 140, right: 140 };   // marges internes du PDF
+  const cellH = (l, v) => dxCell(l + ' : ' + (v || ''), { width: PC(50), size: 19, margins: M });
   const rows = [
-    new TableRow({ children: [dxCell(title.toUpperCase(), { span: 2, align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 30, fill: HEADBG })] }),
+    dxRowMin([dxCell(title.toUpperCase(), { span: 2, align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 30, fill: HEADBG, margins: M })], 560),
     new TableRow({ children: [cellH("Nom de l'apprenant", H.nomApprenant), cellH('Société', H.societe)] }),
     new TableRow({ children: [cellH('Langue', H.langue), cellH('Intitulé de la formation', H.intitule)] }),
     new TableRow({ children: [cellH('Formateur', H.formateur), cellH('Date', H.date)] })
   ];
-  rows.push(new TableRow({ children: [dxCell('Résultat', { span: 2, fill: HEADBG, bold: true, color: DARKC })] }));
-  rows.push(dxRowMin([dxCell(X.resultat || '', { span: 2, valign: VerticalAlign ? VerticalAlign.TOP : 'top' })], 700));
-  rows.push(new TableRow({ children: [dxCell('Appréciation formateur', { span: 2, fill: HEADBG, bold: true, color: DARKC })] }));
-  rows.push(dxRowMin([dxCell(X.appreciation || '', { span: 2, valign: VerticalAlign ? VerticalAlign.TOP : 'top' })], 1000));
+  rows.push(dxRowMin([dxCell('Résultat', { span: 2, fill: HEADBG, bold: true, color: DARKC, size: 20, margins: M })], 480));
+  rows.push(dxRowMin([dxCell(X.resultat || '', { span: 2, valign: VerticalAlign ? VerticalAlign.TOP : 'top', size: 19, margins: M })], 1400));
+  rows.push(dxRowMin([dxCell('Appréciation formateur', { span: 2, fill: HEADBG, bold: true, color: DARKC, size: 20, margins: M })], 480));
+  rows.push(dxRowMin([dxCell(X.appreciation || '', { span: 2, valign: VerticalAlign ? VerticalAlign.TOP : 'top', size: 19, margins: M })], 2000));
   const hf = docxHeaderFooter(user, ver);
-  const children = [dxTable(rows)].concat(richToDocx(X.libre));
+  // deux colonnes strictement égales, comme le PDF (half = totalW / 2)
+  const children = [dxTable(rows, dxCols([1, 1]))].concat(richToDocx(X.libre));
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children }] }));
 }
 // --- Test mi-parcours / fin → PDF (tableau) ---
@@ -1556,9 +1585,10 @@ function pdfSignatureAntonin(doc, x, y, largeur, variante, hMax) {
 }
 function buildAttestationDocx(d, user, ver) {
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
-  const lc = (t) => dxCell(t, { width: PC(34), fill: LBLBG, bold: true }), vc = (t) => dxCell(t || '', { width: PC(66) });
+  const M = { top: 110, bottom: 110, left: 140, right: 140 };   // marges internes du PDF
+  const lc = (t) => dxCell(t, { width: PC(34), fill: LBLBG, bold: true, size: 19, margins: M }), vc = (t) => dxCell(t || '', { width: PC(66), size: 19, margins: M });
   const kids = [];
-  kids.push(dxTable([new TableRow({ children: [dxCell('ATTESTATION DE FIN DE STAGE', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 30, fill: HEADBG })] })]));
+  kids.push(dxTable([new TableRow({ children: [dxCell('ATTESTATION DE FIN DE STAGE', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 30, fill: HEADBG, margins: M })] })], [9026]));
   kids.push(dxSpacer()); kids.push(dxSpacer());   // le titre respire
   kids.push(dxPara("Je soussigné, " + (d.representant || 'Antonin HATTABE') + ", représentant de l'organisme de formation LANGUAGES & SUCCESS - L&S, numéro de déclaration d'activité 93 060 886 106, certificat QUALIOPI " + QUALIOPI_CERT + ", atteste que :", { after: 140 }));
   kids.push(dxTable([
@@ -1570,7 +1600,7 @@ function buildAttestationDocx(d, user, ver) {
     new TableRow({ children: [lc('Dont'), vc(d.dureeDetail)] }),
     new TableRow({ children: [lc('À'), vc(d.lieu || 'Distanciel')] }),
     new TableRow({ children: [lc('Avec'), vc(d.formateur)] })
-  ]));
+  ], dxCols([34, 66])));   // proportions du PDF : libellé à x57, valeur à x225
   kids.push(dxSpacer());
   kids.push(dxSpacer()); kids.push(dxSpacer());
   kids.push(dxPara('Objectifs de la formation', { bold: true, color: DARKC, size: 24, after: 140 }));
@@ -1580,11 +1610,12 @@ function buildAttestationDocx(d, user, ver) {
   kids.push(dxPara("Action d'acquisition, d'entretien ou de perfectionnement de la langue.", { after: 140 }));
   kids.push(dxSpacer()); kids.push(dxSpacer());
   kids.push(dxPara("Résultat de l'évaluation des acquis :", { bold: true, color: DARKC, after: 140 }));
-  const compRows = [new TableRow({ tableHeader: true, children: [dxCell('Compétences', { width: PC(40), fill: HEADBG, bold: true })].concat(ATT_NIVEAUX.map(n => dxCell(n, { width: PC(20), fill: HEADBG, bold: true, align: AlignmentType.CENTER, size: 16 }))) })];
+  const compRows = [new TableRow({ tableHeader: true, children: [dxCell('Compétences', { width: PC(40), fill: HEADBG, bold: true, size: 19, margins: M })].concat(ATT_NIVEAUX.map(n => dxCell(n, { width: PC(20), fill: HEADBG, bold: true, align: AlignmentType.CENTER, size: 16, margins: M }))) })];
   (d.competences || []).filter(c => c && c.label && c.label.trim()).forEach(c => {
-    compRows.push(new TableRow({ children: [dxCell(c.label, { width: PC(40) })].concat(ATT_NIVEAUX.map(n => { const sel = c.niveau === n; return dxCell(sel ? '✗' : '', { width: PC(20), align: AlignmentType.CENTER, bold: true, fill: sel ? ACCENTC : undefined, color: sel ? 'FFFFFF' : INKC, size: 22 }); })) }));
+    compRows.push(dxRowMin([dxCell(c.label, { width: PC(40), size: 19, margins: M })].concat(ATT_NIVEAUX.map(n => { const sel = c.niveau === n; return dxCell(sel ? '✗' : '', { width: PC(20), align: AlignmentType.CENTER, bold: true, fill: sel ? ACCENTC : undefined, color: sel ? 'FFFFFF' : INKC, size: 22, margins: M }); })), 480));
   });
-  if (compRows.length > 1) { kids.push(dxTable(compRows)); kids.push(dxSpacer()); }
+  // proportions du PDF : « Compétences » de x50 à x284 (≈47 %), puis 3 colonnes égales
+  if (compRows.length > 1) { kids.push(dxTable(compRows, dxCols([47, 17.7, 17.7, 17.6]))); kids.push(dxGap()); }
   // ligne dégagée au-dessus ET en dessous
   kids.push(dxSpacer()); kids.push(dxSpacer());
   kids.push(new Paragraph({ spacing: { after: 240 }, children: [
@@ -1602,8 +1633,9 @@ function buildAttestationDocx(d, user, ver) {
   kids.push(dxPara(d.commentaires || '', { after: 160 }));
   kids.push(dxPara('Fait à ' + (d.lieuFait || 'Nice') + ', le ' + (d.dateFait || ''), { before: 160, after: 320 }));
   // bloc de signature sur une ligne horizontale complète : les trois signataires ne se touchent pas
-  const sigCol = (lignes, extra) => new TableCell({ width: PC(33), borders: NO_BORDERS(), children: lignes.map(l => dxPara(l, { after: 20 })).concat(extra || []) });
-  kids.push(new Table({ width: PC(100), borders: NO_BORDERS(), rows: [new TableRow({ children: [
+  const sigCol = (lignes, extra) => new TableCell({ width: { size: 3009, type: WidthType.DXA }, borders: NO_BORDERS(), margins: { top: 0, bottom: 0, left: 0, right: 0 }, children: lignes.map(l => dxPara(l, { after: 20 })).concat(extra || []) });
+  // trois colonnes égales et fixes, comme le PDF (signataires à x50, x221, x392)
+  kids.push(new Table({ layout: TableLayoutType.FIXED, columnWidths: [3009, 3009, 3008], width: { size: 9026, type: WidthType.DXA }, borders: NO_BORDERS(), rows: [new TableRow({ children: [
     sigCol([(d.representant || 'Antonin HATTABE'), 'Président'], dxSignatureAntonin(110, SIGN_ANTONIN_TAMPON)),
     sigCol(['Le Formateur']),
     sigCol(["L'apprenant"])
@@ -1841,8 +1873,10 @@ function buildContratDocx(d, user, ver) {
     else if (b.vide) { for (let i = 0; i < b.vide; i++) kids.push(dxPara('', { size: 19, after: 120 })); }
     else if (b.sign) {
       // les deux blocs de signature aux extrémités, sur la même ligne
-      const col = (lignes, align) => new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: NO_BORDERS(), children: lignes.map(l => new Paragraph({ alignment: align, children: runs(ctSeg(l), { size: 19 }) })) });
-      kids.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NO_BORDERS(), rows: [new TableRow({ children: [col(b.sign.gauche, AlignmentType.LEFT), col(b.sign.droite, AlignmentType.RIGHT)] })] }));
+      const col = (lignes, align) => new TableCell({ width: { size: 4513, type: WidthType.DXA }, borders: NO_BORDERS(), margins: { top: 0, bottom: 0, left: 0, right: 0 }, children: lignes.map(l => new Paragraph({ alignment: align, children: runs(ctSeg(l), { size: 19 }) })) });
+      // ⚠️ grille FIXE et marges nulles : sans elles, Word répartit les colonnes d'après leur
+      // contenu et le bloc « Pour le Sous-traitant » ne tombe plus sur la marge droite.
+      kids.push(new Table({ layout: TableLayoutType.FIXED, columnWidths: [4513, 4513], width: { size: 9026, type: WidthType.DXA }, borders: NO_BORDERS(), rows: [new TableRow({ children: [col(b.sign.gauche, AlignmentType.LEFT), col(b.sign.droite, AlignmentType.RIGHT)] })] }));
     }
     else if (b.li) kids.push(new Paragraph({ spacing: { after: 50 }, children: runs([{ t: '• ' }].concat(ctSeg(b.li)), { size: 18 }) }));
     else if (b.li2) kids.push(new Paragraph({ spacing: { after: 40 }, children: runs([{ t: '        –  ' }].concat(ctSeg(b.li2)), { size: 18 }) }));
@@ -1948,11 +1982,14 @@ function pdfHeaderFooter(doc, user, ver) {
 }
 function docxFooterFor(user, ver) {
   const NB = { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } };
-  const leftChildren = [new Paragraph({ children: [new TextRun({ children: [PageNumber.CURRENT, ' / ', PageNumber.TOTAL_PAGES], size: 16, color: '6F6253' })] })]
-    .concat(metaLines(user, ver).map(l => new Paragraph({ children: [new TextRun({ text: l, size: 12, color: '6F6253' })] })));
-  return new Footer({ children: [new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NB, rows: [new TableRow({ children: [
-    new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, borders: NB, children: leftChildren }),
-    new TableCell({ width: { size: 60, type: WidthType.PERCENTAGE }, borders: NB, children: LEGAL_LINES.map(l => new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: l, size: 12, color: '6F6253' })] })) })
+  // ⚠️ comme dans le PDF, le numéro de page vient APRÈS les lignes de méta (tout en bas à gauche)
+  const leftChildren = metaLines(user, ver).map(l => new Paragraph({ children: [new TextRun({ text: l, size: 12, color: '6F6253' })] }))
+    .concat([new Paragraph({ children: [new TextRun({ children: [PageNumber.CURRENT, ' / ', PageNumber.TOTAL_PAGES], size: 16, color: '6F6253' })] })]);
+  // ⚠️ grille FIXE : sans elle Word ignore le 40/60 et coupe le pied en deux moitiés égales,
+  // ce qui replie le bloc légal sur trois lignes de plus que dans le PDF.
+  return new Footer({ children: [new Table({ layout: TableLayoutType.FIXED, columnWidths: [3610, 5416], width: { size: 9026, type: WidthType.DXA }, borders: NB, rows: [new TableRow({ children: [
+    new TableCell({ width: { size: 3610, type: WidthType.DXA }, borders: NB, children: leftChildren }),
+    new TableCell({ width: { size: 5416, type: WidthType.DXA }, borders: NB, children: LEGAL_LINES.map(l => new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: l, size: 12, color: '6F6253' })] })) })
   ] })] })] });
 }
 function docxHeaderFooter(user, ver) {
@@ -2055,9 +2092,9 @@ function buildQsDocx(qs, tpl, user, ver) {
   function tcell(text, o) {
     o = o || {};
     return new TableCell({
-      width: o.width, borders: cellBorders, verticalAlign: V_CENTER,
+      width: o.width, borders: cellBorders, verticalAlign: o.valign === 'top' ? (VerticalAlign ? VerticalAlign.TOP : 'top') : V_CENTER,
       shading: o.fill ? { type: SH_CLEAR, color: 'auto', fill: o.fill } : undefined,
-      margins: { top: 30, bottom: 30, left: 70, right: 70 },
+      margins: { top: 110, bottom: 110, left: 140, right: 140 },   // mêmes marges que pdfCell
       children: [new Paragraph({ alignment: o.align || AlignmentType.LEFT, children: [new TextRun({ text: String(text == null ? '' : text), bold: !!o.bold, color: o.color || INK, size: o.size || 19 })] })]
     });
   }
@@ -2073,21 +2110,26 @@ function buildQsDocx(qs, tpl, user, ver) {
     if (b.kind === 'section') { kids.push(new Paragraph({ children: [new TextRun({ text: b.item.label, bold: true, color: DARK, size: 25 })], spacing: { before: 400, after: 200 } })); return; }
     if (b.kind === 'text') {
       kids.push(new Paragraph({ children: [new TextRun({ text: b.item.label, bold: true, color: INK, size: 21 })], spacing: { before: 260, after: 90 } }));
-      kids.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [new TableRow({ children: [tcell(ans[b.item.id] || ' ', { width: { size: 100, type: WidthType.PERCENTAGE } })] })] }));
+      kids.push(dxTable([dxRowMin([tcell(ans[b.item.id] || ' ', { width: { size: 9026, type: WidthType.DXA }, valign: 'top' })], 900)], [9026]));
       gap(); return;
     }
     if (b.kind === 'scale') {
       kids.push(new Paragraph({ children: [new TextRun({ text: b.item.label, bold: true, color: INK, size: 21 })], spacing: { before: 260, after: 90 } }));
-      const cw = { size: 10, type: WidthType.PERCENTAGE };
-      const numRow = new TableRow({ children: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(k => { const sel = String(ans[b.item.id]) === String(k); return tcell(String(k), { width: cw, align: AlignmentType.CENTER, bold: true, fill: sel ? ACCENT : HEADBG, color: sel ? 'FFFFFF' : INK, size: 20 }); }) });
-      kids.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [numRow] }));
+      // dix colonnes rigoureusement égales, comme le PDF (cases relevées tous les ~49,6 pt)
+      const COLS10 = dxCols([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+      const cw = { size: COLS10[0], type: WidthType.DXA };
+      const numRow = dxRowMin([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(k => { const sel = String(ans[b.item.id]) === String(k); return tcell(String(k), { width: cw, align: AlignmentType.CENTER, bold: true, fill: sel ? ACCENT : HEADBG, color: sel ? 'FFFFFF' : INK, size: 20 }); }), 420);
+      kids.push(dxTable([numRow], COLS10));
       gap(); if (b.item.comment && ans[b.item.id + '_c']) kids.push(precisionPara(ans[b.item.id + '_c'])); return;
     }
     if (b.kind === 'matrix') {
-      const opts = b.options, firstW = { size: 52, type: WidthType.PERCENTAGE }, optW = { size: 48 / opts.length, type: WidthType.PERCENTAGE };
+      // grille FIXE : colonne des critères à 52 %, options à parts égales sur les 48 % restants
+      const opts = b.options;
+      const COLSM = dxCols([52].concat(opts.map(() => 48 / opts.length)));
+      const firstW = { size: COLSM[0], type: WidthType.DXA }, optW = { size: COLSM[1], type: WidthType.DXA };
       const header = new TableRow({ tableHeader: true, children: [tcell('', { width: firstW, fill: HEADBG })].concat(opts.map(o => tcell(o, { width: optW, fill: HEADBG, bold: true, align: AlignmentType.CENTER, size: 16 }))) });
-      const rows = [header].concat(b.questions.map(q => new TableRow({ children: [tcell(q.label, { width: firstW, size: 19 })].concat(opts.map(o => { const sel = ans[q.id] === o; return tcell(sel ? '✗' : '', { width: optW, align: AlignmentType.CENTER, bold: true, fill: sel ? ACCENT : undefined, color: sel ? 'FFFFFF' : INK, size: 22 }); })) })));
-      kids.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }));
+      const rows = [header].concat(b.questions.map(q => dxRowMin([tcell(q.label, { width: firstW, size: 19 })].concat(opts.map(o => { const sel = ans[q.id] === o; return tcell(sel ? '✗' : '', { width: optW, align: AlignmentType.CENTER, bold: true, fill: sel ? ACCENT : undefined, color: sel ? 'FFFFFF' : INK, size: 22 }); })), 460)));
+      kids.push(dxTable(rows, COLSM));
       gap(); b.questions.forEach(q => { if (q.comment && ans[q.id + '_c']) kids.push(precisionPara(ans[q.id + '_c'])); }); return;
     }
   });
@@ -2457,25 +2499,31 @@ function buildPresencePdf(type, d, user, ver) {
 function buildPresenceDocx(type, d, user, ver) {
   const tpl = PRESENCE_TEMPLATES[type];
   const PC = (s) => ({ size: s, type: WidthType.PERCENTAGE });
+  const M = { top: 110, bottom: 110, left: 140, right: 140 };
   const sigF = sigImg(d.formateurSig), sigA = sigImg(d.apprenantSig);
-  const sigCell = (sig, widthPC, w, h) => new TableCell({ width: PC(widthPC), borders: TBL_CELLBORDERS, verticalAlign: V_CENTER, margins: { top: 20, bottom: 20, left: 40, right: 40 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: sig ? [new ImageRun({ type: sig.type, data: sig.buffer, transformation: { width: w, height: h } })] : [] })] });
+  const sigCell = (sig, widthPC, w, h) => new TableCell({ width: PC(widthPC), borders: TBL_CELLBORDERS, verticalAlign: V_CENTER, margins: { top: 20, bottom: 20, left: 40, right: 40 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: sig ? [new ImageRun({ type: sig.type, data: sig.buffer, transformation: sigBox(sig, w, h) })] : [] })] });
   // case « signature administratif » : la signature d'Antonin (sans tampon), incrustée d'office
   // hauteur bornee pour que la signature ne deborde pas de sa case
   const adminSigCell = (widthPC, w, hMax) => new TableCell({ width: PC(widthPC), borders: TBL_CELLBORDERS, verticalAlign: V_CENTER, margins: { top: 20, bottom: 20, left: 40, right: 40 }, children: dxSignatureCell(w || 100, hMax).concat(dxSignatureCell(w || 100, hMax).length ? [] : [new Paragraph('')]) });
   const kids = [];
-  kids.push(dxTable([new TableRow({ children: [dxCell(tpl.docTitle || 'FEUILLES DE PRÉSENCE', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG })] })]));
-  kids.push(dxSpacer());
-  const Lc = (t) => dxCell(t, { width: PC(16), fill: LBLBG, bold: true }), Vc = (t) => dxCell(t || '', { width: PC(34) });
-  kids.push(dxTable(tpl.headerRows.map(row => new TableRow({ children: row.reduce((acc, pair) => { acc.push(pair ? Lc(pair[1]) : dxCell('', { width: PC(16) })); acc.push(pair ? Vc(d[pair[0]]) : dxCell('', { width: PC(34) })); return acc; }, []) }))));
-  kids.push(dxSpacer());
+  kids.push(dxTable([new TableRow({ children: [dxCell(tpl.docTitle || 'FEUILLES DE PRÉSENCE', { align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 26, fill: HEADBG, margins: M })] })], [9026]));
+  kids.push(dxGap());
+  const Lc = (t) => dxCell(t, { width: PC(16), fill: LBLBG, bold: true, size: 18, margins: M }), Vc = (t) => dxCell(t || '', { width: PC(34), size: 18, margins: M });
+  kids.push(dxTable(tpl.headerRows.map(row => new TableRow({ children: row.reduce((acc, pair) => { acc.push(pair ? Lc(pair[1]) : dxCell('', { width: PC(16), margins: M })); acc.push(pair ? Vc(d[pair[0]]) : dxCell('', { width: PC(34), margins: M })); return acc; }, []) })), dxCols([16, 34, 16, 34])));
+  kids.push(dxGap());
   if (tpl.kind === 'summary') {
-    kids.push(dxTable(tpl.summaryRows.map(r => new TableRow({ children: [dxCell(r[1], { width: PC(50), fill: LBLBG, bold: true }), dxCell(d[r[0]] || '', { width: PC(50), bold: r[0] === 'heuresPrevues' })] }))));
-    kids.push(dxSpacer()); kids.push(dxSpacer());
-    kids.push(dxTable([dxRowMin([dxCell(tpl.signAdmin ? 'Signature administratif' : 'Signature Formateur', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top' }), tpl.signAdmin ? adminSigCell(68, 64, 46) : sigCell(sigF, 68, 150, 49)], 900)]));
-    kids.push(dxSpacer());
-    kids.push(dxTable([dxRowMin([dxCell('Signature Apprenant', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top' }), sigCell(sigA, 68, 150, 49)], 900)]));
+    kids.push(dxTable(tpl.summaryRows.map(r => new TableRow({ children: [dxCell(r[1], { width: PC(50), fill: LBLBG, bold: true, size: 18, margins: M }), dxCell(d[r[0]] || '', { width: PC(50), bold: r[0] === 'heuresPrevues', size: 18, margins: M })] })), dxCols([1, 1])));
+    kids.push(dxGap(240));
+    // les deux signatures dans UN SEUL tableau, comme le PDF : deux tableaux séparés par un
+    // espaceur laissaient une coupure au milieu du bloc
+    kids.push(dxTable([
+      dxRowMin([dxCell(tpl.signAdmin ? 'Signature administratif' : 'Signature Formateur', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top', size: 18, margins: M }), tpl.signAdmin ? adminSigCell(68, 64, 46) : sigCell(sigF, 68, 150, 49)], 900),
+      dxRowMin([dxCell('Signature Apprenant', { width: PC(32), fill: LBLBG, bold: true, valign: VerticalAlign ? VerticalAlign.TOP : 'top', size: 18, margins: M }), sigCell(sigA, 68, 150, 49)], 900)
+    ], dxCols([32, 68])));
   } else {
-    const rows = [new TableRow({ children: PRESENCE_GRID_HEADER.map(c => dxCell(c[0], { width: PC(c[2]), fill: HEADBG, bold: true, align: AlignmentType.CENTER })) })];
+    // ⚠️ « Sign administratif » sur les feuilles signées par l'administration (e-learning, Test) :
+    // le PDF le fait déjà (pdfPresenceGrid), le Word affichait « Sign Formateur » à tort.
+    const rows = [new TableRow({ tableHeader: true, children: PRESENCE_GRID_HEADER.map(c => dxCell((tpl.signAdmin && c[1] === 'sf') ? 'Sign administratif' : c[0], { width: PC(c[2]), fill: HEADBG, bold: true, align: AlignmentType.CENTER, size: 16, margins: { top: 60, bottom: 60, left: 40, right: 40 } })) })];
     const slotMap = {}; (d.sessions || []).forEach(s => { if (s && s.slot && PRESENCE_TIMES.indexOf(s.slot) >= 0) slotMap[s.slot] = s; });
     PRESENCE_TIMES.forEach((t) => {
       const s = slotMap[t] || {}; const hasData = !!slotMap[t];
@@ -2483,11 +2531,13 @@ function buildPresenceDocx(type, d, user, ver) {
       rows.push(dxRowMin(PRESENCE_GRID_HEADER.map(c => {
         if (c[1] === 'sf' && hasData && tpl.signAdmin) return adminSigCell(c[2], 46, 17);
         if ((c[1] === 'sf' || c[1] === 'ss') && hasData) return sigCell(c[1] === 'sf' ? sigF : sigA, c[2], 52, 17);
-        if (c[1] === 'chk') return dxCell(vals.chk, { width: PC(c[2]), align: AlignmentType.CENTER, bold: true, color: ACCENTC, size: 20, fill: hasData ? '#f3e7e0' : undefined });
-        return dxCell(vals[c[1]], { width: PC(c[2]), align: AlignmentType.CENTER, bold: c[1] === 'time', size: c[1] === 'time' ? 18 : 17 });
-      }), 360));
+        // le PDF dessine un carré contouré sur les 20 lignes, rempli quand le créneau est pris
+        if (c[1] === 'chk') return dxCell(hasData ? '■' : '☐', { width: PC(c[2]), align: AlignmentType.CENTER, bold: true, color: hasData ? ACCENTC : '9a8b7c', size: 20, margins: { top: 40, bottom: 40, left: 20, right: 20 } });
+        return dxCell(vals[c[1]], { width: PC(c[2]), align: AlignmentType.CENTER, bold: c[1] === 'time', size: c[1] === 'time' ? 18 : 17, margins: { top: 40, bottom: 40, left: 40, right: 40 } });
+      }), 420));
     });
-    kids.push(dxTable(rows));
+    // largeurs de la grille reprises telles quelles du PDF (colonne 3 de PRESENCE_GRID_HEADER)
+    kids.push(dxTable(rows, dxCols(PRESENCE_GRID_HEADER.map(c => c[2]))));
   }
   const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
