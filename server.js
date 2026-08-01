@@ -755,6 +755,10 @@ app.get('/api/me', auth, (req, res) => res.json({ user: meFull(req.user) }));
 // Appelé une seule fois par visite, à la première sortie quelle qu'elle soit (Terminer, Passer,
 // croix, Échap). Le bouton « Revoir la visite guidée » ne passe PAS par ici : il n'écrit rien.
 app.post('/api/tuto/vu', auth, (req, res) => {
+  // ⚠️ le jeton vit dans un localStorage PARTAGÉ par tous les onglets : un onglet resté ouvert
+  // sur un compte pendant qu'un autre se connecte enverrait sa requête avec le nouveau jeton.
+  // Le client annonce donc qui il croit être, et on refuse si la session a changé sous ses pieds.
+  if (req.body && req.body.user && req.body.user !== req.user.id) return res.status(409).json({ error: 'Session changée.' });
   if (req.user.role === 'admin') return res.json({ ok: true });                 // sans objet
   if (+(req.user.tutoVu || 0) >= TUTO_VERSION) return res.json({ ok: true });   // déjà fait : pas de save() inutile
   req.user.tutoVu = TUTO_VERSION;   // req.user EST l'objet vivant de db.users (auth → realUser)

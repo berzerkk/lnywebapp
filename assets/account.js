@@ -1792,7 +1792,7 @@
   var TUTO_BIENVENUE = {
     ancre: '.ds-top',
     titre: 'Bienvenue dans votre espace documents',
-    paras: ['Cet espace réunit vos dossiers de formation, les documents et les échanges qui vont avec. La visite dure moins d\'une minute, et le bouton Revoir la visite guidée, en haut de cette page, la relance quand vous voulez.']
+    paras: ['Cet espace réunit vos dossiers de formation, les documents et les échanges qui vont avec. La visite prend deux minutes, et le bouton Revoir la visite guidée, en haut de cette page, la relance quand vous voulez.']
   };
   var TUTO_NOTIFS = {
     ancre: '.ds-card-notifs',
@@ -1816,16 +1816,16 @@
     ] },
     { ancre: '.upload-zone', titre: 'Déposer un document, écrire un message', paras: [
       'La zone de dépôt accepte un fichier de 25 Mo au maximum, la liste des documents s\'affiche en dessous, et la messagerie du dossier se trouve encore plus bas.',
-      'Le canal ouvert au moment de l\'envoi décide qui verra le fichier ou le message : vérifiez l\'onglet avant d\'envoyer. Vous pouvez retirer un document que vous avez envoyé vous-même, mais pas celui d\'une autre personne.'
+      'Le canal ouvert au moment de l\'envoi décide qui verra le fichier ou le message : vérifiez l\'onglet avant d\'envoyer. Vous pouvez retirer un document que vous avez envoyé vous-même, mais pas celui d\'une autre personne, ni une pièce déjà signée.'
     ] },
     { ancre: '.gen-btn', titre: 'Générer un document', paras: [
-      'Le bouton Générer un document, en haut du dossier, ouvre la liste des modèles : Interactive Worksheet, questionnaires de satisfaction, tests de mi-parcours et de fin, attestation de fin de formation, fiche satisfaction formateur, Level Test et feuilles de présence. Son onglet Historique des documents rouvre un document déjà produit, pour éviter de tout ressaisir.',
-      'L\'intitulé, la langue, les dates, la société et les coordonnées sont repris de la fiche de l\'apprenant à chaque génération. Si un champ arrive vide, c\'est que la fiche est incomplète : demandez à l\'administration de la compléter plutôt que de ressaisir la même information sur chaque document.',
-      'La plupart des modèles produisent un fichier téléchargé directement sur votre ordinateur, sans passer par le dossier. Les documents produits sont toujours en français, même lorsque le site est affiché dans une autre langue.'
+      'Le bouton Générer un document, en haut du dossier, ouvre la liste des modèles : Interactive Worksheet, questionnaires de satisfaction, tests de mi-parcours et de fin, attestation de fin de formation, fiche satisfaction formateur, Level Test et feuilles de présence. Son onglet Historique des documents liste tout ce qui a déjà été produit dans le dossier.',
+      'L\'intitulé, la langue, les dates, la société et les coordonnées sont repris de la fiche de l\'apprenant à l\'ouverture du formulaire. Si un champ arrive vide, c\'est que la fiche est incomplète : demandez à l\'administration de la compléter plutôt que de ressaisir la même information sur chaque document.',
+      'L\'Interactive Worksheet garde un brouillon par dossier, que tous ses formateurs retrouvent et complètent ; les autres modèles repartent d\'un formulaire vierge. La plupart produisent un fichier téléchargé directement sur votre ordinateur, sans passer par le dossier, et toujours rédigé en français, même lorsque le site est affiché dans une autre langue.'
     ] },
     { ancre: 'centre', titre: 'Questionnaires et feuilles de présence', paras: [
       'Les questionnaires de satisfaction et les feuilles de présence ne se téléchargent pas : ils partent chez l\'apprenant. Une carte apparaît dans la discussion commune, avec une notification et un e-mail. Une fois le questionnaire rempli ou la feuille signée, le document final est déposé tout seul dans la discussion commune.',
-      'Sur une feuille de présence, vous signez avant d\'envoyer : tant que votre signature manque, l\'envoi est refusé. Tant que l\'apprenant n\'a pas répondu, la carte affichée dans la discussion permet de modifier ou d\'annuler la demande.'
+      'Sur une feuille présentiel ou distanciel, vous signez avant d\'envoyer : tant que votre signature manque, l\'envoi est refusé. Sur le suivi d\'assiduité et sur la feuille Test, c\'est l\'administration qui signe, vous n\'avez rien à signer. Tant que l\'apprenant n\'a pas répondu, la carte affichée dans la discussion permet de modifier ou d\'annuler la demande.'
     ] },
     TUTO_NOTIFS,
     TUTO_REVOIR
@@ -1837,7 +1837,7 @@
       'Si la liste est encore vide, votre dossier n\'a pas encore été créé. Vous recevrez une notification dès qu\'il sera prêt.'
     ] },
     { ancre: '.upload-zone', titre: 'Vos documents et la messagerie', paras: [
-      'Les documents de votre formation s\'affichent sous la zone de dépôt, avec un bouton pour les télécharger. Pour envoyer un fichier à vos formateurs, cliquez sur la zone de dépôt ou déposez-y un fichier de 25 Mo au maximum.',
+      'Les documents de votre formation s\'affichent sous la zone de dépôt, avec un bouton pour les télécharger. Pour envoyer un fichier à vos formateurs, cliquez sur la zone de dépôt et choisissez un fichier de 25 Mo au maximum.',
       'Un document que vous avez envoyé ne peut plus être retiré que par l\'administration : vérifiez le fichier avant de l\'envoyer. La messagerie du dossier, sous la liste des documents, sert à échanger avec vos formateurs et l\'administration.'
     ] },
     // ⚠️ ancré sur le CONTENEUR de la discussion, jamais sur un bouton « Remplir »/« Signer » :
@@ -1845,7 +1845,7 @@
     // défilement (max-height:300px) forcé au bas — un halo s'y dessinerait sur du vide.
     { ancre: '#chat-msgs', titre: 'Questionnaires et feuilles à signer', paras: [
       'Lorsqu\'un formateur vous envoie un questionnaire de satisfaction ou une feuille de présence, une carte apparaît dans la discussion du dossier, avec un bouton pour la remplir ou la signer. Vous en êtes averti par une notification et par un e-mail.',
-      'Avant de signer une feuille de présence, relisez le récapitulatif des séances affiché au-dessus de la signature. Vous signez à la souris ou au doigt, ou vous téléversez une image de votre signature.',
+      'Avant de signer une feuille de présence, relisez le récapitulatif affiché au-dessus de la signature : les séances, ou les heures de connexion selon la feuille. Vous signez à la souris ou au doigt, ou vous téléversez une image de votre signature.',
       'L\'envoi est définitif : une fois confirmé, vous ne pouvez plus revenir sur vos réponses ni sur votre signature. Le document final est aussitôt déposé dans le dossier.'
     ] },
     TUTO_NOTIFS,
@@ -2057,7 +2057,10 @@
     // Échap) : quelqu'un qui ferme au premier écran a décidé, on ne le relance pas à chaque visite.
     // Le drapeau local sert d'anti-double-envoi ; l'appel ne bloque rien et son échec est sans effet
     // (la visite se rejouera simplement à la connexion suivante).
-    if (ME && ME.tutoAVoir) { ME.tutoAVoir = false; apiJSON('/api/tuto/vu', 'POST', {}); }
+    // ⚠️ on envoie l'identité : le jeton est relu dans localStorage au moment de l'appel, or il
+    // est PARTAGÉ entre les onglets. Un second onglet qui se connecte sous un autre compte ferait
+    // sinon enregistrer « visite vue » chez cette autre personne.
+    if (ME && ME.tutoAVoir) { var moi = ME.id; ME.tutoAVoir = false; apiJSON('/api/tuto/vu', 'POST', { user: moi }); }
     var r = TUTO_RETOUR; TUTO_RETOUR = null;
     if (r && r !== document.body && document.contains(r) && r.focus) r.focus();
     // ⚠️ le repli doit viser un élément RÉELLEMENT focusable : appeler focus() sur <body> ne
