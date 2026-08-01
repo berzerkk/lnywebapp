@@ -450,6 +450,9 @@
     });
   }
   function paintBoard(el, groups, selG, messages, docs, overview) {
+    // dernière liste de dossiers connue : la visite guidée s'en sert pour insérer son dossier
+    // d'exemple en tête sans avoir à refaire un aller-retour au serveur
+    if (!TUTO_DEMO_ON) DERNIERS_GROUPES = groups;
     var changed = !CUR_GROUP || !selG || CUR_GROUP.id !== selG.id;
     CUR_GROUP = selG;
     if (changed) GEN_PROF = null;
@@ -1817,17 +1820,17 @@
       'Si la liste est encore vide, aucun dossier ne vous a été confié pour l\'instant. Vous recevrez une notification dès qu\'un dossier vous sera attribué.'
     ] },
     { ancre: '.chan-tabs', titre: 'Deux canaux, deux publics', ouvrirDossier: true, paras: [
-      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir.',
+      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir. Celui qui est ouvert ici est un exemple, monté pour la visite, avec un message et une notification pour de faux — il disparaîtra en même temps qu\'elle.',
       'Chaque dossier a deux canaux. La discussion commune est partagée avec l\'apprenant. Le canal privé est réservé aux formateurs du dossier et à l\'administration : l\'apprenant n\'y a accès ni en lecture, ni en téléchargement, et c\'est par là que vous transmettez vos documents à l\'administration.',
       'Un formateur ajouté plus tard au dossier accède à tout l\'historique déjà échangé dans le canal privé.'
     ] },
     { ancre: '.upload-zone', titre: 'Déposer un document, écrire un message', ouvrirDossier: true, paras: [
-      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir.',
+      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir. Celui qui est ouvert ici est un exemple, monté pour la visite, avec un message et une notification pour de faux — il disparaîtra en même temps qu\'elle.',
       'La zone de dépôt accepte un fichier de 25 Mo au maximum, la liste des documents s\'affiche en dessous, et la messagerie du dossier se trouve encore plus bas.',
       'Le canal ouvert au moment de l\'envoi décide qui verra le fichier ou le message : vérifiez l\'onglet avant d\'envoyer. Vous pouvez retirer un document que vous avez envoyé vous-même, mais pas celui d\'une autre personne, ni une pièce déjà signée.'
     ] },
     { ancre: '.gen-btn', titre: 'Générer un document', ouvrirDossier: true, paras: [
-      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir.',
+      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir. Celui qui est ouvert ici est un exemple, monté pour la visite, avec un message et une notification pour de faux — il disparaîtra en même temps qu\'elle.',
       'Le bouton Générer un document, en haut du dossier, ouvre la liste des modèles : Interactive Worksheet, questionnaires de satisfaction, tests de mi-parcours et de fin, attestation de fin de formation, fiche satisfaction formateur, Level Test et feuilles de présence. Son onglet Historique des documents liste tout ce qui a déjà été produit dans le dossier.',
       'L\'intitulé, la langue, les dates, la société et les coordonnées sont repris de la fiche de l\'apprenant à l\'ouverture du formulaire. Si un champ arrive vide, c\'est que la fiche est incomplète : demandez à l\'administration de la compléter plutôt que de ressaisir la même information sur chaque document.',
       'L\'Interactive Worksheet garde un brouillon par dossier, que tous ses formateurs retrouvent et complètent ; les autres modèles repartent d\'un formulaire vierge. La plupart produisent un fichier téléchargé directement sur votre ordinateur, sans passer par le dossier, et toujours rédigé en français, même lorsque le site est affiché dans une autre langue.'
@@ -1846,7 +1849,7 @@
       'Si la liste est encore vide, votre dossier n\'a pas encore été créé. Vous recevrez une notification dès qu\'il sera prêt.'
     ] },
     { ancre: '.upload-zone', titre: 'Vos documents et la messagerie', ouvrirDossier: true, paras: [
-      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir.',
+      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir. Celui qui est ouvert ici est un exemple, monté pour la visite, avec un message et une notification pour de faux — il disparaîtra en même temps qu\'elle.',
       'Les documents de votre formation s\'affichent sous la zone de dépôt, avec un bouton pour les télécharger. Pour envoyer un fichier à vos formateurs, cliquez sur la zone de dépôt et choisissez un fichier de 25 Mo au maximum.',
       'Un document que vous avez envoyé ne peut plus être retiré que par l\'administration : vérifiez le fichier avant de l\'envoyer. La messagerie du dossier, sous la liste des documents, sert à échanger avec vos formateurs et l\'administration.'
     ] },
@@ -1867,18 +1870,55 @@
   // (4 requêtes avant la peinture), on ne peut pas mesurer une ancre juste après l'avoir appelé
   var TUTO_ATTENTE = null;
 
+  // ---- dossier d'exemple, le temps de la visite ----------------------------
   // Les étapes marquées `ouvrirDossier` parlent de ce qui vit À L'INTÉRIEUR d'un dossier : sans
-  // dossier ouvert, leurs ancres n'existent pas. On en ouvre donc un pour le montrer.
-  // ⚠️ On écrit `selected` et on appelle renderDashboard() — on ne CLIQUE PAS sur le dossier :
-  // le gestionnaire de clic envoie POST /api/notifications/clear-group, ce qui effacerait pour
-  // de bon les notifications non lues de la personne au milieu de sa visite.
-  function tutoOuvrirDossier() {
-    if (selected) return false;
-    var li = document.querySelector('.contact');
-    if (!li) return false;                       // aucun dossier : l'étape restera centrée
-    selected = li.getAttribute('data-id');
-    channel = 'commun';
+  // dossier ouvert, leurs ancres n'existent pas. Plutôt que d'ouvrir un vrai dossier — qui peut
+  // ne pas exister sur un compte neuf, et dont l'ouverture consommerait les notifications — la
+  // visite fabrique le sien, avec une conversation, un document et une notification pour de faux.
+  // ⚠️ RIEN de tout cela n'existe côté serveur : aucun compte n'est créé, aucun dossier n'est
+  // enregistré, aucune requête n'est envoyée. Tout est monté en mémoire et disparaît à la sortie.
+  var TUTO_DEMO_ID = 'tuto-exemple';
+  var TUTO_SEL_AVANT = null, TUTO_DEMO_ON = false, DERNIERS_GROUPES = null;
+
+  function tutoDemoGroupe() {
+    var moi = { id: ME.id, prenom: ME.prenom, nom: ME.nom, role: ME.role, email: ME.email };
+    var autre = ME.role === 'prof'
+      ? { id: 'tuto-exemple-eleve', prenom: 'Camille', nom: 'Exemple', role: 'eleve', email: '' }
+      : { id: 'tuto-exemple-prof', prenom: 'Alex', nom: 'Exemple', role: 'prof', email: '' };
+    return ME.role === 'prof'
+      ? { id: TUTO_DEMO_ID, eleve: autre, profs: [moi], date: Date.now() }
+      : { id: TUTO_DEMO_ID, eleve: moi, profs: [autre], date: Date.now() };
+  }
+  function tutoDemoMessages(g) {
+    var autre = ME.role === 'prof' ? g.eleve : gProfs(g)[0], t = Date.now();
+    return [
+      { id: 'tx1', from: autre.id, fromName: fullName(autre), fromAdmin: false, text: 'Bonjour, voici un dossier d\'exemple : il n\'existe que le temps de la visite.', date: t - 7200000 },
+      { id: 'tx2', from: ME.id, fromName: fullName(ME), fromAdmin: false, text: 'Les messages que vous écrirez dans un vrai dossier ressembleront à celui-ci.', date: t - 3600000 }
+    ];
+  }
+  function tutoDemoDocs(g) {
+    var autre = ME.role === 'prof' ? g.eleve : gProfs(g)[0];
+    return [{ id: 'tuto-exemple-doc', name: 'Exemple de document.pdf', size: 184320, from: autre.id, fromName: fullName(autre), fromAdmin: false, date: Date.now() - 5400000 }];
+  }
+  function tutoDemoOn() {
+    if (TUTO_DEMO_ON || !app()) return false;
+    var g = tutoDemoGroupe();
+    TUTO_SEL_AVANT = selected;
+    TUTO_DEMO_ON = true;
+    selected = TUTO_DEMO_ID; channel = 'commun';
+    // une notification pour de faux : elle fait apparaître la pastille sur le dossier et le
+    // compteur de la cloche, que deux étapes de la visite désignent
+    NOTIFS = [{ id: 'tuto-exemple-notif', user: ME.id, group: TUTO_DEMO_ID, read: false, date: Date.now() - 1800000, text: 'Camille Exemple a déposé un document dans le dossier.' }].concat(NOTIFS);
+    paintBoard(app(), [g].concat(DERNIERS_GROUPES || []), g, tutoDemoMessages(g), tutoDemoDocs(g), null);
     return true;
+  }
+  function tutoDemoOff() {
+    if (!TUTO_DEMO_ON) return;
+    TUTO_DEMO_ON = false;
+    NOTIFS = NOTIFS.filter(function (n) { return n.group !== TUTO_DEMO_ID; });
+    selected = TUTO_SEL_AVANT; TUTO_SEL_AVANT = null;
+    if (app() && ME) renderDashboard();          // on repart des vraies données du serveur
+    else renderHeader();
   }
 
   function tutoEl() { return document.getElementById('tuto'); }
@@ -1970,13 +2010,22 @@
     var m = tutoEl(); if (!m) return;
     var card = m.querySelector('.tuto-card'), spot = m.querySelector('.tuto-spot');
     var e = TUTO_ETAPES[TUTO_I];
-    // on déverrouille le temps de recentrer la cible, puis on reverrouille
-    document.documentElement.classList.remove('tuto-lock');
+    // On déverrouille le temps de recentrer la cible, puis on reverrouille.
+    // ⚠️ Deux pièges, tous deux vérifiés à la mesure :
+    //  1. il faut FORCER le recalcul de style après avoir retiré la classe, sinon le document est
+    //     encore en overflow:hidden au moment du défilement, qui ne fait rien ;
+    //  2. le site déclare html{scroll-behavior:smooth}, et l'option behavior:'auto' ne l'emporte
+    //     PAS dessus ici : le défilement partait en douceur et se faisait geler par la remise du
+    //     verrou, une image plus tard. La messagerie restait alors jugée « hors écran ».
+    var racine = document.documentElement, sb = racine.style.scrollBehavior;
+    racine.style.scrollBehavior = 'auto';
+    racine.classList.remove('tuto-lock');
+    void racine.offsetHeight;
     var t = (e && e.ancre !== 'centre') ? document.querySelector(e.ancre) : null;
-    // ⚠️ block:'center' et non 'start' : l'en-tête du site est fixe et recouvrirait la cible.
-    // ⚠️ behavior:'auto' : html{scroll-behavior:smooth} ferait sinon mesurer un état intermédiaire.
-    if (t) { try { t.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' }); } catch (x) { t.scrollIntoView(); } }
-    document.documentElement.classList.add('tuto-lock');
+    // block:'center' et non 'start' : l'en-tête du site est fixe et recouvrirait la cible
+    if (t) { try { t.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (x) { t.scrollIntoView(); } }
+    racine.classList.add('tuto-lock');
+    racine.style.scrollBehavior = sb;
 
     var c = tutoDessiner();          // dessin synchrone : ne dépend pas de la boucle d'animation
     card.style.maxHeight = '';
@@ -2012,13 +2061,9 @@
     m.querySelector('.tuto-prev').hidden = TUTO_I === 0;
     m.querySelector('.tuto-skip').hidden = dernier;
     m.querySelector('.tuto-next').textContent = dernier ? 'Terminer' : 'Continuer →';
-    // le texte est déjà à l'écran ; s'il faut ouvrir un dossier, on attend la peinture pour
-    // mesurer l'ancre, sinon on placerait la carte d'après un tableau de bord qui va changer
-    if (e.ouvrirDossier && tutoOuvrirDossier()) {
-      TUTO_ATTENTE = tutoPlacer;
-      renderDashboard();
-      return;
-    }
+    // le texte est déjà à l'écran ; le dossier d'exemple est monté en mémoire, donc la peinture
+    // est synchrone : on peut mesurer l'ancre juste après
+    if (e.ouvrirDossier) tutoDemoOn();
     tutoPlacer();
   }
 
@@ -2059,6 +2104,9 @@
     try { window.scrollTo({ top: window.scrollY, behavior: 'auto' }); } catch (x) {}
     m.classList.add('open');
     document.documentElement.classList.add('tuto-lock');
+    // ⚠️ le sondage des notifications écrase NOTIFS toutes les 20 s : il effacerait la
+    // notification d'exemple du compteur au milieu de la visite. On le suspend.
+    if (notifTimer) { clearInterval(notifTimer); notifTimer = null; }
     document.addEventListener('keydown', tutoClavier, true);
     window.addEventListener('resize', tutoResize);
     window.addEventListener('orientationchange', tutoResize);
@@ -2097,6 +2145,9 @@
     // est PARTAGÉ entre les onglets. Un second onglet qui se connecte sous un autre compte ferait
     // sinon enregistrer « visite vue » chez cette autre personne.
     if (ME && ME.tutoAVoir) { var moi = ME.id; ME.tutoAVoir = false; apiJSON('/api/tuto/vu', 'POST', { user: moi }); }
+    // le dossier d'exemple disparaît avec la visite, et le sondage des notifications repart
+    tutoDemoOff();
+    if (token() && ME) startNotifPoll();
     var r = TUTO_RETOUR; TUTO_RETOUR = null;
     if (r && r !== document.body && document.contains(r) && r.focus) r.focus();
     // ⚠️ le repli doit viser un élément RÉELLEMENT focusable : appeler focus() sur <body> ne
