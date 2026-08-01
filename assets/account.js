@@ -1960,7 +1960,10 @@
     if (r.width < 8 || r.height < 8) return null;
     if (r.height > vh * 0.6 || (r.width * r.height) > vw * vh * 0.6) return null;  // trop grande : le trou ne désignerait rien
     if (r.bottom < 8 || r.top > vh - 8) return null;              // hors écran
-    if (!second && Math.max(r.top, vh - r.bottom) < 200) return null;   // pas la place de poser la carte sans recouvrir la cible
+    // Place pour poser la carte à côté de la cible. ⚠️ Sur un écran bas la carte est centrée de
+    // toute façon (cf. TUTO_HAUTEUR_MINI) : appliquer ce test là-bas éteindrait le halo sur
+    // presque toutes les étapes, sans rien résoudre.
+    if (!second && vh >= TUTO_HAUTEUR_MINI && Math.max(r.top, vh - r.bottom) < 200) return null;
     // rognage par un ancêtre à défilement (le cadre de la discussion, par exemple).
     // ⚠️ on s'arrête AVANT body, qui porte overflow-x:hidden et rendrait tout le monde inéligible.
     var p = t.parentElement;
@@ -2039,9 +2042,14 @@
              bottom: lerp(a.top + a.height, b.top + b.height, p), right: lerp(a.left + a.width, b.left + b.width, p) };
   }
 
+  // Sur un écran BAS (téléphone en paysage, fenêtre écrasée), il n'y a jamais la place de poser
+  // une carte lisible à côté de la cible : le texte tombe à zéro pixel de haut, vérifié à la
+  // mesure. On centre alors la carte — le halo reste allumé, on voit toujours ce qui est désigné.
+  var TUTO_HAUTEUR_MINI = 520;
   function tutoPoserCarte(r) {
     var m = tutoEl(); if (!m) return;
     var card = m.querySelector('.tuto-card'), vh = window.innerHeight;
+    if (vh < TUTO_HAUTEUR_MINI) r = null;
     if (!r) {
       card.className = 'tuto-card centre';
       card.style.top = ''; card.style.bottom = ''; card.style.maxHeight = '';

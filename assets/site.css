@@ -1159,6 +1159,17 @@ html.tuto-lock{overflow:hidden}
   .tuto-foot .btn{padding:13px 18px}   /* « Terminer » tombait à 43 px, sous la cible des 44 */
   .tuto-foot .tuto-skip{margin-right:0}
 }
+/* Écran BAS (téléphone en paysage) : la hauteur est la ressource rare. On resserre tout ce qui
+   n'est pas le texte pour lui laisser la place — l'habillage mangeait 186 px sur 255 disponibles.
+   Les commandes restent à 44 px : c'est une cible tactile, pas une décoration. */
+@media (max-height:520px){
+  .tuto-card{padding:14px 16px 12px}
+  .tuto-card.centre{max-height:calc(100dvh - 20px)}
+  .tuto-eyebrow{margin-bottom:5px;font-size:10px}
+  .tuto-txt h3{font-size:18px;margin-bottom:6px}
+  .tuto-txt p{font-size:13.5px;margin-bottom:8px;line-height:1.5}
+  .tuto-dots{margin:10px 0 9px}
+}
 /* mouvement réduit : plus aucune animation. Côté JS, DOUX passe à faux et la visite saute
    directement d'une étape à l'autre, sans défilement animé. */
 @media (prefers-reduced-motion:reduce){
