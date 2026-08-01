@@ -1079,6 +1079,19 @@ footer a:hover{color:#fff8ef}
 .post-acts button.danger:hover{background:#c0392b;border-color:#c0392b;color:#fff}
 .post-acts button.go{background:var(--accent);border-color:var(--accent);color:#fff}
 .post-acts button.go:hover{background:#a85c44;border-color:#a85c44;color:#fff}
+/* post LinkedIn en bas d'un article : note interne, visible de l'administration seule.
+   Volontairement distincte du corps de l'article (fond, liseré accent) pour qu'on ne la
+   confonde jamais avec du contenu publié. */
+.li-box{margin:36px 0 8px;padding:18px 20px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:14px;background:var(--bg-card)}
+.li-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:10px}
+.li-h h4{margin:0;font-family:var(--ff-body);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.li-note{font-size:12px;color:var(--ink-soft)}
+.li-txt{width:100%;box-sizing:border-box;font:inherit;font-size:14px;line-height:1.6;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;resize:vertical}
+.li-txt:focus{outline:none;border-color:var(--accent)}
+.li-acts{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:10px}
+.li-etat{font-size:13px;color:var(--accent);font-weight:600}
+@media (max-width:620px){ .li-txt{font-size:16px} }   /* sous 16 px, Safari iOS zoome sur le champ */
+
 /* ---- visite guidée de l'espace documents ---------------------------------
    ⚠️ z-index 1400 : au-dessus de TOUT (en-tête 200, tiroir mobile 210, menu de langue 300,
    splash 1000, modales vitrine 1200, modales de l'espace documents 1300).

@@ -314,7 +314,9 @@
   function qsMsgHTML(m) {
     var q = m.qs || {}, mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
     var actions;
-    if (q.status === 'done' && q.docId) actions = '<a class="btn-mini" href="/api/documents/' + q.docId + '/download?token=' + encodeURIComponent(token()) + '">Télécharger le questionnaire rempli</a>';
+    // pièce déposée en PDF, et la même en Word régénérée à la demande (la version ne bouge pas)
+    if (q.status === 'done' && q.docId) actions = '<div class="req-acts"><a class="btn-mini" href="/api/documents/' + q.docId + '/download?token=' + encodeURIComponent(token()) + '">Télécharger le questionnaire rempli</a>' +
+      '<a class="btn-mini ghost" href="/api/qs/' + q.id + '/word?token=' + encodeURIComponent(token()) + '">Version Word</a></div>';
     else if (ME.role === 'eleve') actions = '<button class="btn-mini qs-fill-btn" data-qs="' + q.id + '">Remplir le questionnaire →</button>';
     else actions = '<span class="qs-wait">En attente de la réponse de l\'apprenant…</span><div class="req-acts"><button class="btn-mini ghost qs-edit-btn" data-qs="' + q.id + '" data-type="' + esc(q.type || '') + '">Modifier</button><button class="btn-mini ghost qs-cancel-btn" data-qs="' + q.id + '">Annuler</button></div>';
     return '<div class="msg ' + (mine ? 'me' : 'them') + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') +
@@ -324,7 +326,8 @@
   function presenceMsgHTML(m) {
     var p = m.presence || {}, mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
     var actions;
-    if (p.status === 'done' && p.docId) actions = '<a class="btn-mini" href="/api/documents/' + p.docId + '/download?token=' + encodeURIComponent(token()) + '">Télécharger la feuille signée</a>';
+    if (p.status === 'done' && p.docId) actions = '<div class="req-acts"><a class="btn-mini" href="/api/documents/' + p.docId + '/download?token=' + encodeURIComponent(token()) + '">Télécharger la feuille signée</a>' +
+      '<a class="btn-mini ghost" href="/api/presence/' + p.id + '/word?token=' + encodeURIComponent(token()) + '">Version Word</a></div>';
     else if (ME.role === 'eleve') actions = '<button class="btn-mini pr-sign-btn" data-pr="' + p.id + '">Signer →</button>';
     else actions = '<span class="qs-wait">En attente de la signature de l\'apprenant…</span><div class="req-acts"><button class="btn-mini ghost pr-edit-btn" data-pr="' + p.id + '">Modifier</button><button class="btn-mini ghost pr-cancel-btn" data-pr="' + p.id + '">Annuler</button></div>';
     return '<div class="msg ' + (mine ? 'me' : 'them') + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') +
@@ -495,6 +498,8 @@
       TUTO_PENDING = false;
       ouvrirTuto();
     }
+    // une étape de la visite attendait cette peinture pour mesurer son ancre
+    if (TUTO_ATTENTE) { var f = TUTO_ATTENTE; TUTO_ATTENTE = null; f(); }
   }
 
   // ---- générateur de documents (Interactive Worksheet) -------------------
@@ -1780,10 +1785,11 @@
   //  VISITE GUIDÉE de l'espace documents — formateurs et apprenants uniquement.
   //
   //  Deux règles ont dicté la construction :
-  //  1. La visite NE TOUCHE À RIEN. Elle n'ouvre pas un dossier à la place de la personne (cela
-  //     effacerait pour de bon ses notifications non lues, cf. clear-group), n'écrit jamais
-  //     `selected`/`channel`, n'appelle jamais renderDashboard(). Son seul appel réseau est
-  //     POST /api/tuto/vu, une fois par visite.
+  //  1. La visite MONTRE, mais ne consomme rien. Les étapes qui parlent de l'intérieur d'un
+  //     dossier en ouvrent un (`ouvrirDossier`) pour que leur ancre existe — en écrivant
+  //     `selected` et en appelant renderDashboard(), JAMAIS en cliquant sur le dossier : le
+  //     gestionnaire de clic envoie clear-group et effacerait vraiment les notifications non
+  //     lues. Le seul appel réseau propre à la visite reste POST /api/tuto/vu, une fois.
   //  2. AUCUNE étape n'est jamais supprimée. Sur un compte tout neuf — le cas normal d'une
   //     première connexion — le tableau de bord est presque vide et la moitié des ancres n'existe
   //     pas. Ancre absente ou non montrable : le projecteur s'éteint, la carte se centre, le texte
@@ -1810,15 +1816,18 @@
       'Un dossier suit un apprenant et réunit ses formateurs et l\'administration. C\'est l\'administration qui crée les dossiers et décide qui y figure. Ceux qui vous sont confiés sont listés dans la case Mes dossiers, et un clic sur l\'un d\'eux ouvre ses documents et sa messagerie.',
       'Si la liste est encore vide, aucun dossier ne vous a été confié pour l\'instant. Vous recevrez une notification dès qu\'un dossier vous sera attribué.'
     ] },
-    { ancre: '.chan-tabs', titre: 'Deux canaux, deux publics', paras: [
+    { ancre: '.chan-tabs', titre: 'Deux canaux, deux publics', ouvrirDossier: true, paras: [
+      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir.',
       'Chaque dossier a deux canaux. La discussion commune est partagée avec l\'apprenant. Le canal privé est réservé aux formateurs du dossier et à l\'administration : l\'apprenant n\'y a accès ni en lecture, ni en téléchargement, et c\'est par là que vous transmettez vos documents à l\'administration.',
       'Un formateur ajouté plus tard au dossier accède à tout l\'historique déjà échangé dans le canal privé.'
     ] },
-    { ancre: '.upload-zone', titre: 'Déposer un document, écrire un message', paras: [
+    { ancre: '.upload-zone', titre: 'Déposer un document, écrire un message', ouvrirDossier: true, paras: [
+      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir.',
       'La zone de dépôt accepte un fichier de 25 Mo au maximum, la liste des documents s\'affiche en dessous, et la messagerie du dossier se trouve encore plus bas.',
       'Le canal ouvert au moment de l\'envoi décide qui verra le fichier ou le message : vérifiez l\'onglet avant d\'envoyer. Vous pouvez retirer un document que vous avez envoyé vous-même, mais pas celui d\'une autre personne, ni une pièce déjà signée.'
     ] },
-    { ancre: '.gen-btn', titre: 'Générer un document', paras: [
+    { ancre: '.gen-btn', titre: 'Générer un document', ouvrirDossier: true, paras: [
+      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir.',
       'Le bouton Générer un document, en haut du dossier, ouvre la liste des modèles : Interactive Worksheet, questionnaires de satisfaction, tests de mi-parcours et de fin, attestation de fin de formation, fiche satisfaction formateur, Level Test et feuilles de présence. Son onglet Historique des documents liste tout ce qui a déjà été produit dans le dossier.',
       'L\'intitulé, la langue, les dates, la société et les coordonnées sont repris de la fiche de l\'apprenant à l\'ouverture du formulaire. Si un champ arrive vide, c\'est que la fiche est incomplète : demandez à l\'administration de la compléter plutôt que de ressaisir la même information sur chaque document.',
       'L\'Interactive Worksheet garde un brouillon par dossier, que tous ses formateurs retrouvent et complètent ; les autres modèles repartent d\'un formulaire vierge. La plupart produisent un fichier téléchargé directement sur votre ordinateur, sans passer par le dossier, et toujours rédigé en français, même lorsque le site est affiché dans une autre langue.'
@@ -1836,14 +1845,15 @@
       'Votre formation est suivie dans un dossier créé par l\'administration, qui réunit vos formateurs et l\'administration Languages and Success. Il apparaît dans la case Mes dossiers, sous le nom de vos formateurs, et un clic dessus ouvre ses documents et sa messagerie.',
       'Si la liste est encore vide, votre dossier n\'a pas encore été créé. Vous recevrez une notification dès qu\'il sera prêt.'
     ] },
-    { ancre: '.upload-zone', titre: 'Vos documents et la messagerie', paras: [
+    { ancre: '.upload-zone', titre: 'Vos documents et la messagerie', ouvrirDossier: true, paras: [
+      'Tout ce qui suit se trouve à l\'intérieur d\'un dossier : dans la case Mes dossiers, cliquez sur un dossier pour l\'ouvrir.',
       'Les documents de votre formation s\'affichent sous la zone de dépôt, avec un bouton pour les télécharger. Pour envoyer un fichier à vos formateurs, cliquez sur la zone de dépôt et choisissez un fichier de 25 Mo au maximum.',
       'Un document que vous avez envoyé ne peut plus être retiré que par l\'administration : vérifiez le fichier avant de l\'envoyer. La messagerie du dossier, sous la liste des documents, sert à échanger avec vos formateurs et l\'administration.'
     ] },
     // ⚠️ ancré sur le CONTENEUR de la discussion, jamais sur un bouton « Remplir »/« Signer » :
     // ceux-là n'existent que s'il y a une demande en attente, et ils vivent dans un cadre à
     // défilement (max-height:300px) forcé au bas — un halo s'y dessinerait sur du vide.
-    { ancre: '#chat-msgs', titre: 'Questionnaires et feuilles à signer', paras: [
+    { ancre: '#chat-msgs', titre: 'Questionnaires et feuilles à signer', ouvrirDossier: true, paras: [
       'Lorsqu\'un formateur vous envoie un questionnaire de satisfaction ou une feuille de présence, une carte apparaît dans la discussion du dossier, avec un bouton pour la remplir ou la signer. Vous en êtes averti par une notification et par un e-mail.',
       'Avant de signer une feuille de présence, relisez le récapitulatif affiché au-dessus de la signature : les séances, ou les heures de connexion selon la feuille. Vous signez à la souris ou au doigt, ou vous téléversez une image de votre signature.',
       'L\'envoi est définitif : une fois confirmé, vous ne pouvez plus revenir sur vos réponses ni sur votre signature. Le document final est aussitôt déposé dans le dossier.'
@@ -1853,6 +1863,23 @@
   ];
 
   var TUTO_ETAPES = [], TUTO_I = 0, TUTO_RAF = null, TUTO_RETOUR = null, TUTO_OBS = null, TUTO_ANIM = null;
+  // rappel exécuté dès que le tableau de bord est repeint : renderDashboard() est asynchrone
+  // (4 requêtes avant la peinture), on ne peut pas mesurer une ancre juste après l'avoir appelé
+  var TUTO_ATTENTE = null;
+
+  // Les étapes marquées `ouvrirDossier` parlent de ce qui vit À L'INTÉRIEUR d'un dossier : sans
+  // dossier ouvert, leurs ancres n'existent pas. On en ouvre donc un pour le montrer.
+  // ⚠️ On écrit `selected` et on appelle renderDashboard() — on ne CLIQUE PAS sur le dossier :
+  // le gestionnaire de clic envoie POST /api/notifications/clear-group, ce qui effacerait pour
+  // de bon les notifications non lues de la personne au milieu de sa visite.
+  function tutoOuvrirDossier() {
+    if (selected) return false;
+    var li = document.querySelector('.contact');
+    if (!li) return false;                       // aucun dossier : l'étape restera centrée
+    selected = li.getAttribute('data-id');
+    channel = 'commun';
+    return true;
+  }
 
   function tutoEl() { return document.getElementById('tuto'); }
   // Le calque est créé UNE fois et vit sur document.body, jamais dans #docspace qui est
@@ -1985,6 +2012,13 @@
     m.querySelector('.tuto-prev').hidden = TUTO_I === 0;
     m.querySelector('.tuto-skip').hidden = dernier;
     m.querySelector('.tuto-next').textContent = dernier ? 'Terminer' : 'Continuer →';
+    // le texte est déjà à l'écran ; s'il faut ouvrir un dossier, on attend la peinture pour
+    // mesurer l'ancre, sinon on placerait la carte d'après un tableau de bord qui va changer
+    if (e.ouvrirDossier && tutoOuvrirDossier()) {
+      TUTO_ATTENTE = tutoPlacer;
+      renderDashboard();
+      return;
+    }
     tutoPlacer();
   }
 
@@ -2012,6 +2046,7 @@
 
   function ouvrirTuto() {
     if (!ME || ME.role === 'admin') return;
+    TUTO_ATTENTE = null;
     TUTO_ETAPES = (ME.role === 'prof') ? TUTO_PROF : TUTO_ELEVE;
     // un dialogue du site est ouvert (z-index 1300) : le calque (1400) le masquerait
     if (document.querySelector('.notif-modal.open')) return;
@@ -2051,6 +2086,7 @@
     window.removeEventListener('resize', tutoResize);
     window.removeEventListener('orientationchange', tutoResize);
     if (TUTO_OBS) { TUTO_OBS.disconnect(); TUTO_OBS = null; }
+    TUTO_ATTENTE = null;   // une peinture en vol ne doit pas replacer une carte refermée
     if (TUTO_RAF) { cancelAnimationFrame(TUTO_RAF); TUTO_RAF = null; }
     if (TUTO_ANIM) { clearTimeout(TUTO_ANIM); TUTO_ANIM = null; }
     // On retient « vue » à la PREMIÈRE sortie, quelle qu'elle soit (Terminer, Passer, croix,

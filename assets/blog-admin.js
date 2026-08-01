@@ -154,6 +154,8 @@
           zone('e-metadesc', 'Meta description', a.metaDescription, 2, '— entre 150 et 160 caractères') +
           champ('e-image', 'Image de couverture', a.image, '— chemin, ex. /blog/img/mon-article.png') +
           '</div>' +
+          '<h4 class="gen-h">Post LinkedIn</h4>' +
+          zone('e-linkedin', 'À copier-coller sur LinkedIn', a.postLinkedin, 8, '— note interne : jamais affichée sur le site, visible de l’administration seule') +
           '<h4 class="gen-h">Corps de l’article</h4>' +
           zone('e-corps', 'HTML', a.corps, 16, '— &lt;h2&gt; pour les sections, &lt;h3&gt; pour les sous-parties, &lt;p&gt; et &lt;ul&gt;') +
           '<h4 class="gen-h">FAQ</h4>' +
@@ -187,7 +189,7 @@
           titre: v('e-titre'), categorie: v('e-cat'), chapo: v('e-chapo'),
           motCle: v('e-motcle'), slug: v('e-slug'), titreSeo: v('e-titreseo'),
           metaDescription: v('e-metadesc'), image: v('e-image'),
-          corps: v('e-corps'), faq: faq, sources: sources
+          corps: v('e-corps'), faq: faq, sources: sources, postLinkedin: v('e-linkedin')
         };
         var b = m.querySelector('.e-save'); b.disabled = true; b.textContent = 'Enregistrement…';
         api(id ? API + '/' + id : API, id ? 'PATCH' : 'POST', corps).then(function (rr) {
@@ -258,6 +260,37 @@
     return b;
   }
 
+  // ---- post LinkedIn (bas de l'article, administration seule) ---------------
+  // ⚠️ Note INTERNE : elle n'est jamais rendue par le serveur. C'est l'API qui la fournit, et
+  // elle ne la fournit qu'à un compte admin — un formateur, un apprenant ou un visiteur
+  // déconnecté reçoit une ancre vide, même sur un article publié.
+  function boiteLinkedin(art) {
+    var b = document.createElement('div');
+    b.className = 'li-box';
+    b.innerHTML = '<div class="li-h"><h4>Post LinkedIn</h4><span class="li-note">Note interne — jamais affichée sur le site</span></div>' +
+      '<textarea class="li-txt" rows="10" spellcheck="false"></textarea>' +
+      '<div class="li-acts"><button type="button" class="btn-mini li-copier">Copier le post</button>' +
+      '<button type="button" class="btn-mini ghost li-save">Enregistrer</button><span class="li-etat"></span></div>';
+    var ta = b.querySelector('.li-txt'), etat = b.querySelector('.li-etat');
+    ta.value = art.postLinkedin || '';
+    b.querySelector('.li-copier').onclick = function () {
+      ta.select(); ta.setSelectionRange(0, ta.value.length);
+      var dit = function (t) { etat.textContent = t; setTimeout(function () { etat.textContent = ''; }, 2500); };
+      // le presse-papiers moderne n'existe qu'en contexte sécurisé : on garde le repli
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(function () { dit('Copié ✓'); }, function () { dit('Copie impossible — sélectionnez le texte'); });
+      else dit(document.execCommand && document.execCommand('copy') ? 'Copié ✓' : 'Copie impossible — sélectionnez le texte');
+    };
+    b.querySelector('.li-save').onclick = function () {
+      var bt = b.querySelector('.li-save'); bt.disabled = true; bt.textContent = 'Enregistrement…';
+      api(API + '/' + art.id, 'PATCH', { postLinkedin: ta.value }).then(function (r) {
+        bt.disabled = false; bt.textContent = 'Enregistrer';
+        etat.textContent = r.ok ? 'Enregistré ✓' : ((r.data && r.data.error) || 'Enregistrement impossible.');
+        setTimeout(function () { etat.textContent = ''; }, 2500);
+      });
+    };
+    return b;
+  }
+
   // ---- mise en place --------------------------------------------------------
   // ⚠️ Le serveur ne rend que les articles PUBLIÉS sur une navigation ordinaire : une page
   // demandée par un lien n'envoie ni jeton ni cookie, il ne peut donc pas savoir qui regarde.
@@ -276,6 +309,11 @@
       var art = null;
       for (var k = 0; k < arts.length; k++) if (arts[k].id === id) art = arts[k];
       if (art) ANCRE.appendChild(barreArticle(art));
+      // la fiche complète porte le post LinkedIn, absent de la liste
+      var cible = document.getElementById('ls-art-linkedin');
+      if (art && cible) api(API + '/' + id).then(function (rr) {
+        if (rr.ok && rr.data.article) cible.appendChild(boiteLinkedin(rr.data.article));
+      });
       return;
     }
 

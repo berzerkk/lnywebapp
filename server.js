@@ -556,6 +556,13 @@ function bumpVersion(g, tpl) {
   save();
   return (1 + (nb - 1) / 10).toFixed(1);              // 1.0, 1.1, 1.2 …
 }
+// version COURANTE, sans incrémenter : une pièce déjà produite qu'on régénère dans un autre
+// format n'est pas une nouvelle version du document, c'est le même document en .docx.
+function verOf(g, tpl) {
+  if (!g || !tpl) return '1.0';
+  const nb = (db.docVersions || {})[g.id + '|' + tpl] || 1;
+  return (1 + (nb - 1) / 10).toFixed(1);
+}
 // pied de page : lignes méta (présentes sur TOUS les documents générés)
 function metaLines(user, ver) {
   const v = ver || '1.0';
@@ -987,6 +994,57 @@ app.get('/api/documents/:id/download', (req, res) => {
   if (!doc) return res.status(404).end();
   if (!canChannel(groupById(doc.group), u, doc.channel)) return res.status(403).end();
   res.download(path.join(UPLOADS_DIR, doc.stored), safeFile(doc.name));
+});
+
+// ---- pièces signées : la même chose en Word --------------------------------
+// Le questionnaire rempli et la feuille de présence signée sont déposés en PDF (l'apprenant ne
+// choisit pas le format). Elles se téléchargent aussi en Word, régénérées à la demande à partir
+// des réponses et des signatures conservées en base. ⚠️ La VERSION ne bouge pas : c'est le même
+// document dans un autre format, pas une nouvelle génération.
+// Jeton accepté en en-tête OU en ?token= : un <a href> ne peut pas porter d'en-tête Authorization.
+function userDepuisRequete(req) {
+  const h = req.headers.authorization || '';
+  const t = h.startsWith('Bearer ') ? h.slice(7) : (req.query.token || null);
+  if (!t) return null;
+  try { return realUser(jwt.verify(t, db.secret).id) || null; } catch (e) { return null; }
+}
+function envoyerWord(res, buf, nom) {
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  // ⚠️ même forme que les autres téléchargements du fichier : un nom accentué (« Léa », « assiduité »)
+  // dans un filename= brut fait échouer setHeader (ERR_INVALID_CHAR).
+  res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(safeFile(nom) + '.docx'));
+  res.send(buf);
+}
+app.get('/api/qs/:id/word', async (req, res) => {
+  const u = userDepuisRequete(req); if (!u) return res.status(401).end();
+  const qs = db.qs.find(x => x.id === req.params.id);
+  if (!qs) return res.status(404).json({ error: 'Questionnaire introuvable.' });
+  const g = groupById(qs.group);
+  if (!canChannel(g, u, 'commun')) return res.status(403).json({ error: 'Accès refusé.' });
+  if (qs.status !== 'done') return res.status(400).json({ error: 'Ce questionnaire n\'a pas encore été rempli.' });
+  const tpl = QS_TEMPLATES[qs.type] || {};
+  const docPdf = db.docs.find(d => d.id === qs.docId);
+  const auteur = realUser(qs.by) || u;
+  try {
+    const buf = await buildQsDocx(qs, tpl, auteur, (docPdf && docPdf.ver) || verOf(g, qs.type));
+    envoyerWord(res, buf, (qs.type === 'qs_mid' ? '2' : '3') + ' - ' + (tpl.title || 'Questionnaire') + ' - ' + ((qs.header && qs.header.nomApprenant) || 'apprenant') + ' - ' + nameDate());
+  } catch (e) { console.error('QS word:', e); res.status(500).json({ error: 'Erreur de génération du document.' }); }
+});
+app.get('/api/presence/:id/word', async (req, res) => {
+  const u = userDepuisRequete(req); if (!u) return res.status(401).end();
+  const p = db.presences.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Feuille introuvable.' });
+  const g = groupById(p.group);
+  if (!canChannel(g, u, 'commun')) return res.status(403).json({ error: 'Accès refusé.' });
+  if (p.status !== 'done') return res.status(400).json({ error: 'Cette feuille n\'est pas encore signée.' });
+  const tpl = PRESENCE_TEMPLATES[p.type] || {};
+  const docPdf = db.docs.find(d => d.id === p.docId);
+  const auteur = realUser(p.by) || u;
+  const d = Object.assign({}, p.fields, { formateurSig: p.formateurSig, apprenantSig: p.apprenantSig });
+  try {
+    const buf = await buildPresenceDocx(p.type, d, auteur, (docPdf && docPdf.ver) || verOf(g, 'presence-' + p.type));
+    envoyerWord(res, buf, (tpl.title || 'Feuille de présence') + ' - ' + ((p.fields && p.fields.apprenant) || 'apprenant') + ' - ' + nameDate() + ' - signee');
+  } catch (e) { console.error('présence word:', e); res.status(500).json({ error: 'Erreur de génération du document.' }); }
 });
 
 // ---- notifications ---------------------------------------------------------
@@ -2045,7 +2103,9 @@ async function generateQsDoc(qs, format, fromUser) {
   const stored = crypto.randomUUID() + '.' + ext;
   fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
   const name = (qs.type === 'qs_mid' ? '2' : '3') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((qs.header && qs.header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
-  const doc = { id: crypto.randomUUID(), group: qs.group, channel: 'commun', from: fromUser.id, fromAdmin: fromUser.role === 'admin', name, size: buf.length, type, stored, date: Date.now() };
+  // la version est retenue sur la pièce : la régénérer en Word ne doit pas la faire avancer,
+  // c'est le même document dans un autre format
+  const doc = { id: crypto.randomUUID(), group: qs.group, channel: 'commun', from: fromUser.id, fromAdmin: fromUser.role === 'admin', name, size: buf.length, type, stored, date: Date.now(), ver: verQ };
   db.docs.push(doc);
   return doc;
 }
@@ -2457,11 +2517,13 @@ app.post('/api/presence/generate', auth, async (req, res) => {
 async function depositPresenceDoc(p, byUser) {
   const tpl = PRESENCE_TEMPLATES[p.type] || {};
   const d = Object.assign({}, p.fields, { formateurSig: p.formateurSig, apprenantSig: p.apprenantSig });
-  const buf = await buildPresencePdf(p.type, d, byUser, bumpVersion(groupById(p.group), 'presence-' + p.type));
+  const ver = bumpVersion(groupById(p.group), 'presence-' + p.type);
+  const buf = await buildPresencePdf(p.type, d, byUser, ver);
   const stored = crypto.randomUUID() + '.pdf';
   fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
   const name = safeFile(tpl.title || 'Feuille de présence') + ' - ' + safeFile((p.fields && p.fields.apprenant) || 'apprenant') + ' - ' + nameDate() + ' - signée.pdf';
-  const doc = { id: crypto.randomUUID(), group: p.group, channel: 'commun', from: byUser.id, fromAdmin: byUser.role === 'admin', name, size: buf.length, type: 'application/pdf', stored, date: Date.now() };
+  // version retenue sur la pièce : la régénérer en Word ne doit pas la faire avancer
+  const doc = { id: crypto.randomUUID(), group: p.group, channel: 'commun', from: byUser.id, fromAdmin: byUser.role === 'admin', name, size: buf.length, type: 'application/pdf', stored, date: Date.now(), ver };
   db.docs.push(doc);
   return doc;
 }
@@ -2659,7 +2721,11 @@ app.get('/api/blog/articles/:id', (req, res) => {
   const u = userSiConnecte(req);
   const a = db.articles.find(x => x.id === req.params.id || x.slug === req.params.id);
   if (!a || !artVisiblePar(a, u)) return res.status(404).json({ error: 'Article introuvable.' });
-  res.json({ article: Object.assign({}, a, { enLigne: artEnLigne(a) }) });
+  const plein = Object.assign({}, a, { enLigne: artEnLigne(a) });
+  // ⚠️ le post LinkedIn est une note interne : il ne sort JAMAIS de l'administration, alors que
+  // cette route sert l'article complet à tout le monde dès qu'il est publié.
+  if (!u || u.role !== 'admin') delete plein.postLinkedin;
+  res.json({ article: plein });
 });
 app.post('/api/blog/articles', auth, (req, res) => {
   if (!adminSeul(req, res)) return;
@@ -2671,7 +2737,10 @@ app.post('/api/blog/articles', auth, (req, res) => {
     titre: b.titre, chapo: b.chapo || '', categorie: b.categorie || 'Conseils',
     motCle: b.motCle || '', titreSeo: b.titreSeo || '', metaDescription: b.metaDescription || '',
     corps: b.corps || '', faq: Array.isArray(b.faq) ? b.faq : [], sources: Array.isArray(b.sources) ? b.sources : [],
-    image: b.image || '', statut: 'brouillon', datePublication: null,
+    image: b.image || '',
+    // note interne : le post à copier-coller sur LinkedIn. Jamais rendu sur le site.
+    postLinkedin: b.postLinkedin || '',
+    statut: 'brouillon', datePublication: null,
     dateCreation: now, dateMaj: now, auteur: senderDisplay(req.user)
   };
   db.articles.push(a); save();
@@ -2682,7 +2751,7 @@ app.patch('/api/blog/articles/:id', auth, (req, res) => {
   const a = db.articles.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ error: 'Article introuvable.' });
   const b = req.body || {};
-  for (const k of ['titre', 'chapo', 'categorie', 'motCle', 'titreSeo', 'metaDescription', 'corps', 'image']) {
+  for (const k of ['titre', 'chapo', 'categorie', 'motCle', 'titreSeo', 'metaDescription', 'corps', 'image', 'postLinkedin']) {
     if (b[k] != null) a[k] = b[k];
   }
   if (Array.isArray(b.faq)) a.faq = b.faq;
@@ -2937,6 +3006,9 @@ function artPage(a) {
     + '      <p class="updated">' + (artEnLigne(a) ? 'Publié le ' + htmlEsc(artDateLisible(a.datePublication)) : 'Non publié') + ' · par l\'équipe pédagogique Languages &amp; Success</p>' + NL + NL
     + (a.corps || '') + NL + NL
     + faqHtml + srcHtml
+    // ancre du post LinkedIn : le SERVEUR n'y écrit rien, blog-admin.js la remplit à partir de
+    // l'API — qui ne renvoie le post qu'à un compte admin. Un visiteur reçoit une div vide.
+    + '      <div id="ls-art-linkedin"></div>' + NL
     + '      <p class="art-retour"><a href="/blog.html">← Tous les articles</a></p>' + NL
     + '    </div>' + NL + '  </div>' + NL + '</section>' + NL + NL
     + '<div id="ls-footer"></div>' + NL
