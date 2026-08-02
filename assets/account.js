@@ -1986,16 +1986,57 @@
   // désigner deux endroits à la fois (la case Notifications et la cloche de l'en-tête).
   // Repli pour les navigateurs sans `polygon(evenodd, …)` : un seul trou, à l'ancienne.
   var CLIP_OK = !!(window.CSS && CSS.supports && CSS.supports('clip-path', 'polygon(evenodd, 0px 0px, 100% 0px, 100% 100%)'));
-  function trouPoly(r, m) {
-    var g = (r.left - m) + 'px', d = (r.right + m) + 'px', h = (r.top - m) + 'px', b = (r.bottom + m) + 'px';
-    return g + ' ' + h + ', ' + d + ' ' + h + ', ' + d + ' ' + b + ', ' + g + ' ' + b + ', ' + g + ' ' + h;
+  // Rayons des quatre coins de la cible, en pixels, dans l'ordre haut-gauche, haut-droit,
+  // bas-droit, bas-gauche — ramenés à la boîte du halo et bornés comme le fait le navigateur
+  // (si la somme des rayons d'un côté dépasse ce côté, TOUS les rayons sont réduits d'autant).
+  function rayonsCoins(el, w, h) {
+    var lit = function (v) {
+      if (!v) return 0;
+      v = String(v).trim().split('/')[0].trim();          // « 10px / 20px » : on garde l'horizontal
+      var n = parseFloat(v);
+      if (isNaN(n)) return 0;
+      return v.slice(-1) === '%' ? n / 100 * Math.min(w, h) : n;
+    };
+    var R = [12, 12, 12, 12];
+    if (el) {
+      var s = getComputedStyle(el);
+      R = [lit(s.borderTopLeftRadius), lit(s.borderTopRightRadius), lit(s.borderBottomRightRadius), lit(s.borderBottomLeftRadius)];
+    }
+    var q = function (a, b, cote) { return (a + b) > 0 ? cote / (a + b) : Infinity; };
+    var f = Math.min(1, q(R[0], R[1], w), q(R[3], R[2], w), q(R[0], R[3], h), q(R[1], R[2], h));
+    return R.map(function (x) { return Math.max(0, x * f); });
   }
+  // Trou du voile : il suit les MÊMES arrondis que le contour, sinon la zone éclaircie dépasse
+  // du contour dans les angles — un rectangle net derrière un cadre arrondi.
+  function trouPoly(r, m, R) {
+    var g = r.left - m, d = r.right + m, h = r.top - m, b = r.bottom + m;
+    R = R || [0, 0, 0, 0];
+    var pts = [];
+    function arc(cx, cy, rad, a0, a1) {
+      if (rad <= 0.5) { pts.push([cx, cy]); return; }
+      var n = Math.max(3, Math.min(14, Math.round(rad / 2.2)));
+      for (var i = 0; i <= n; i++) {
+        var a = a0 + (a1 - a0) * i / n;
+        pts.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]);
+      }
+    }
+    arc(g + R[0], h + R[0], R[0], Math.PI, Math.PI * 1.5);        // haut-gauche
+    arc(d - R[1], h + R[1], R[1], Math.PI * 1.5, Math.PI * 2);    // haut-droit
+    arc(d - R[2], b - R[2], R[2], 0, Math.PI * 0.5);              // bas-droit
+    arc(g + R[3], b - R[3], R[3], Math.PI * 0.5, Math.PI);        // bas-gauche
+    pts.push(pts[0]);                                             // on referme le contour
+    return pts.map(function (p) { return (Math.round(p[0] * 10) / 10) + 'px ' + (Math.round(p[1] * 10) / 10) + 'px'; }).join(', ');
+  }
+  // Le contour et le trou partagent le MÊME tableau de rayons : ils ne peuvent pas diverger.
   function halo(spot, c) {
-    if (!c) { spot.classList.add('off'); return; }
+    if (!c) { spot.classList.add('off'); return null; }
     spot.classList.remove('off');
+    var w = c.r.width + 16, h = c.r.height + 16;
+    var R = rayonsCoins(c.el, w, h);
     spot.style.top = (c.r.top - 8) + 'px'; spot.style.left = (c.r.left - 8) + 'px';
-    spot.style.width = (c.r.width + 16) + 'px'; spot.style.height = (c.r.height + 16) + 'px';
-    spot.style.borderRadius = (getComputedStyle(c.el).borderRadius || '12px');
+    spot.style.width = w + 'px'; spot.style.height = h + 'px';
+    spot.style.borderRadius = R.map(function (x) { return x + 'px'; }).join(' ');
+    return R;
   }
   // `p` = avancement de la transition en cours (1 = arrivée). Le halo et le trou du voile sont
   // dessinés au rectangle INTERPOLÉ, pour qu'ils glissent d'une cible à l'autre au lieu de sauter.
@@ -2005,8 +2046,8 @@
     var c = e ? tutoCible(e.ancre) : null;
     var c2 = (e && e.ancre2 && c) ? tutoCible(e.ancre2, true) : null;
     var rc = c ? tutoRectCourant(c, p == null ? 1 : p) : null;
-    halo(m.querySelector('.tuto-spot'), rc ? { r: rc, el: c.el } : null);
-    halo(m.querySelector('.tuto-spot2'), c2);
+    var R1 = halo(m.querySelector('.tuto-spot'), rc ? { r: rc, el: c.el } : null);
+    var R2 = halo(m.querySelector('.tuto-spot2'), c2);
     m.classList.toggle('sans-spot', !c);
     var voile = m.querySelector('.tuto-catch');
     if (!CLIP_OK) { voile.style.clipPath = ''; m.classList.toggle('vieux-voile', !!c); }
@@ -2017,7 +2058,7 @@
       // pair-impair la compte — une bande entière de l'écran cessait d'être assombrie
       // (893 points sur 14 400 mesurés). On repasse donc par l'origine entre chaque trou : le
       // trajet aller et le trajet retour se superposent exactement et s'annulent.
-      var trous = [trouPoly(rc, 8)].concat(c2 ? [trouPoly(c2.r, 8)] : []);
+      var trous = [trouPoly(rc, 8, R1)].concat(c2 ? [trouPoly(c2.r, 8, R2)] : []);
       voile.style.clipPath = 'polygon(evenodd, 0px 0px, 100% 0px, 100% 100%, 0px 100%, 0px 0px, '
         + trous.join(', 0px 0px, ') + ', 0px 0px)';
     }
