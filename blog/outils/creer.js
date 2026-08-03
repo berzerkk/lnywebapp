@@ -30,8 +30,18 @@ async function creer(def, base) {
   // ⚠️ On vérifie AVANT de créer quoi que ce soit : un article créé sans ses posts serait à
   // reprendre à la main, et c'est exactement ce qu'on veut rendre impossible.
   const ctrl = verifierPosts(def.postsLi, def.motCle);
+  // ⚠️ Tiret cadratin PROSCRIT du contenu publié (demande de l'utilisateur, 03/08/2026).
+  // Contrôlé ici sur l'article, et dans verifierPosts sur les trois posts.
+  const cadratins = [];
+  const scruter = (ou, t) => { const n = (String(t == null ? '' : t).match(/—/g) || []).length; if (n) cadratins.push(ou + ' (' + n + ')'); };
+  ['titre', 'chapo', 'titreSeo', 'metaDescription', 'corps'].forEach(k => scruter(k, def[k]));
+  (def.faq || []).forEach((q, i) => { scruter('faq[' + i + '].q', q.q); scruter('faq[' + i + '].r', q.r); });
+  (def.sources || []).forEach((s, i) => scruter('sources[' + i + '].titre', s.titre));
+  if (cadratins.length) {
+    ctrl.erreurs.push('tiret cadratin interdit dans : ' + cadratins.join(', ') + '. Employez deux-points, virgule, point ou parenthèses.');
+  }
   if (ctrl.erreurs.length) {
-    throw new Error("Posts LinkedIn non conformes — rien n'a été créé :\n  - " + ctrl.erreurs.join('\n  - '));
+    throw new Error("Contenu non conforme, rien n'a été créé :\n  - " + ctrl.erreurs.join('\n  - '));
   }
   const B = (base || CIBLE_DEFAUT).replace(/\/$/, '');
   const IDENT = /localhost|127\.0\.0\.1/.test(B) ? IDENT_LOCAL : IDENT_PROD;

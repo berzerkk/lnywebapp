@@ -13,7 +13,7 @@ module.exports = {
   'financer-formation-langue-2026-ce-qui-a-change': [
       {
           "angle": "La question",
-          "texte": "« Mon TOEIC date de deux ans. Je peux le repasser avec mon CPF ? »\n\nOui — et c'est une exception que les langues sont seules à avoir. Elle change ce qu'on peut espérer quand on cherche à financer une formation en langue en 2026.\n\nDepuis le 27 juin 2026, le CPF ne finance plus une certification déjà obtenue. La loi réserve un seul cas : « une certification visant à atteindre un niveau de connaissance d'une langue ».\n\nAutrement dit, un B1 obtenu il y a deux ans n'interdit pas de financer le passage visant le B2.\n\nC'est logique : une certification de niveau photographie un état à un instant donné, pas un acquis définitif.\n\nCe point est passé largement inaperçu. Il change pourtant la donne pour qui veut faire reconnaître sa progression.\n\nNous avons fait le point sur tout ce qui a changé cette année pour financer une formation en langue en 2026 : plafond, participation, et cette exception.\n\nAdresse en commentaire.\n\n#CPF #TOEIC #FormationEnLangue #Anglais"
+          "texte": "« Mon TOEIC date de deux ans. Je peux le repasser avec mon CPF ? »\n\nOui, et c'est une exception que les langues sont seules à avoir. Elle change ce qu'on peut espérer quand on cherche à financer une formation en langue en 2026.\n\nDepuis le 27 juin 2026, le CPF ne finance plus une certification déjà obtenue. La loi réserve un seul cas : « une certification visant à atteindre un niveau de connaissance d'une langue ».\n\nAutrement dit, un B1 obtenu il y a deux ans n'interdit pas de financer le passage visant le B2.\n\nC'est logique : une certification de niveau photographie un état à un instant donné, pas un acquis définitif.\n\nCe point est passé largement inaperçu. Il change pourtant la donne pour qui veut faire reconnaître sa progression.\n\nNous avons fait le point sur tout ce qui a changé cette année pour financer une formation en langue en 2026 : plafond, participation, et cette exception.\n\nAdresse en commentaire.\n\n#CPF #TOEIC #FormationEnLangue #Anglais"
       },
       {
           "angle": "Le chiffre",
@@ -68,7 +68,7 @@ Adresse en commentaire.
     { angle: 'Le terrain', texte:
 `Une personne nous a appelés la semaine dernière, dossier CPF validé, prête à démarrer.
 
-Elle avait tout fait dans le désordre. Or financer sa formation en langue avec le CPF, c'est quatre étapes — et c'est l'ordre qui compte.
+Elle avait tout fait dans le désordre. Or financer sa formation en langue avec le CPF, c'est quatre étapes, et c'est l'ordre qui compte.
 
 Elle avait choisi sa formation avant de vérifier si la certification était enregistrée. Elle a dû tout reprendre.
 
@@ -109,7 +109,7 @@ Le détail est en commentaire.
 
 Deux décrets, quelques semaines d'écart, et le reste à charge CPF est devenu la règle plutôt que l'exception pour une formation en langue.
 
-Le plafond de 1 500 € vise les certifications enregistrées au Répertoire spécifique — c'est-à-dire les certifications en langues.
+Le plafond de 1 500 € vise les certifications enregistrées au Répertoire spécifique, c'est-à-dire les certifications en langues.
 La participation de 150 € s'applique aux demandes déposées depuis le 2 avril 2026.
 
 Ce que beaucoup ignorent : plusieurs situations dispensent de cette participation. Être demandeur d'emploi. Bénéficier d'un abondement de son employeur. Et d'autres cas encore.
@@ -169,7 +169,7 @@ Concrètement : votre score reste le vôtre. Mais passé ce délai, vous pourrie
 
 Ce n'est pas la même chose que « périmé ». Mais ça change ce qu'on conseille à quelqu'un qui prépare une candidature.
 
-Nous avons écrit comment vérifier vous-même, en deux minutes, ce qui est réellement finançable — et ce qui ne l'est pas.
+Nous avons écrit comment vérifier vous-même, en deux minutes, ce qui est réellement finançable, et ce qui ne l'est pas.
 
 Adresse en commentaire.
 

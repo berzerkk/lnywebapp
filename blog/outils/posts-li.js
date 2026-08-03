@@ -38,6 +38,11 @@ function verifierPosts(posts, motCle) {
     const tags = (t.match(/#[\wÀ-ÿ]+/g) || []).length;
     const lien = /https?:\/\//.test(t);
 
+    // ⚠️ Le tiret cadratin est PROSCRIT du contenu publié, article comme post (demande de
+    // l'utilisateur, 03/08/2026). Selon le contexte : deux-points si la suite explique, virgule
+    // si elle prolonge, point si c'est une phrase nouvelle, parenthèses pour une incise.
+    const cad = (t.match(/—/g) || []).length;
+    if (cad) erreurs.push(nom + ' : ' + cad + ' tiret(s) cadratin — remplacez par deux-points, virgule, point ou parenthèses');
     if (!accroche) erreurs.push(nom + ' : pas d\'accroche en première ligne');
     if (accroche.length > ACCROCHE_MAX) erreurs.push(nom + ' : accroche de ' + accroche.length + ' caractères (' + ACCROCHE_MAX + ' maximum, sinon elle est repliée)');
     if (mc && pos < 0) erreurs.push(nom + ' : le mot-clé « ' + motCle + ' » n\'apparaît pas');

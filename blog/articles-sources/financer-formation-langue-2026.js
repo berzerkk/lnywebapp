@@ -42,7 +42,7 @@ module.exports = {
 
       <h2>Côté entreprise : la fin du paiement direct par les OPCO</h2>
       <p>Un changement distinct, souvent confondu avec le précédent. À la suite de l’assujettissement des OPCO à la TVA, <strong>neuf OPCO ont annoncé qu’ils cesseraient le paiement direct des organismes de formation au 1<sup>er</sup> octobre 2026</strong>. L’entreprise avance alors le coût et se fait rembourser ensuite.</p>
-      <p>Deux précisions, parce que beaucoup d’articles se trompent sur ce point. Aucun texte ne supprime la subrogation : elle reste juridiquement possible, et l’arrêt du paiement direct est une décision propre à chaque OPCO. Les dates de bascule et les exceptions varient donc — plusieurs OPCO annoncent maintenir le paiement direct pour le plan de développement des compétences des entreprises de moins de 50 salariés. <strong>Vérifiez auprès du vôtre.</strong></p>
+      <p>Deux précisions, parce que beaucoup d’articles se trompent sur ce point. Aucun texte ne supprime la subrogation : elle reste juridiquement possible, et l’arrêt du paiement direct est une décision propre à chaque OPCO. Les dates de bascule et les exceptions varient donc : plusieurs OPCO annoncent maintenir le paiement direct pour le plan de développement des compétences des entreprises de moins de 50 salariés. <strong>Vérifiez auprès du vôtre.</strong></p>
       <p>Enfin, l’effet sur votre trésorerie dépend du régime de TVA de votre organisme de formation. Un organisme exonéré facture sans TVA : il n’y a alors rien à avancer ni à récupérer à ce titre.</p>
 
       <h2>Ce qui ne change pas, et ce qui n’a jamais existé</h2>
@@ -51,7 +51,7 @@ module.exports = {
       <p>Pour les demandeurs d’emploi, l’<strong>aide individuelle à la formation</strong> de France Travail n’est pas un droit : elle est étudiée dossier par dossier, sur la base du devis et du projet, sans barème public. Méfiez-vous des plafonds chiffrés qui circulent : nous n’en avons trouvé aucun dans une source officielle.</p>
 
       <h2>Comment nous procédons</h2>
-      <p>Nous regardons votre solde et le coût réel du parcours <em>avant</em> de vous annoncer quoi que ce soit, puis nous montons le dossier de cofinancement avec vous. Depuis février 2026, dire d’une formation en langue qu’elle est « intégralement prise en charge » est rarement exact — nous ne le dirons pas sans l’avoir vérifié.</p>
+      <p>Nous regardons votre solde et le coût réel du parcours <em>avant</em> de vous annoncer quoi que ce soit, puis nous montons le dossier de cofinancement avec vous. Depuis février 2026, dire d’une formation en langue qu’elle est « intégralement prise en charge » est rarement exact, et nous ne le dirons pas sans l’avoir vérifié.</p>
       <p>Nos <a href="/formations.html">formats de formation</a> et nos <a href="/financement.html">dispositifs de financement</a> détaillent le reste. Si le plafond vous concerne, notre article sur <a href="/blog/cpf-plafonne-financer-le-reste-formation-langue">le reste à charge CPF</a> passe en revue les financeurs qui prennent le relais, et celui sur <a href="/blog/certification-anglais-finance-cpf-comment-verifier">la vérification d’une certification</a> explique comment contrôler vous-même son enregistrement.</p>
       <p>Une question sur votre situation ? <a href="/contact.html">Écrivez-nous</a> avant d’engager la moindre démarche.</p>`,
 
@@ -65,20 +65,20 @@ module.exports = {
   ],
 
   sources: [
-    { titre: 'Article D. 6323-1 A du code du travail — plafonds de droits CPF', url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000053569786' },
-    { titre: 'Décret n° 2026-234 du 30 mars 2026 — participation obligatoire', url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000053742996' },
-    { titre: 'Article L. 6323-6 du code du travail — exception pour les certifications de langue', url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000054337187' },
-    { titre: 'Article L. 6323-7 du code du travail — dispenses de participation', url: 'https://code.travail.gouv.fr/code-du-travail/l6323-7' },
-    { titre: 'Service-Public — quelles évolutions en 2026 pour l’utilisation du CPF', url: 'https://www.service-public.gouv.fr/particuliers/actualites/A18831' },
-    { titre: 'Article L. 6324-1 du code du travail — période de reconversion', url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000038951696/' },
-    { titre: 'France Compétences — répertoire spécifique (recherche officielle)', url: 'https://www.francecompetences.fr/recherche/rs/' }
+    { titre: 'Article D. 6323-1 A du code du travail : plafonds de droits CPF', url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000053569786' },
+    { titre: 'Décret n° 2026-234 du 30 mars 2026 : participation obligatoire', url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000053742996' },
+    { titre: 'Article L. 6323-6 du code du travail : exception pour les certifications de langue', url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000054337187' },
+    { titre: 'Article L. 6323-7 du code du travail : dispenses de participation', url: 'https://code.travail.gouv.fr/code-du-travail/l6323-7' },
+    { titre: 'Service-Public : quelles évolutions en 2026 pour l’utilisation du CPF', url: 'https://www.service-public.gouv.fr/particuliers/actualites/A18831' },
+    { titre: 'Article L. 6324-1 du code du travail : période de reconversion', url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000038951696/' },
+    { titre: 'France Compétences : répertoire spécifique (recherche officielle)', url: 'https://www.francecompetences.fr/recherche/rs/' }
   ],
 
   postsLi: [
     { angle: 'La question', texte:
 `« Mon TOEIC date de deux ans. Je peux le repasser avec mon CPF ? »
 
-Oui — et c'est une exception que les langues sont seules à avoir. Elle change ce qu'on peut espérer quand on cherche à financer une formation en langue en 2026.
+Oui, et c'est une exception que les langues sont seules à avoir. Elle change ce qu'on peut espérer quand on cherche à financer une formation en langue en 2026.
 
 Depuis le 27 juin 2026, le CPF ne finance plus une certification déjà obtenue. La loi réserve un seul cas : « une certification visant à atteindre un niveau de connaissance d'une langue ».
 
