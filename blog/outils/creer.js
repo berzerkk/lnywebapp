@@ -17,7 +17,14 @@ const path = require('path');
 const { visuels } = require('./visuels');
 const { verifierPosts } = require('./posts-li');
 
-const IDENT = { email: process.env.LS_ADMIN || 'admin@ls.fr', motDePasse: process.env.LS_MDP || 'demo1234' };
+// ⚠️ LA CIBLE PAR DÉFAUT EST LA PRODUCTION, et c'est délibéré. Un article est une DONNÉE
+// (db.json), pas du code : un git push ne l'emporte JAMAIS. Un article créé en local n'existe
+// que sur le poste où il a été créé — l'utilisateur, lui, regarde le site en ligne et ne voit
+// rien. Erreur commise deux fois ; le défaut a été inversé pour qu'elle ne se reproduise pas.
+// Pour travailler en local : node blog/outils/creer.js <def.js> http://localhost:8000
+const CIBLE_DEFAUT = process.env.LS_BASE || 'https://languagesandsuccess.com';
+const IDENT_PROD = { email: 'admin@languagesandsuccess.com', motDePasse: process.env.LS_MDP_PROD || 'changez-ce-mot-de-passe' };
+const IDENT_LOCAL = { email: process.env.LS_ADMIN || 'admin@ls.fr', motDePasse: process.env.LS_MDP || 'demo1234' };
 
 async function creer(def, base) {
   // ⚠️ On vérifie AVANT de créer quoi que ce soit : un article créé sans ses posts serait à
@@ -26,7 +33,8 @@ async function creer(def, base) {
   if (ctrl.erreurs.length) {
     throw new Error("Posts LinkedIn non conformes — rien n'a été créé :\n  - " + ctrl.erreurs.join('\n  - '));
   }
-  const B = (base || 'http://localhost:8000').replace(/\/$/, '');
+  const B = (base || CIBLE_DEFAUT).replace(/\/$/, '');
+  const IDENT = /localhost|127\.0\.0\.1/.test(B) ? IDENT_LOCAL : IDENT_PROD;
   const j = async (url, opt) => {
     const r = await fetch(B + url, opt);
     let d = null; try { d = await r.json(); } catch (e) {}
@@ -78,8 +86,11 @@ if (require.main === module) {
   if (!fichier) { console.error('usage : node blog/outils/creer.js <definition.js> [base]'); process.exit(1); }
   const def = require(path.resolve(fichier));
   creer(def, base).then(r => {
-    console.log('✔ brouillon créé : ' + r.article.titre);
+    console.log('✔ brouillon créé sur ' + (base || CIBLE_DEFAUT) + ' : ' + r.article.titre);
     console.log('   adresse : /blog/' + r.article.slug);
+    // les visuels sont écrits sur le disque : sans commit, la page en ligne pointe dans le vide
+    console.log('   ⚠ pensez à committer blog/img/' + r.article.slug + '*.png — les visuels ne');
+    console.log('     partent en ligne qu\'avec le déploiement, contrairement à l\'article.');
     r.visuels.forEach(v => console.log('   visuel  : ' + v.fichier + '  ' + v.ko + ' ko'));
     if (r.alertes.length) { console.log('   ⚠ ' + r.alertes.length + ' point(s) à revoir :'); r.alertes.forEach(a => console.log('     · ' + a)); }
     else console.log('   contrôles SEO : rien à signaler');
