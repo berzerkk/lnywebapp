@@ -1182,3 +1182,10 @@ html.tuto-lock{overflow:hidden}
   .post-acts{gap:9px}
   .post-acts button{padding:13px 14px}   /* 44 px, comme le reste des commandes tactiles */
 }
+
+/* trois versions du post LinkedIn : chacune son en-tête, son compteur et son bouton Copier */
+.li-astuce{margin:0 0 14px;font-size:13px;line-height:1.55;color:var(--ink-soft)}
+.li-v{margin-bottom:14px}
+.li-vh{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:6px}
+.li-chip{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--accent);background:color-mix(in oklab,var(--accent) 11%,transparent);border-radius:999px;padding:4px 11px}
+.li-cpt{font-size:12px;color:var(--ink-soft);margin-right:auto}

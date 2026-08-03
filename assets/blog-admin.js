@@ -155,7 +155,6 @@
           champ('e-image', 'Image de couverture', a.image, '— chemin, ex. /blog/img/mon-article.png') +
           '</div>' +
           '<h4 class="gen-h">Post LinkedIn</h4>' +
-          zone('e-linkedin', 'À copier-coller sur LinkedIn', a.postLinkedin, 8, '— note interne : jamais affichée sur le site, visible de l’administration seule') +
           '<h4 class="gen-h">Corps de l’article</h4>' +
           zone('e-corps', 'HTML', a.corps, 16, '— &lt;h2&gt; pour les sections, &lt;h3&gt; pour les sous-parties, &lt;p&gt; et &lt;ul&gt;') +
           '<h4 class="gen-h">FAQ</h4>' +
@@ -189,7 +188,7 @@
           titre: v('e-titre'), categorie: v('e-cat'), chapo: v('e-chapo'),
           motCle: v('e-motcle'), slug: v('e-slug'), titreSeo: v('e-titreseo'),
           metaDescription: v('e-metadesc'), image: v('e-image'),
-          corps: v('e-corps'), faq: faq, sources: sources, postLinkedin: v('e-linkedin')
+          corps: v('e-corps'), faq: faq, sources: sources
         };
         var b = m.querySelector('.e-save'); b.disabled = true; b.textContent = 'Enregistrement…';
         api(id ? API + '/' + id : API, id ? 'PATCH' : 'POST', corps).then(function (rr) {
@@ -260,32 +259,54 @@
     return b;
   }
 
-  // ---- post LinkedIn (bas de l'article, administration seule) ---------------
-  // ⚠️ Note INTERNE : elle n'est jamais rendue par le serveur. C'est l'API qui la fournit, et
-  // elle ne la fournit qu'à un compte admin — un formateur, un apprenant ou un visiteur
+  // ---- posts LinkedIn (bas de l'article, administration seule) --------------
+  // ⚠️ Notes INTERNES : elles ne sont jamais rendues par le serveur. C'est l'API qui les fournit,
+  // et elle ne les fournit qu'à un compte admin — un formateur, un apprenant ou un visiteur
   // déconnecté reçoit une ancre vide, même sur un article publié.
+  // Trois versions, trois angles d'accroche : on choisit celle qui colle au moment de publier.
+  var LI_ANGLES = ['La question', 'Le chiffre', 'Le terrain'];
   function boiteLinkedin(art) {
+    var posts = (art.postsLi && art.postsLi.length) ? art.postsLi.slice(0, 3)
+      : (art.postLinkedin ? [{ angle: LI_ANGLES[0], texte: art.postLinkedin }] : []);
+    while (posts.length < 3) posts.push({ angle: LI_ANGLES[posts.length], texte: '' });
+
     var b = document.createElement('div');
     b.className = 'li-box';
-    b.innerHTML = '<div class="li-h"><h4>Post LinkedIn</h4><span class="li-note">Note interne — jamais affichée sur le site</span></div>' +
-      '<textarea class="li-txt" rows="10" spellcheck="false"></textarea>' +
-      '<div class="li-acts"><button type="button" class="btn-mini li-copier">Copier le post</button>' +
-      '<button type="button" class="btn-mini ghost li-save">Enregistrer</button><span class="li-etat"></span></div>';
-    var ta = b.querySelector('.li-txt'), etat = b.querySelector('.li-etat');
-    ta.value = art.postLinkedin || '';
-    b.querySelector('.li-copier').onclick = function () {
-      ta.select(); ta.setSelectionRange(0, ta.value.length);
-      var dit = function (t) { etat.textContent = t; setTimeout(function () { etat.textContent = ''; }, 2500); };
-      // le presse-papiers moderne n'existe qu'en contexte sécurisé : on garde le repli
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(function () { dit('Copié ✓'); }, function () { dit('Copie impossible — sélectionnez le texte'); });
-      else dit(document.execCommand && document.execCommand('copy') ? 'Copié ✓' : 'Copie impossible — sélectionnez le texte');
-    };
+    b.innerHTML = '<div class="li-h"><h4>Posts LinkedIn</h4>' +
+      '<span class="li-note">Trois versions au choix — notes internes, jamais affichées sur le site</span></div>' +
+      '<p class="li-astuce">Sur LinkedIn, un lien dans le corps du post réduit sa portée : publiez le post seul, puis collez l’adresse de l’article en premier commentaire.</p>' +
+      posts.map(function (p, i) {
+        return '<div class="li-v" data-i="' + i + '">' +
+          '<div class="li-vh"><span class="li-chip">Version ' + (i + 1) + ' · ' + esc(p.angle || LI_ANGLES[i]) + '</span>' +
+          '<span class="li-cpt"></span>' +
+          '<button type="button" class="btn-mini ghost li-copier">Copier</button></div>' +
+          '<textarea class="li-txt" rows="12" spellcheck="false"></textarea></div>';
+      }).join('') +
+      '<div class="li-acts"><button type="button" class="btn-mini li-save">Enregistrer les trois</button><span class="li-etat"></span></div>';
+
+    var etat = b.querySelector('.li-etat');
+    var dit = function (el, t) { el.textContent = t; setTimeout(function () { el.textContent = ''; }, 2500); };
+    var zones = [].slice.call(b.querySelectorAll('.li-v'));
+    zones.forEach(function (v, i) {
+      var ta = v.querySelector('.li-txt'), cpt = v.querySelector('.li-cpt');
+      ta.value = posts[i].texte || '';
+      // LinkedIn replie le texte au-delà d'environ 210 caractères : l'accroche doit tenir avant.
+      var compte = function () { cpt.textContent = ta.value.length + ' caractères'; };
+      compte(); ta.addEventListener('input', compte);
+      v.querySelector('.li-copier').onclick = function () {
+        ta.select(); ta.setSelectionRange(0, ta.value.length);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(ta.value).then(function () { dit(etat, 'Version ' + (i + 1) + ' copiée ✓'); },
+            function () { dit(etat, 'Copie impossible — sélectionnez le texte'); });
+        } else dit(etat, document.execCommand && document.execCommand('copy') ? 'Version ' + (i + 1) + ' copiée ✓' : 'Copie impossible — sélectionnez le texte');
+      };
+    });
     b.querySelector('.li-save').onclick = function () {
       var bt = b.querySelector('.li-save'); bt.disabled = true; bt.textContent = 'Enregistrement…';
-      api(API + '/' + art.id, 'PATCH', { postLinkedin: ta.value }).then(function (r) {
-        bt.disabled = false; bt.textContent = 'Enregistrer';
-        etat.textContent = r.ok ? 'Enregistré ✓' : ((r.data && r.data.error) || 'Enregistrement impossible.');
-        setTimeout(function () { etat.textContent = ''; }, 2500);
+      var corps = zones.map(function (v, i) { return { angle: posts[i].angle || LI_ANGLES[i], texte: v.querySelector('.li-txt').value }; });
+      api(API + '/' + art.id, 'PATCH', { postsLi: corps }).then(function (r) {
+        bt.disabled = false; bt.textContent = 'Enregistrer les trois';
+        dit(etat, r.ok ? 'Enregistré ✓' : ((r.data && r.data.error) || 'Enregistrement impossible.'));
       });
     };
     return b;

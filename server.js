@@ -2774,7 +2774,7 @@ app.get('/api/blog/articles/:id', (req, res) => {
   const plein = Object.assign({}, a, { enLigne: artEnLigne(a) });
   // ⚠️ le post LinkedIn est une note interne : il ne sort JAMAIS de l'administration, alors que
   // cette route sert l'article complet à tout le monde dès qu'il est publié.
-  if (!u || u.role !== 'admin') delete plein.postLinkedin;
+  if (!u || u.role !== 'admin') { delete plein.postLinkedin; delete plein.postsLi; }
   res.json({ article: plein });
 });
 app.post('/api/blog/articles', auth, (req, res) => {
@@ -2788,8 +2788,8 @@ app.post('/api/blog/articles', auth, (req, res) => {
     motCle: b.motCle || '', titreSeo: b.titreSeo || '', metaDescription: b.metaDescription || '',
     corps: b.corps || '', faq: Array.isArray(b.faq) ? b.faq : [], sources: Array.isArray(b.sources) ? b.sources : [],
     image: b.image || '',
-    // note interne : le post à copier-coller sur LinkedIn. Jamais rendu sur le site.
-    postLinkedin: b.postLinkedin || '',
+    // notes internes : TROIS versions du post LinkedIn, à copier-coller. Jamais rendues sur le site.
+    postsLi: Array.isArray(b.postsLi) ? b.postsLi : [],
     statut: 'brouillon', datePublication: null,
     dateCreation: now, dateMaj: now, auteur: senderDisplay(req.user)
   };
@@ -2804,6 +2804,7 @@ app.patch('/api/blog/articles/:id', auth, (req, res) => {
   for (const k of ['titre', 'chapo', 'categorie', 'motCle', 'titreSeo', 'metaDescription', 'corps', 'image', 'postLinkedin']) {
     if (b[k] != null) a[k] = b[k];
   }
+  if (Array.isArray(b.postsLi)) a.postsLi = b.postsLi;
   if (Array.isArray(b.faq)) a.faq = b.faq;
   if (Array.isArray(b.sources)) a.sources = b.sources;
   if (b.slug) a.slug = artSlug(b.slug, a.id);
@@ -2848,6 +2849,7 @@ app.post('/api/blog/articles/:id/dupliquer', auth, (req, res) => {
   const copie = Object.assign({}, a, {
     id: crypto.randomUUID(), slug: artSlug(titre), titre,
     faq: (a.faq || []).map(q => Object.assign({}, q)),
+    postsLi: (a.postsLi || []).map(x => Object.assign({}, x)),
     sources: (a.sources || []).map(s => Object.assign({}, s)),
     statut: 'brouillon', datePublication: null,
     dateCreation: now, dateMaj: now, auteur: senderDisplay(req.user)
