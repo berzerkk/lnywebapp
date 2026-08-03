@@ -10,6 +10,21 @@
 //    en premier commentaire, et le post le dit ;
 //  - 3 à 5 hashtags, dont le mot-clé principal.
 module.exports = {
+  'financer-formation-langue-2026-ce-qui-a-change': [
+      {
+          "angle": "La question",
+          "texte": "« Mon TOEIC date de deux ans. Je peux le repasser avec mon CPF ? »\n\nOui — et c'est une exception que les langues sont seules à avoir. Elle change ce qu'on peut espérer quand on cherche à financer une formation en langue en 2026.\n\nDepuis le 27 juin 2026, le CPF ne finance plus une certification déjà obtenue. La loi réserve un seul cas : « une certification visant à atteindre un niveau de connaissance d'une langue ».\n\nAutrement dit, un B1 obtenu il y a deux ans n'interdit pas de financer le passage visant le B2.\n\nC'est logique : une certification de niveau photographie un état à un instant donné, pas un acquis définitif.\n\nCe point est passé largement inaperçu. Il change pourtant la donne pour qui veut faire reconnaître sa progression.\n\nNous avons fait le point sur tout ce qui a changé cette année pour financer une formation en langue en 2026 : plafond, participation, et cette exception.\n\nAdresse en commentaire.\n\n#CPF #TOEIC #FormationEnLangue #Anglais"
+      },
+      {
+          "angle": "Le chiffre",
+          "texte": "1 500 €. 150 €. Et une date : le 27 juin 2026.\n\nTrois textes ont changé la façon de financer une formation en langue en 2026. Deux resserrent, un ouvre.\n\n→ 1 500 € : le plafond de droits CPF mobilisables pour une certification du Répertoire spécifique, depuis le 26 février. Attention, il porte sur vos DROITS, pas sur le prix de la formation.\n\n→ 150 € : la participation forfaitaire à l'inscription depuis le 2 avril, contre 103,20 € avant. Les demandeurs d'emploi en sont dispensés, et les salariés dont l'employeur abonde aussi.\n\n→ 27 juin : le CPF ne finance plus une certification déjà obtenue. Sauf les certifications de langue, expressément réservées par la loi.\n\nChaque chiffre de cet article a son décret et sa date. Nous n'en publions pas d'autres.\n\nLe détail est en commentaire.\n\n#CPF #Financement #FormationProfessionnelle #Qualiopi"
+      },
+      {
+          "angle": "Le terrain",
+          "texte": "« On m'a dit que c'était intégralement pris en charge. »\n\nNous l'entendons encore chaque semaine. Or financer une formation en langue en 2026 ne se joue plus comme l'an dernier : depuis février, cette phrase est rarement exacte.\n\nUn plafond de 1 500 € s'applique désormais aux droits CPF mobilisables pour une certification de langue. Le prix de la formation, lui, n'est pas plafonné : c'est la part payée par vos droits qui l'est.\n\nLa différence n'est pas théorique. Elle se découvre au moment de valider le dossier, et c'est le plus mauvais moment.\n\nNotre façon de faire n'a pas changé : on regarde le solde et le coût réel AVANT d'annoncer quoi que ce soit. Puis on monte le cofinancement.\n\nCe qu'il faut savoir pour financer une formation en langue en 2026, texte par texte et date par date : c'est en commentaire.\n\n#CPF #Financement #FormationEnLangue #Nice"
+      }
+  ],
+
 
   'cpf-financer-sa-formation-en-langue-mode-d-emploi': [
     { angle: 'La question', texte:
