@@ -3,17 +3,29 @@
 //   node blog/outils/creer.js <fichier-de-definition.js> [http://localhost:8000]
 //
 // Le fichier de définition exporte un objet :
-//   { titre, chapo, categorie, motCle, slug, titreSeo, metaDescription, corps, faq[], sources[] }
+//   { titre, chapo, categorie, motCle, slug, titreSeo, metaDescription, corps, faq[], sources[], postsLi[] }
+//
+// ⚠️ postsLi est OBLIGATOIRE : trois versions du post LinkedIn, chacune avec son angle
+//    d'accroche. L'outil REFUSE de créer l'article sans elles, et refuse aussi celles qui ne
+//    respectent pas les règles (cf. posts-li.js). C'est ce qui rend la chose automatique :
+//    générer un article, c'est générer ses posts.
 // Le corps peut contenir {{ILLU_A}} et {{ILLU_B}} : ils sont remplacés par les illustrations
 // générées pour cet article. Rien n'est publié — l'article apparaît en brouillon sur la page
 // blog, visible de l'administration seule.
 'use strict';
 const path = require('path');
 const { visuels } = require('./visuels');
+const { verifierPosts } = require('./posts-li');
 
 const IDENT = { email: process.env.LS_ADMIN || 'admin@ls.fr', motDePasse: process.env.LS_MDP || 'demo1234' };
 
 async function creer(def, base) {
+  // ⚠️ On vérifie AVANT de créer quoi que ce soit : un article créé sans ses posts serait à
+  // reprendre à la main, et c'est exactement ce qu'on veut rendre impossible.
+  const ctrl = verifierPosts(def.postsLi, def.motCle);
+  if (ctrl.erreurs.length) {
+    throw new Error("Posts LinkedIn non conformes — rien n'a été créé :\n  - " + ctrl.erreurs.join('\n  - '));
+  }
   const B = (base || 'http://localhost:8000').replace(/\/$/, '');
   const j = async (url, opt) => {
     const r = await fetch(B + url, opt);
@@ -41,7 +53,7 @@ async function creer(def, base) {
       titre: def.titre, chapo: def.chapo, categorie: def.categorie, motCle: def.motCle,
       slug, titreSeo: def.titreSeo, metaDescription: def.metaDescription,
       image: '/blog/img/' + slug + '.png',
-      corps, faq: def.faq || [], sources: def.sources || []
+      corps, faq: def.faq || [], sources: def.sources || [], postsLi: def.postsLi
     })
   });
 
@@ -55,7 +67,8 @@ async function creer(def, base) {
   if (mc && corps.toLowerCase().indexOf(mc) < 0) alertes.push('le mot-clé n\'apparaît pas dans le corps');
   if (mc && !/<h2[^>]*>[^<]*/i.test(corps)) alertes.push('aucun <h2> dans le corps');
 
-  return { article: art.article, visuels: imgs, alertes };
+  ctrl.alertes.forEach(a => alertes.push('LinkedIn — ' + a));
+  return { article: art.article, visuels: imgs, alertes, postsLi: ctrl.mesures };
 }
 
 module.exports = { creer };
