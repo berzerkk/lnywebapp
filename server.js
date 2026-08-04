@@ -2885,7 +2885,6 @@ app.post('/api/blog/articles/:id/publier', auth, (req, res) => {
   }
   a.dateMaj = new Date().toISOString();
   save();
-  if (a.statut === 'publie') diffusionSociale(a);
   res.json({ article: artPub(a) });
 });
 // dupliquer : une copie en brouillon, « Copie — » en tête du titre (et donc du slug)
@@ -2926,51 +2925,16 @@ function tickProgrammation() {
       if (new Date(a.datePublication).getTime() > Date.now()) continue;
       a.statut = 'publie'; a.dateMaj = new Date().toISOString(); bouge = true;
       console.log('📝 article publié automatiquement : ' + a.titre);
-      diffusionSociale(a);
     }
     if (bouge) save();
   } catch (e) { console.error('programmation blog :', e.message); }
 }
 setInterval(tickProgrammation, 60 * 1000);
 
-// ---- diffusion sur les réseaux sociaux -------------------------------------
-// Branché sur la mise en ligne. Sans configuration, ne fait rien et le dit — comme les e-mails.
-// ⚠️ Vérifié le 31/07/2026 : seul Facebook (page) est automatisable sans revue ni délai.
-// LinkedIn exige un produit soumis à validation et ne délivre aucun jeton durable ; TikTok
-// refuse ce type d'usage ; les stories n'acceptent ni lien ni légende exploitables.
-function configSociale() {
-  try {
-    let t = fs.readFileSync(path.join(DATA_DIR, 'social.json'), 'utf8');
-    if (t.charCodeAt(0) === 0xfeff) t = t.slice(1);
-    return JSON.parse(t);
-  } catch (e) { return null; }
-}
-async function diffusionSociale(a) {
-  const cfg = configSociale();
-  if (!cfg || !cfg.facebook || !cfg.facebook.pageId || !cfg.facebook.token) {
-    console.log('↗ diffusion sociale désactivée (pas de data/social.json) — ' + a.titre);
-    return;
-  }
-  const lien = SITE_URL_PUB + '/blog/' + a.slug;
-  const message = (a.chapo ? a.chapo + '\n\n' : '') + lien;
-  try {
-    const r = await fetch('https://graph.facebook.com/v21.0/' + cfg.facebook.pageId + '/feed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, link: lien, access_token: cfg.facebook.token }),
-      signal: AbortSignal.timeout(20000)
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
-    console.log('↗ publié sur la page Facebook : ' + (j.id || '(sans id)'));
-  } catch (e) {
-    // ⚠️ PAS d'e-mail d'alerte (demande de l'utilisateur, 04/08/2026) : il publie lui-même sur
-    // les réseaux, une panne de jeton ne lui coûte donc rien. L'échec reste tracé dans le journal
-    // du serveur pour qui va l'y chercher.
-    console.error('↗ ÉCHEC de la publication Facebook : ' + e.message);
-  }
-}
-
+// ⚠️ AUCUNE diffusion automatique sur les réseaux sociaux (retirée le 05/08/2026, à la demande
+// de l'utilisateur : il publie lui-même). Mettre un article en ligne n'appelle plus rien vers
+// l'extérieur. Les posts LinkedIn de l'article vivent dans la boîte sous l'article, prêts à être
+// copiés-collés à la main. Ne pas réintroduire d'appel sortant ici sans le lui demander.
 
 // ---- rendu des pages du blog ----------------------------------------------
 const NL = '\n';   // retour à la ligne des gabarits HTML ci-dessous
