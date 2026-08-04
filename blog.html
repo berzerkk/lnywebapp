@@ -143,9 +143,12 @@
 
 <section class="sec" style="padding-top:24px">
   <div class="wrap">
-    <!-- ⚠️ La grille ci-dessous est RÉGÉNÉRÉE par `node blog/outils/blog.js index` à partir des
-         articles réellement présents dans blog/. Ne rien écrire à la main entre les deux
-         marqueurs : tout y sera écrasé. Le reste de la page (titre, chapô) n'est jamais touché. -->
+    <!-- ⚠️ La grille ci-dessous est remplie À CHAQUE REQUÊTE par le serveur, entre les deux
+         marqueurs, à partir des articles de la base (cf. blogIndexHtml dans server.js) : le
+         contenu est donc indexable. Ne rien écrire à la main entre les marqueurs, tout y sera
+         écrasé ; le texte qui s'y trouve ne s'affiche que s'il n'y a aucun article à montrer.
+         Pour un compte admin, blog-admin.js reconstruit ensuite la grille côté navigateur pour
+         y ajouter les brouillons et les commandes. Le reste de la page n'est jamais touché. -->
     <div class="blog-grid"><!-- ARTICLES:DEBUT -->
       <p class="ds-empty" style="grid-column:1/-1;text-align:center">Les premiers articles arrivent très bientôt.</p>
     <!-- ARTICLES:FIN --></div>
