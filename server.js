@@ -212,13 +212,20 @@ cleanupOrphanUploads();
 // le site et l'espace documents fonctionnent normalement.
 let nodemailer = null; try { nodemailer = require('nodemailer'); } catch (e) { }
 const MAIL_FILE = path.join(DATA_DIR, 'smtp.json');
+// ⚠️ EXPÉDITEUR IMPOSÉ. Tous les e-mails du site partent de nepasrepondre@ : personne ne lit
+// cette boîte, et chaque message le dit. On authentifie toujours avec le compte SMTP (admin@),
+// mais l'en-tête From est celui-ci, QUELLE QUE SOIT la configuration : un MAIL_FROM oublié
+// dans l'ENV_FILE de production ferait autrement repartir les mails de l'ancienne adresse,
+// sans que personne s'en aperçoive.
+const MAIL_EXPEDITEUR = '"Languages & Success" <nepasrepondre@languagesandsuccess.com>';
+const MAIL_NOREPLY = 'Ce message est automatique. Merci de ne pas y répondre : cette adresse ne reçoit aucun courrier.';
 function mailConfig() {
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    return { host: process.env.SMTP_HOST, port: +(process.env.SMTP_PORT || 465), secure: process.env.SMTP_SECURE !== 'false', user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: process.env.MAIL_FROM || '"Languages & Success" <' + process.env.SMTP_USER + '>', siteUrl: process.env.SITE_URL || 'https://languagesandsuccess.com' };
+    return { host: process.env.SMTP_HOST, port: +(process.env.SMTP_PORT || 465), secure: process.env.SMTP_SECURE !== 'false', user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: MAIL_EXPEDITEUR, siteUrl: process.env.SITE_URL || 'https://languagesandsuccess.com' };
   }
   try {
     const c = JSON.parse(fs.readFileSync(MAIL_FILE, 'utf8').replace(/^﻿/, ''));
-    if (c && c.host && c.user && c.pass) return { host: c.host, port: +(c.port || 465), secure: c.secure !== false, user: c.user, pass: c.pass, from: c.from || '"Languages & Success" <' + c.user + '>', siteUrl: c.siteUrl || 'https://languagesandsuccess.com' };
+    if (c && c.host && c.user && c.pass) return { host: c.host, port: +(c.port || 465), secure: c.secure !== false, user: c.user, pass: c.pass, from: MAIL_EXPEDITEUR, siteUrl: c.siteUrl || 'https://languagesandsuccess.com' };
   } catch (e) { }
   return null;
 }
@@ -228,12 +235,24 @@ console.log(mailer ? '✉ e-mails activés via ' + MAIL.host + ' (expéditeur : 
 const SITE_URL = (MAIL && MAIL.siteUrl) || 'https://languagesandsuccess.com';
 // envoi « fire and forget » : ne bloque jamais la réponse API, ne fait jamais planter le flux
 const MAIL_LOGO = path.join(__dirname, 'assets', 'ls-logo.png');
+// Composition du message, PARTAGÉE par tous les envois — les flux réels comme le test
+// d'envoi. C'est ce qui garantit que le test prouve quelque chose : s'il passait par un
+// chemin à lui, il ne vérifierait que lui-même.
+function composerMail(to, subject, text, html) {
+  const brut = String(text == null ? '' : text);
+  // la mention est ajoutée ICI : aucun appelant ne peut l'oublier
+  const avecMention = brut.indexOf(MAIL_NOREPLY) >= 0 ? brut : (brut + '\n\n---\n' + MAIL_NOREPLY);
+  // Auto-Submitted et X-Auto-Response-Suppress : ils évitent les réponses d'absence et les
+  // accusés de réception automatiques, qui n'iraient de toute façon dans aucune boîte lue.
+  const msg = { from: MAIL.from, to, subject, text: avecMention, html,
+    headers: { 'Auto-Submitted': 'auto-generated', 'X-Auto-Response-Suppress': 'All' } };
+  if (html && html.indexOf('cid:lslogo') !== -1 && fs.existsSync(MAIL_LOGO)) msg.attachments = [{ filename: 'ls-logo.png', path: MAIL_LOGO, cid: 'lslogo' }];
+  return msg;
+}
 function sendMailSafe(to, subject, text, html) {
   if (!mailer || !to || !/@/.test(to)) return;
   if (/@ls\.fr$/i.test(to)) return; // adresses fictives des comptes démo — jamais d'envoi réel
-  const msg = { from: MAIL.from, to, subject, text, html };
-  if (html && html.indexOf('cid:lslogo') !== -1 && fs.existsSync(MAIL_LOGO)) msg.attachments = [{ filename: 'ls-logo.png', path: MAIL_LOGO, cid: 'lslogo' }];
-  mailer.sendMail(msg, (err) => {
+  mailer.sendMail(composerMail(to, subject, text, html), (err) => {
     if (err) console.error('✉ échec envoi à ' + to + ' :', err.message);
     else console.log('✉ mail envoyé à ' + to + ' — ' + subject);
   });
@@ -249,7 +268,10 @@ function mailHtml(title, lines, ctaLabel, ctaUrl) {
     + '<h2 style="font-size:20px;margin:0 0 14px">' + esc(title) + '</h2>'
     + lines.map(l => '<p style="font-size:14px;line-height:1.6;margin:0 0 12px">' + esc(l) + '</p>').join('')
     + (ctaUrl ? '<p style="margin:24px 0 8px"><a href="' + ctaUrl + '" style="background:#be6e54;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:bold;display:inline-block">' + esc(ctaLabel) + '</a></p>' : '')
-    + '<p style="font-size:12px;color:#6b6055;margin-top:24px;margin-bottom:0">Vous recevez cet e-mail car une action vous concerne dans l\'espace documents.</p>'
+    + '<div style="margin-top:26px;padding:12px 14px;background:#f4ece0;border-radius:10px">'
+    + '<p style="font-size:12px;line-height:1.55;color:#6b6055;margin:0"><strong>Message automatique.</strong> Merci de ne pas répondre à cet e-mail : l\'adresse nepasrepondre@languagesandsuccess.com ne reçoit aucun courrier. Pour nous joindre, écrivez à contact@languagesandsuccess.com.</p>'
+    + '</div>'
+    + '<p style="font-size:12px;color:#6b6055;margin-top:14px;margin-bottom:0">Vous recevez cet e-mail car une action vous concerne dans l\'espace documents.</p>'
     + '</div></div>';
 }
 
@@ -2711,6 +2733,34 @@ app.post('/api/presence/:id/cancel', auth, (req, res) => {
 
 // comptes démo (email + mot de passe affichés sur la page de connexion)
 app.get('/api/demo-accounts', (req, res) => res.json({ accounts: DEMO_ACCOUNTS.map(d => ({ email: d.email, password: DEMO_PASSWORD, role: d.role, name: `${d.prenom} ${d.nom}` })) }));
+
+// ---- test d'envoi (admin) --------------------------------------------------
+// Vérifier la configuration SMTP sans attendre qu'un vrai flux se déclenche. Contrairement à
+// sendMailSafe, qui n'échoue jamais bruyamment, cette route ATTEND le résultat et le renvoie :
+// c'est tout l'intérêt d'un test.
+app.post('/api/admin/mail-test', auth, async (req, res) => {
+  if (!adminSeul(req, res)) return;
+  const to = ((req.body || {}).to || '').trim();
+  if (!to || !/@/.test(to)) return res.status(400).json({ error: 'Adresse destinataire manquante.' });
+  if (!mailer) return res.status(400).json({ error: 'E-mails désactivés : aucune configuration SMTP.' });
+  const lignes = [
+    'Ceci est un test d\'envoi déclenché depuis l\'espace documents.',
+    'Il vérifie que les e-mails du site partent bien de nepasrepondre@languagesandsuccess.com, et que le gabarit s\'affiche correctement.',
+    'Aucune action n\'est attendue de votre part.'
+  ];
+  // ⚠️ on passe par composerMail, exactement comme les flux réels : sans cela le test ne
+  // vérifierait que lui-même, et une mention manquante dans les vrais e-mails passerait au travers.
+  const msg = composerMail(to, 'Test d\'envoi automatique — Languages & Success',
+    lignes.join('\n\n'), mailHtml('Test d\'envoi', lignes, null, null));
+  try {
+    const info = await mailer.sendMail(msg);
+    console.log('✉ test envoyé à ' + to + ' (' + (info.messageId || '') + ')');
+    res.json({ ok: true, expediteur: MAIL.from, destinataire: to, accepte: info.accepted, refuse: info.rejected, reponse: info.response });
+  } catch (e) {
+    console.error('✉ ÉCHEC du test vers ' + to + ' :', e.message);
+    res.status(502).json({ error: e.message, expediteur: MAIL.from, code: e.code, commande: e.command });
+  }
+});
 
 // ---- statique (site) -------------------------------------------------------
 
