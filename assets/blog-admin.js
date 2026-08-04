@@ -155,7 +155,8 @@
           zone('e-metadesc', 'Meta description', a.metaDescription, 2, '— entre 150 et 160 caractères') +
           champ('e-image', 'Image de couverture', a.image, '— chemin, ex. /blog/img/mon-article.png') +
           '</div>' +
-          '<h4 class="gen-h">Post LinkedIn</h4>' +
+          // pas de section « Post LinkedIn » ici : les trois versions s'éditent dans la boîte
+          // sous l'article, pas dans cette modale. Le titre était resté seul, sans champ dessous.
           '<h4 class="gen-h">Corps de l’article</h4>' +
           zone('e-corps', 'HTML', a.corps, 16, '— &lt;h2&gt; pour les sections, &lt;h3&gt; pour les sous-parties, &lt;p&gt; et &lt;ul&gt;') +
           '<h4 class="gen-h">FAQ</h4>' +
