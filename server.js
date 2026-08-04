@@ -637,8 +637,16 @@ function notifyChannel(g, ch, sender, text) { channelRecipients(g, ch, sender.id
 // ---- app -------------------------------------------------------------------
 const app = express();
 app.use(express.json({ limit: '2mb' })); // marge pour les signatures (data URL PNG)
+// ⚠️ Le Dockerfile copie le dépôt ENTIER dans l'image, et express.static sert tout ce qui n'est
+// pas filtré ici. Sans la seconde règle, https://…/blog/outils/sync-prod.js répondait 200 avec
+// l'identifiant ET le mot de passe du compte admin de production en clair (vérifié le 05/08/2026),
+// et /blog/posts-linkedin.js livrait à n'importe qui les notes internes que l'API retire
+// soigneusement à tout non-admin. Seul blog/img/ doit rester public : c'est lui qui porte les
+// visuels des articles.
 app.use((req, res, next) => {
   if (/^\/(data|node_modules|server\.js|package(-lock)?\.json)(\/|$)/.test(req.path)) return res.status(404).end();
+  if (/^\/blog\/(outils|articles-sources)(\/|$)/.test(req.path)) return res.status(404).end();
+  if (/^\/blog\/(posts-linkedin\.js|sujets\.md)$/.test(req.path)) return res.status(404).end();
   next();
 });
 
