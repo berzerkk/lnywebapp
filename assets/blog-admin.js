@@ -69,7 +69,8 @@
     w.querySelector('.a-publier') && (w.querySelector('.a-publier').onclick = function () {
       dialogue({
         titre: 'Publier cet article ?', confirmer: 'Publier', annuler: 'Annuler',
-        message: '« ' + art.titre +' » sera visible de tous, immédiatement, et une publication partira sur les réseaux configurés.',
+        // la diffusion sur les réseaux se fait à la main : la modale ne promet plus rien de tel
+        message: '« ' + art.titre + ' » sera visible de tous, immédiatement. Les posts LinkedIn restent à publier vous-même, depuis la boîte sous l’article.',
         onOui: function () { api(API + '/' + art.id + '/publier', 'POST', {}).then(apres); }
       });
     });

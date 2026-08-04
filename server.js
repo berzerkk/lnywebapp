@@ -2632,13 +2632,13 @@ app.post('/api/presence/send', auth, (req, res) => {
   const eleveU = realUser(g.eleve);
   if (eleveU) {
     const url = SITE_URL + '/espace-documents.html';
-    // le MOIS concerné figure dans l'e-mail : l'apprenant sait de quelle période il s'agit
-    const moisTxt = (fields && fields.mois) ? String(fields.mois).trim() : '';
-    const objet = 'Feuille de présence à signer' + (moisTxt ? ' — ' + moisTxt : '') + ' — Languages & Success';
-    const ligne = senderDisplay(req.user) + ' vous a envoyé une feuille de présence à signer (' + tpl.title + (moisTxt ? ', ' + moisTxt : '') + ').';
+    // ⚠️ le mois ne figure NI dans l'objet NI dans le corps (demande de l'utilisateur, 04/08/2026) :
+    // le document lui-même le porte, le répéter dans l'e-mail alourdissait l'objet pour rien.
+    const objet = 'Feuille de présence à signer — Languages & Success';
+    const ligne = senderDisplay(req.user) + ' vous a envoyé une feuille de présence à signer (' + tpl.title + ').';
     sendMailSafe(eleveU.email, objet,
       'Bonjour ' + eleveU.prenom + ',\n\n' + ligne + '\n\nConnectez-vous à votre espace documents pour la signer :\n' + url + '\n\nLanguages & Success',
-      mailHtml('Un document à signer vous attend' + (moisTxt ? ' — ' + moisTxt : ''),
+      mailHtml('Un document à signer vous attend',
         ['Bonjour ' + eleveU.prenom + ',', ligne, 'Connectez-vous à votre espace documents pour la signer.'],
         'Signer le document', url));
   }
@@ -2964,18 +2964,10 @@ async function diffusionSociale(a) {
     if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
     console.log('↗ publié sur la page Facebook : ' + (j.id || '(sans id)'));
   } catch (e) {
+    // ⚠️ PAS d'e-mail d'alerte (demande de l'utilisateur, 04/08/2026) : il publie lui-même sur
+    // les réseaux, une panne de jeton ne lui coûte donc rien. L'échec reste tracé dans le journal
+    // du serveur pour qui va l'y chercher.
     console.error('↗ ÉCHEC de la publication Facebook : ' + e.message);
-    // ⚠️ La panne de jeton est SILENCIEUSE par nature : sans cette alerte, on s'aperçoit deux
-    // mois plus tard que plus rien n'est parti. Alerter sur l'échec, pas au moment de l'expiration.
-    try {
-      sendMailSafe(cfg.alerte || MAIL.user, 'Blog L&S — la publication Facebook a échoué',
-        'L\'article « ' + a.titre + ' » est bien en ligne sur le site, mais sa publication sur la page Facebook a échoué.\n\nErreur : ' + e.message + '\n\nLe jeton d\'accès est peut-être expiré.',
-        mailHtml('La publication Facebook a échoué',
-          ['L\'article « ' + a.titre + ' » est bien en ligne sur le site.',
-           'En revanche, sa publication sur la page Facebook a échoué.',
-           'Erreur : ' + e.message,
-           'Le jeton d\'accès est peut-être expiré.'], 'Voir l\'article', lien));
-    } catch (e2) {}
   }
 }
 
