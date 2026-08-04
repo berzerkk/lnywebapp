@@ -271,7 +271,6 @@ function mailHtml(title, lines, ctaLabel, ctaUrl) {
     + '<div style="margin-top:26px;padding:12px 14px;background:#f4ece0;border-radius:10px">'
     + '<p style="font-size:12px;line-height:1.55;color:#6b6055;margin:0"><strong>Message automatique.</strong> Merci de ne pas répondre à cet e-mail : l\'adresse nepasrepondre@languagesandsuccess.com ne reçoit aucun courrier. Pour nous joindre, écrivez à contact@languagesandsuccess.com.</p>'
     + '</div>'
-    + '<p style="font-size:12px;color:#6b6055;margin-top:14px;margin-bottom:0">Vous recevez cet e-mail car une action vous concerne dans l\'espace documents.</p>'
     + '</div></div>';
 }
 
