@@ -638,15 +638,27 @@ function notifyChannel(g, ch, sender, text) { channelRecipients(g, ch, sender.id
 const app = express();
 app.use(express.json({ limit: '2mb' })); // marge pour les signatures (data URL PNG)
 // ⚠️ Le Dockerfile copie le dépôt ENTIER dans l'image, et express.static sert tout ce qui n'est
-// pas filtré ici. Sans la seconde règle, https://…/blog/outils/sync-prod.js répondait 200 avec
-// l'identifiant ET le mot de passe du compte admin de production en clair (vérifié le 05/08/2026),
-// et /blog/posts-linkedin.js livrait à n'importe qui les notes internes que l'API retire
-// soigneusement à tout non-admin. Seul blog/img/ doit rester public : c'est lui qui porte les
-// visuels des articles.
+// pas filtré ici. Le filtre d'origine ne couvrait que data/, node_modules, server.js et
+// package.json : le 05/08/2026, https://…/blog/outils/sync-prod.js répondait 200 avec
+// l'identifiant ET le mot de passe du compte admin de production en clair, /CLAUDE.md livrait
+// les mêmes mots de passe, et /blog/posts-linkedin.js les notes internes que l'API retire
+// pourtant à tout non-admin. On bloque donc TOUT ce qui n'est pas le site lui-même.
+// ⚠️ Ce qui doit rester public : les pages .html, assets/, blog/img/ (visuels des articles),
+// robots.txt, et les scripts de la racine que les pages chargent (ls-engine.js, test-data.js,
+// morph.js et les animations en réserve). Toute nouvelle ressource servie doit être vérifiée ici.
+const PRIVE = [
+  /^\/(data|node_modules)(\/|$)/,                                  // base, fichiers déposés, dépendances
+  /^\/(server|process-logos)\.js$/,                                // code serveur et outils de build
+  /^\/package(-lock)?\.json$/,
+  /^\/blog\/(outils|articles-sources)(\/|$)/,                      // outillage : identifiants en clair
+  /^\/blog\/(posts-linkedin\.js|sujets\.md)$/,                     // notes internes
+  /^\/versions(\/|$)/,                                             // animations archivées
+  /^\/\./,                                                         // .github, .gitignore, .dockerignore, .env…
+  /^\/(Dockerfile|docker-compose\.ya?ml)$/i,
+  /\.md$/i,                                                        // CLAUDE.md, RESTORE.md : mots de passe et procédures
+];
 app.use((req, res, next) => {
-  if (/^\/(data|node_modules|server\.js|package(-lock)?\.json)(\/|$)/.test(req.path)) return res.status(404).end();
-  if (/^\/blog\/(outils|articles-sources)(\/|$)/.test(req.path)) return res.status(404).end();
-  if (/^\/blog\/(posts-linkedin\.js|sujets\.md)$/.test(req.path)) return res.status(404).end();
+  if (PRIVE.some(r => r.test(req.path))) return res.status(404).end();
   next();
 });
 
