@@ -32,9 +32,11 @@
 
   var ME = null, NOTIFS = [], selected = null, channel = 'commun', authTab = 'login', genState = null;
   var adminShow = { dossiers: true, comptes: true, fichiers: true }, adminQuery = '', ADMIN_OVERVIEW = null;
-  // dossiers dont la liste de fichiers est repliée (en mémoire : l'état survit aux re-rendus
-  // du panneau admin — filtrage, suppression — mais pas au rechargement de la page)
-  var admFilesHidden = {};
+  // ⚠️ dossiers dont la liste de fichiers est DÉPLIÉE, et non l'inverse : les fichiers sont
+  // repliés par DÉFAUT (demande de l'utilisateur), donc l'état à mémoriser est l'exception.
+  // En mémoire : il survit aux re-rendus du panneau admin (filtrage, suppression) mais pas au
+  // rechargement de la page, qui repart de tout replié.
+  var admFilesOuverts = {};
   var CUR_GROUP = null, qsFillState = null, notifTimer = null, DEMO = null;
   // visite guidée à jouer dès que le tableau de bord sera peint (première connexion)
   var TUTO_PENDING = false;
@@ -276,6 +278,7 @@
     return '<div class="ds-top"><div class="ds-id"><span class="ds-hi">Bonjour ' + esc(ME.prenom) + ' ' + esc(ME.nom) + '</span>' +
       '<span class="role-chip role-' + ME.role + '">' + ROLES[ME.role] + '</span></div><div class="ds-top-acts">' +
       (ME.role === 'admin' ? '' : '<button type="button" class="btn btn-ghost tuto-replay">Revoir la visite guidée</button>') +
+      '<button type="button" class="btn btn-ghost ds-pwd">Changer mon mot de passe</button>' +
       '<button class="btn btn-ghost ds-logout">Se déconnecter</button></div></div>';
   }
   function notifCardHTML(unread) {
@@ -461,6 +464,7 @@
     el.innerHTML = topHTML() + '<div class="ds-grid"><aside class="ds-side">' + notifCardHTML(unread) + dossiersCardHTML(groups) +
       '</aside><main class="ds-main">' + groupView(selG, messages, docs) + '</main></div>' + (overview ? adminPanel(overview) : '');
     el.querySelector('.ds-logout').onclick = function () { logout(); };
+    var pb = el.querySelector('.ds-pwd'); if (pb) pb.onclick = function () { openPasswordModal(); };
     // le bouton est détruit et recréé à chaque rendu, et n'existe pas pour un admin
     var tb = el.querySelector('.tuto-replay'); if (tb) tb.onclick = function () { ouvrirTuto(); };
     var sa = el.querySelector('.ds-seeall'); if (sa) sa.onclick = openNotifModal;
@@ -765,7 +769,7 @@
         // les fichiers d'un dossier se replient : avec beaucoup de dossiers bien remplis, la
         // liste complète est illisible. Le pli est enveloppé dans une grille dont la rangée
         // passe de 1fr à 0fr — c'est ce qui rend la fermeture animée sans hauteur à calculer.
-        var replie = admFilesHidden[g.id];
+        var replie = !admFilesOuverts[g.id];
         return '<div class="adm-grp' + (replie ? ' files-off' : '') + '" data-grp="' + g.id + '"><div class="adm-grp-h"><span class="avatar">📁</span><span class="c-name">' + esc(g.label || '') + '<small>' + np + ' <span>' + (np > 1 ? 'formateurs' : 'formateur') + '</span> · ' + gd.length + ' <span>document(s)</span></small></span>' +
           // les boutons sont groupés : à 375 px le groupe passe à la ligne d'un bloc au lieu de
           // déborder de la boîte du dossier
@@ -816,7 +820,7 @@
     function plier(box, replie) {
       var id = box.getAttribute('data-grp'), btn = box.querySelector('.adm-fold');
       box.classList.toggle('files-off', replie);
-      if (replie) admFilesHidden[id] = 1; else delete admFilesHidden[id];
+      if (replie) delete admFilesOuverts[id]; else admFilesOuverts[id] = 1;
       if (btn) {
         btn.setAttribute('aria-expanded', replie ? 'false' : 'true');
         btn.title = replie ? 'Afficher les fichiers de ce dossier' : 'Masquer les fichiers de ce dossier';
@@ -1046,6 +1050,40 @@
       }).join('') + '</ul>' : '<p class="ds-empty">Aucune connexion enregistrée.</p>';
     });
   }
+  // ---- changer son propre mot de passe -------------------------------------
+  // Ouvert à TOUS les rôles, administration comprise : c'est le seul moyen de changer un mot de
+  // passe une fois le compte activé (le lien d'activation est à usage unique).
+  function openPasswordModal() {
+    var m = buildFsModal('pwd-modal', 'Changer mon mot de passe',
+      '<div class="gf-grid">' +
+        pwdField('pw-actuel', 'Mot de passe actuel') +
+        '<span></span>' +
+        pwdField('pw-nouveau', 'Nouveau mot de passe') +
+        pwdField('pw-confirm', 'Confirmer le nouveau mot de passe') +
+      '</div><p class="form-note" style="margin:10px 0 0">6 caractères au minimum. Vous restez connecté ; c\'est à la prochaine connexion que le nouveau mot de passe sera demandé.</p>',
+      '<p class="fe-err auth-err" id="pw-err" style="margin:0 12px 0 0"></p>' +
+      '<button class="btn btn-primary pw-save" type="button">Enregistrer</button>');
+    wireEyes(m);                                  // sinon les trois yeux afficher/masquer sont morts
+    var err = m.querySelector('#pw-err'), bt = m.querySelector('.pw-save');
+    var dire = function (t) { err.textContent = t; };
+    bt.onclick = function () {
+      var actuel = m.querySelector('#pw-actuel').value;
+      var nouveau = m.querySelector('#pw-nouveau').value;
+      var confirm = m.querySelector('#pw-confirm').value;
+      dire('');
+      if (!actuel) return dire('Saisissez votre mot de passe actuel.');
+      if (nouveau.length < 6) return dire('Le nouveau mot de passe doit faire au moins 6 caractères.');
+      if (nouveau !== confirm) return dire('Les deux nouveaux mots de passe ne sont pas identiques.');
+      bt.disabled = true; bt.textContent = 'Enregistrement…';
+      api('/api/me/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actuel: actuel, nouveau: nouveau }) }).then(function (r) {
+        bt.disabled = false; bt.textContent = 'Enregistrer';
+        if (!r.ok) return dire((r.data && r.data.error) || 'Changement impossible.');
+        closeFsModal('pwd-modal');
+        alertDialog('Votre nouveau mot de passe est actif. Notez-le : il n\'y a aucun moyen de le retrouver, seule l\'administration peut vous renvoyer un lien.', 'Mot de passe modifié');
+      });
+    };
+  }
+
   // ---- admin : modifier la fiche d'un apprenant / formateur ----------------
   function openFicheEdit(u) {
     var p = u.profile || {};

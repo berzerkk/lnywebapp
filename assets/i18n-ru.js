@@ -476,5 +476,20 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Vos documents s'affichent sous la zone de dépôt, avec un bouton pour les télécharger.": "Ваши документы отображаются под областью загрузки, рядом с кнопкой скачивания.",
   "Pour envoyer un fichier, cliquez sur la zone de dépôt et choisissez-le. Vérifiez-le avant : ensuite, seule l'administration peut le retirer.": "Чтобы отправить файл, нажмите на область загрузки и выберите его. Проверьте его заранее: потом удалить его сможет только администрация.",
   "Quand un formateur vous envoie un questionnaire ou une feuille de présence, une carte apparaît dans la discussion, avec un bouton pour répondre.": "Когда преподаватель отправляет вам анкету или лист посещаемости, в чате появляется карточка с кнопкой для ответа.",
-  "Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.": "Вы расписываетесь мышью или пальцем. После отправки изменить уже ничего нельзя."
+  "Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.": "Вы расписываетесь мышью или пальцем. После отправки изменить уже ничего нельзя.",
+  /* ---- changer son mot de passe ---- */
+  "Changer mon mot de passe": "Изменить пароль",
+  "Mot de passe actuel": "Текущий пароль",
+  "Nouveau mot de passe": "Новый пароль",
+  "Confirmer le nouveau mot de passe": "Подтвердите новый пароль",
+  "6 caractères au minimum. Vous restez connecté ; c'est à la prochaine connexion que le nouveau mot de passe sera demandé.": "Не менее 6 символов. Вы останетесь в системе: новый пароль понадобится только при следующем входе.",
+  "Saisissez votre mot de passe actuel.": "Введите текущий пароль.",
+  "Le nouveau mot de passe doit faire au moins 6 caractères.": "Новый пароль должен содержать не менее 6 символов.",
+  "Les deux nouveaux mots de passe ne sont pas identiques.": "Новые пароли не совпадают.",
+  "Changement impossible.": "Не удалось изменить пароль.",
+  "Mot de passe actuel incorrect.": "Текущий пароль указан неверно.",
+  "Le nouveau mot de passe est identique à l'ancien.": "Новый пароль совпадает со старым.",
+  "Mot de passe modifié": "Пароль изменён",
+  "Votre nouveau mot de passe est actif. Notez-le : il n'y a aucun moyen de le retrouver, seule l'administration peut vous renvoyer un lien.": "Ваш новый пароль уже действует. Запишите его: восстановить пароль невозможно, повторно отправить ссылку может только администрация.",
+  "Compte introuvable.": "Аккаунт не найден."
 });

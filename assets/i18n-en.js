@@ -498,5 +498,20 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Vos documents s'affichent sous la zone de dépôt, avec un bouton pour les télécharger.": "Your documents appear below the upload area, each with a download button.",
   "Pour envoyer un fichier, cliquez sur la zone de dépôt et choisissez-le. Vérifiez-le avant : ensuite, seule l'administration peut le retirer.": "To send a file, click the upload area and choose it. Check it first: afterwards, only the administration can remove it.",
   "Quand un formateur vous envoie un questionnaire ou une feuille de présence, une carte apparaît dans la discussion, avec un bouton pour répondre.": "When a trainer sends you a questionnaire or an attendance sheet, a card appears in the discussion, with a button to answer.",
-  "Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.": "You sign with the mouse or your finger. Once sent, nothing can be changed."
+  "Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.": "You sign with the mouse or your finger. Once sent, nothing can be changed.",
+  /* ---- changer son mot de passe ---- */
+  "Changer mon mot de passe": "Change my password",
+  "Mot de passe actuel": "Current password",
+  "Nouveau mot de passe": "New password",
+  "Confirmer le nouveau mot de passe": "Confirm new password",
+  "6 caractères au minimum. Vous restez connecté ; c'est à la prochaine connexion que le nouveau mot de passe sera demandé.": "At least 6 characters. You stay signed in; the new password will only be needed the next time you sign in.",
+  "Saisissez votre mot de passe actuel.": "Enter your current password.",
+  "Le nouveau mot de passe doit faire au moins 6 caractères.": "The new password must be at least 6 characters long.",
+  "Les deux nouveaux mots de passe ne sont pas identiques.": "The two new passwords do not match.",
+  "Changement impossible.": "Unable to change the password.",
+  "Mot de passe actuel incorrect.": "Your current password is incorrect.",
+  "Le nouveau mot de passe est identique à l'ancien.": "The new password is the same as the old one.",
+  "Mot de passe modifié": "Password changed",
+  "Votre nouveau mot de passe est actif. Notez-le : il n'y a aucun moyen de le retrouver, seule l'administration peut vous renvoyer un lien.": "Your new password is now active. Write it down: there is no way to recover it, and only the administration can send you a new link.",
+  "Compte introuvable.": "Account not found."
 });

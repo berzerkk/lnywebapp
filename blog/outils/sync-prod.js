@@ -18,8 +18,14 @@ const appel = async (base, url, opt) => {
     body: JSON.stringify({ email, password: mdp })
   })).d;
 
-  const L = await co(LOCAL, 'admin@ls.fr', 'demo1234');
-  const P = await co(PROD, 'admin@languagesandsuccess.com', 'changez-ce-mot-de-passe');
+  // ⚠️ admin@ls.fr n'existe plus (compte admin de démo retiré le 05/08/2026) : les deux bases
+  // utilisent le compte administrateur permanent.
+  // ⚠️ AUCUN MOT DE PASSE EN CLAIR ICI : le dépôt GitHub est PUBLIC.  PowerShell :
+  //     $env:LS_MDP_PROD = '…'
+  const MDP = process.env.LS_MDP_PROD || '';
+  if (!MDP) { console.error("Mot de passe administrateur absent : posez $env:LS_MDP_PROD avant de relancer."); return; }
+  const L = await co(LOCAL, 'admin@languagesandsuccess.com', MDP);
+  const P = await co(PROD, 'admin@languagesandsuccess.com', MDP);
   if (!L || !L.token) { console.error('connexion locale impossible'); return; }
   if (!P || !P.token) { console.error('connexion prod impossible'); return; }
   const HL = { Authorization: 'Bearer ' + L.token }, HP = { Authorization: 'Bearer ' + P.token, 'Content-Type': 'application/json' };

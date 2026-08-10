@@ -738,6 +738,34 @@ app.post('/api/activate', async (req, res) => {
   // connexion » visée par la visite guidée : l'oublier ici la ferait rater dans le seul cas qui compte.
   res.json({ token: sign(u), user: meFull(u) });
 });
+// Changer SON PROPRE mot de passe. La seule route qui le permettait était l'activation par lien
+// e-mail, à usage unique : une fois le compte activé, plus personne ne pouvait changer son mot de
+// passe, pas même l'administration sur son propre compte.
+// ⚠️ On exige le mot de passe ACTUEL même si la personne est déjà authentifiée : le jeton vit
+// 30 jours dans un localStorage partagé entre onglets, et un poste laissé ouvert suffirait sinon
+// à verrouiller quelqu'un hors de son compte.
+// ⚠️ On ne fait PAS de différence de message entre « mot de passe actuel faux » et le reste : la
+// personne est déjà identifiée, il n'y a rien à deviner, mais autant garder l'habitude.
+app.post('/api/me/password', auth, async (req, res) => {
+  const { actuel, nouveau } = req.body || {};
+  const u = realUser(req.user.id);
+  if (!u) return res.status(404).json({ error: 'Compte introuvable.' });
+  if (!(await bcrypt.compare(String(actuel || ''), u.passwordHash))) {
+    return res.status(403).json({ error: 'Mot de passe actuel incorrect.' });
+  }
+  const n = String(nouveau || '');
+  if (n.length < 6) return res.status(400).json({ error: 'Le nouveau mot de passe doit faire au moins 6 caractères.' });
+  if (n === String(actuel || '')) return res.status(400).json({ error: 'Le nouveau mot de passe est identique à l\'ancien.' });
+  u.passwordHash = await bcrypt.hash(n, 10);
+  // ⚠️ un compte en attente d'activation qui change son mot de passe ici est activé de fait :
+  // sans ça il resterait bloqué au 403 « compte non activé » de /api/login avec un mot de passe
+  // pourtant valide. Le jeton d'activation est consommé au passage.
+  delete u.activation;
+  delete u.mustActivate;
+  save();
+  // le jeton reste valable : la personne n'est pas déconnectée de l'onglet où elle travaille
+  res.json({ ok: true });
+});
 // l'administration renvoie le lien (perdu, expiré, adresse corrigée)
 app.post('/api/admin/users/:id/reinvite', auth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
@@ -3182,19 +3210,28 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 // ---- comptes démo (affichés sur la page de connexion) ----------------------
+// ⚠️ AUCUN compte ADMIN en démo (retiré le 05/08/2026, demande de l'utilisateur). Le mot de
+// passe des comptes démo est affiché en clair sur la page de connexion : un admin dans cette
+// liste, c'est la totalité de l'espace documents ouverte à qui passe. L'administration se
+// connecte avec le compte permanent ci-dessous.
 const DEMO_PASSWORD = 'demo1234';
 const DEMO_ACCOUNTS = [
-  { email: 'admin@ls.fr', prenom: 'Alice', nom: 'Admin', role: 'admin', profile: {} },
   { email: 'prof@ls.fr', prenom: 'Paul', nom: 'Formateur', role: 'prof', profile: { langue: 'Anglais', siret: '881 226 641 00028', nda: '93 060 886 106', adresse: '57 avenue Valéry Giscard d\'Estaing, 06200 Nice', tel: '06 12 34 56 78', dateNaissance: '12/04/1985', nationalite: 'Française' } },
   { email: 'eleve@ls.fr', prenom: 'Léa', nom: 'Apprenante', role: 'eleve', profile: { tel: '06 98 76 54 32', societe: 'ACME SAS', heuresTotal: '40 h', heuresDetail: '20 h en visioconférence + 20 h en présentiel', intitule: 'Anglais professionnel', langue: 'Anglais', dateDebut: '15/09/2026', dateFin: '20/12/2026', lieu: 'distanciel', lieuAdresse: '', certification: 'oui', certificationText: 'Certification LINGUASKILL (Cambridge)' } }
 ];
-// compte administrateur permanent (mot de passe surchargeable via ADMIN_PASSWORD ;
-// jamais réécrasé s'il existe déjà — un changement de mot de passe ultérieur est conservé)
+// Compte administrateur permanent. Le mot de passe ci-dessous ne sert QU'À LA CRÉATION : le
+// compte n'est jamais réécrasé s'il existe déjà, donc un changement fait depuis « Mot de passe »
+// dans l'espace documents (POST /api/me/password) est définitivement conservé. Pour repartir
+// d'un autre mot de passe sur une base neuve : variable d'environnement ADMIN_PASSWORD.
 const ADMIN_EMAIL = 'admin@languagesandsuccess.com';
+// ⚠️ AUCUN VRAI MOT DE PASSE ICI : le dépôt GitHub est PUBLIC. Cette valeur n'est qu'un
+// bouchon, pour qu'une base neuve soit utilisable ; le mot de passe réel se pose ensuite avec
+// « Changer mon mot de passe » dans l'espace documents, ou d'emblée via ADMIN_PASSWORD.
+const ADMIN_MDP_INITIAL = process.env.ADMIN_PASSWORD || 'changez-ce-mot-de-passe';
 async function ensureDemo() {
   let changed = false;
   if (!db.users.some(u => u.email === ADMIN_EMAIL)) {
-    db.users.push({ id: crypto.randomUUID(), prenom: 'Administration', nom: 'L&S', email: ADMIN_EMAIL, passwordHash: await bcrypt.hash(process.env.ADMIN_PASSWORD || 'changez-ce-mot-de-passe', 10), role: 'admin', profile: {} });
+    db.users.push({ id: crypto.randomUUID(), prenom: 'Administration', nom: 'L&S', email: ADMIN_EMAIL, passwordHash: await bcrypt.hash(ADMIN_MDP_INITIAL, 10), role: 'admin', profile: {} });
     changed = true;
   }
   for (const d of DEMO_ACCOUNTS) {

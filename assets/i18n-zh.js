@@ -477,5 +477,20 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Vos documents s'affichent sous la zone de dépôt, avec un bouton pour les télécharger.": "您的文档显示在上传区下方，并配有下载按钮。",
   "Pour envoyer un fichier, cliquez sur la zone de dépôt et choisissez-le. Vérifiez-le avant : ensuite, seule l'administration peut le retirer.": "要发送文件，请点击上传区并选择文件。请事先核对：发送后只有管理方能撤回。",
   "Quand un formateur vous envoie un questionnaire ou une feuille de présence, une carte apparaît dans la discussion, avec un bouton pour répondre.": "当培训师向您发送问卷或出勤表时，讨论中会出现一张卡片，并附有回复按钮。",
-  "Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.": "您可以用鼠标或手指签名。发送后将无法再更改。"
+  "Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.": "您可以用鼠标或手指签名。发送后将无法再更改。",
+  /* ---- changer son mot de passe ---- */
+  "Changer mon mot de passe": "修改我的密码",
+  "Mot de passe actuel": "当前密码",
+  "Nouveau mot de passe": "新密码",
+  "Confirmer le nouveau mot de passe": "确认新密码",
+  "6 caractères au minimum. Vous restez connecté ; c'est à la prochaine connexion que le nouveau mot de passe sera demandé.": "至少 6 个字符。您仍保持登录状态，下次登录时才需要输入新密码。",
+  "Saisissez votre mot de passe actuel.": "请输入您的当前密码。",
+  "Le nouveau mot de passe doit faire au moins 6 caractères.": "新密码至少需要 6 个字符。",
+  "Les deux nouveaux mots de passe ne sont pas identiques.": "两次输入的新密码不一致。",
+  "Changement impossible.": "无法修改密码。",
+  "Mot de passe actuel incorrect.": "当前密码不正确。",
+  "Le nouveau mot de passe est identique à l'ancien.": "新密码与旧密码相同。",
+  "Mot de passe modifié": "密码已修改",
+  "Votre nouveau mot de passe est actif. Notez-le : il n'y a aucun moyen de le retrouver, seule l'administration peut vous renvoyer un lien.": "您的新密码已生效。请妥善记下：密码无法找回，只有管理方可以为您重新发送链接。",
+  "Compte introuvable.": "未找到该账户。"
 });

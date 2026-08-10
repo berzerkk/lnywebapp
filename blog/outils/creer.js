@@ -23,8 +23,15 @@ const { verifierPosts } = require('./posts-li');
 // rien. Erreur commise deux fois ; le défaut a été inversé pour qu'elle ne se reproduise pas.
 // Pour travailler en local : node blog/outils/creer.js <def.js> http://localhost:8000
 const CIBLE_DEFAUT = process.env.LS_BASE || 'https://languagesandsuccess.com';
-const IDENT_PROD = { email: 'admin@languagesandsuccess.com', motDePasse: process.env.LS_MDP_PROD || 'changez-ce-mot-de-passe' };
-const IDENT_LOCAL = { email: process.env.LS_ADMIN || 'admin@ls.fr', motDePasse: process.env.LS_MDP || 'demo1234' };
+// ⚠️ Le compte de démo admin@ls.fr N'EXISTE PLUS (retiré le 05/08/2026) : un compte admin dont le
+// mot de passe s'affiche sur la page de connexion, c'est tout l'espace documents ouvert. En local
+// comme en production, on passe donc par le compte administrateur permanent.
+// ⚠️ AUCUN MOT DE PASSE EN CLAIR ICI : le dépôt GitHub est PUBLIC. Il se lit dans la variable
+// d'environnement LS_MDP_PROD ; sans elle, l'outil s'arrête avec un message plutôt que d'essayer
+// un mot de passe deviné.  PowerShell :  $env:LS_MDP_PROD = '…'
+const MDP_ADMIN = process.env.LS_MDP_PROD || '';
+const IDENT_PROD = { email: 'admin@languagesandsuccess.com', motDePasse: MDP_ADMIN };
+const IDENT_LOCAL = { email: process.env.LS_ADMIN || 'admin@languagesandsuccess.com', motDePasse: process.env.LS_MDP || MDP_ADMIN };
 
 async function creer(def, base) {
   // ⚠️ On vérifie AVANT de créer quoi que ce soit : un article créé sans ses posts serait à
@@ -45,6 +52,11 @@ async function creer(def, base) {
   }
   const B = (base || CIBLE_DEFAUT).replace(/\/$/, '');
   const IDENT = /localhost|127\.0\.0\.1/.test(B) ? IDENT_LOCAL : IDENT_PROD;
+  if (!IDENT.motDePasse) {
+    throw new Error("Mot de passe administrateur absent. Posez-le dans l'environnement avant de relancer :\n"
+      + "  PowerShell : $env:LS_MDP_PROD = 'votre-mot-de-passe'\n"
+      + "  (il n'est volontairement écrit nulle part dans le dépôt, qui est public)");
+  }
   const j = async (url, opt) => {
     const r = await fetch(B + url, opt);
     let d = null; try { d = await r.json(); } catch (e) {}

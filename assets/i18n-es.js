@@ -476,5 +476,20 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Vos documents s'affichent sous la zone de dépôt, avec un bouton pour les télécharger.": "Sus documentos aparecen debajo de la zona de carga, con un botón para descargarlos.",
   "Pour envoyer un fichier, cliquez sur la zone de dépôt et choisissez-le. Vérifiez-le avant : ensuite, seule l'administration peut le retirer.": "Para enviar un archivo, haga clic en la zona de carga y elíjalo. Compruébelo antes: después, solo la administración puede retirarlo.",
   "Quand un formateur vous envoie un questionnaire ou une feuille de présence, une carte apparaît dans la discussion, avec un bouton pour répondre.": "Cuando un formador le envía un cuestionario o una hoja de asistencia, aparece una tarjeta en la conversación, con un botón para responder.",
-  "Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.": "Puede firmar con el ratón o con el dedo. Una vez enviado, ya no puede cambiar nada."
+  "Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.": "Puede firmar con el ratón o con el dedo. Una vez enviado, ya no puede cambiar nada.",
+  /* ---- changer son mot de passe ---- */
+  "Changer mon mot de passe": "Cambiar mi contraseña",
+  "Mot de passe actuel": "Contraseña actual",
+  "Nouveau mot de passe": "Nueva contraseña",
+  "Confirmer le nouveau mot de passe": "Confirmar la nueva contraseña",
+  "6 caractères au minimum. Vous restez connecté ; c'est à la prochaine connexion que le nouveau mot de passe sera demandé.": "6 caracteres como mínimo. Su sesión permanece abierta: la nueva contraseña se le pedirá la próxima vez que inicie sesión.",
+  "Saisissez votre mot de passe actuel.": "Introduzca su contraseña actual.",
+  "Le nouveau mot de passe doit faire au moins 6 caractères.": "La nueva contraseña debe tener al menos 6 caracteres.",
+  "Les deux nouveaux mots de passe ne sont pas identiques.": "Las dos nuevas contraseñas no coinciden.",
+  "Changement impossible.": "No se pudo cambiar la contraseña.",
+  "Mot de passe actuel incorrect.": "La contraseña actual es incorrecta.",
+  "Le nouveau mot de passe est identique à l'ancien.": "La nueva contraseña es la misma que la anterior.",
+  "Mot de passe modifié": "Contraseña modificada",
+  "Votre nouveau mot de passe est actif. Notez-le : il n'y a aucun moyen de le retrouver, seule l'administration peut vous renvoyer un lien.": "Su nueva contraseña ya está activa. Anótela: no hay forma de recuperarla; solo la administración puede reenviarle un enlace.",
+  "Compte introuvable.": "Cuenta no encontrada."
 });

@@ -476,5 +476,20 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Vos documents s'affichent sous la zone de dépôt, avec un bouton pour les télécharger.": "I suoi documenti compaiono sotto l'area di caricamento, con un pulsante per scaricarli.",
   "Pour envoyer un fichier, cliquez sur la zone de dépôt et choisissez-le. Vérifiez-le avant : ensuite, seule l'administration peut le retirer.": "Per inviare un file, clicchi sull'area di caricamento e lo scelga. Lo verifichi prima: dopo, solo l'amministrazione può rimuoverlo.",
   "Quand un formateur vous envoie un questionnaire ou une feuille de présence, une carte apparaît dans la discussion, avec un bouton pour répondre.": "Quando un formatore le invia un questionario o un foglio di presenza, nella discussione compare una scheda, con un pulsante per rispondere.",
-  "Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.": "Firma con il mouse o con il dito. Una volta inviato, non può più cambiare nulla."
+  "Vous signez à la souris ou au doigt. Une fois envoyé, vous ne pouvez plus rien changer.": "Firma con il mouse o con il dito. Una volta inviato, non può più cambiare nulla.",
+  /* ---- changer son mot de passe ---- */
+  "Changer mon mot de passe": "Cambia la mia password",
+  "Mot de passe actuel": "Password attuale",
+  "Nouveau mot de passe": "Nuova password",
+  "Confirmer le nouveau mot de passe": "Conferma la nuova password",
+  "6 caractères au minimum. Vous restez connecté ; c'est à la prochaine connexion que le nouveau mot de passe sera demandé.": "Almeno 6 caratteri. La sessione resta aperta: la nuova password vi sarà richiesta al prossimo accesso.",
+  "Saisissez votre mot de passe actuel.": "Inserite la vostra password attuale.",
+  "Le nouveau mot de passe doit faire au moins 6 caractères.": "La nuova password deve contenere almeno 6 caratteri.",
+  "Les deux nouveaux mots de passe ne sont pas identiques.": "Le due nuove password non coincidono.",
+  "Changement impossible.": "Modifica non riuscita.",
+  "Mot de passe actuel incorrect.": "Password attuale errata.",
+  "Le nouveau mot de passe est identique à l'ancien.": "La nuova password è identica a quella precedente.",
+  "Mot de passe modifié": "Password modificata",
+  "Votre nouveau mot de passe est actif. Notez-le : il n'y a aucun moyen de le retrouver, seule l'administration peut vous renvoyer un lien.": "La vostra nuova password è attiva. Annotatela: non esiste alcun modo per recuperarla, solo l'amministrazione può reinviarvi un link.",
+  "Compte introuvable.": "Account non trovato."
 });
