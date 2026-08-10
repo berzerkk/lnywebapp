@@ -475,6 +475,9 @@
       // ⚠️ La liste est BORNÉE et défile (demande de l'utilisateur : elle mangeait toute la page
       // dès qu'un dossier était bien rempli). Le serveur renvoie les documents du plus récent au
       // plus ancien, donc les 3 derniers sont ceux qu'on voit sans rien faire.
+      // un filet sépare la zone d'envoi de la liste, et un autre la liste de la messagerie :
+      // les trois blocs se suivaient sans rupture visible
+      '<hr class="ds-sep" />' +
       ((docs && docs.length) ? '<div class="docs-h"><span>' + docs.length + (docs.length > 1 ? ' documents' : ' document') + '</span>' +
         (docs.length > 3 ? '<small>les plus récents en premier — faites défiler pour voir les autres</small>' : '') + '</div>' +
         '<div class="docs-scroll"><ul class="docs">' + docs.map(function (d) {
@@ -485,7 +488,8 @@
           ((mine && ME.role !== 'eleve') || ME.role === 'admin'
             ? '<button class="adm-del doc-del" type="button" data-id="' + d.id + '" data-name="' + esc(d.name) + '" title="Supprimer ce document">🗑</button>' : '') +
           '</li>';
-      }).join('') + '</ul></div>' : '<p class="ds-empty" style="margin:14px 0">Aucun document dans ce canal.</p>');
+      }).join('') + '</ul></div>' : '<p class="ds-empty" style="margin:14px 0">Aucun document dans ce canal.</p>') +
+      '<hr class="ds-sep" />';
   }
   function groupView(g, messages, docs) {
     if (!g) return '<div class="ds-card space-empty"><div class="se-ic">📁</div><h3>Vos dossiers</h3><p class="ds-empty">Sélectionnez un dossier à gauche pour voir les documents et discuter.</p></div>';

@@ -725,6 +725,11 @@ footer a:hover{color:#fff8ef}
 .docs li .btn-mini{margin-left:auto}
 /* Liste de documents bornée : on voit les 3 derniers, le reste défile. Sans ça, un dossier bien
    rempli poussait la messagerie hors de l'écran. Même procédé que .chat-msgs. */
+/* Filets du dossier : l'un sous la zone d'envoi, l'autre sous la liste de documents.
+   ⚠️ `border:0` d'abord : sans lui le navigateur ajoute sa propre bordure gravée par-dessus. */
+.ds-sep{border:0;border-top:1px solid var(--line);margin:18px 0 0;height:0}
+/* le premier filet touche la zone d'envoi, qui porte déjà 18 px de marge basse */
+.upload-zone + .ds-sep{margin-top:0}
 /* référence du contrat, sous son titre dans la carte du canal privé */
 .ct-ref{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:1px}
 .docs-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
