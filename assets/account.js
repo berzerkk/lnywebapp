@@ -37,7 +37,7 @@
   // En mémoire : il survit aux re-rendus du panneau admin (filtrage, suppression) mais pas au
   // rechargement de la page, qui repart de tout replié.
   var admFilesOuverts = {};
-  var CUR_GROUP = null, qsFillState = null, notifTimer = null, DEMO = null;
+  var CUR_GROUP = null, qsFillState = null, notifTimer = null;
   // visite guidée à jouer dès que le tableau de bord sera peint (première connexion)
   var TUTO_PENDING = false;
   // Un dossier = UN apprenant, mais autant de FORMATEURS que voulu. GEN_PROF = le formateur au
@@ -169,16 +169,6 @@
         setToken(r.data.token); ME = r.data.user; selected = null; afterAuth();
       });
     };
-    // comptes démo (page de connexion)
-    if (DEMO === null) { api('/api/demo-accounts').then(function (r) { DEMO = (r.ok && r.data.accounts) || []; if (app() && !ME) renderAuth(); }); }
-    el.querySelectorAll('.demo-login').forEach(function (b) {
-      b.onclick = function () {
-        apiJSON('/api/login', 'POST', { email: b.getAttribute('data-email'), password: b.getAttribute('data-pwd') }).then(function (r) {
-          if (!r.ok) { err('login-err', (r.data && r.data.error) || 'Connexion impossible.'); return; }
-          setToken(r.data.token); ME = r.data.user; selected = null; afterAuth();
-        });
-      };
-    });
   }
   // ---- première connexion : la personne définit son mot de passe -----------
   function renderActivate(tok) {
@@ -225,15 +215,13 @@
   }
   // connexion, connexion rapide démo ET activation par lien e-mail passent tous par ici
   function afterAuth() { TUTO_PENDING = !!(ME && ME.tutoAVoir); api('/api/notifications').then(function (n) { NOTIFS = (n.ok && n.data.notifs) || []; renderHeader(); renderDashboard(); startNotifPoll(); window.scrollTo({ top: 0, behavior: 'smooth' }); }); }
-  function demoBoxHTML() {
-    if (!DEMO || !DEMO.length) return '';
-    return '<div class="demo-box"><div class="demo-box-h">⚡ Connexion rapide — comptes de démonstration</div>' +
-      DEMO.map(function (d) { return '<div class="demo-acc"><div class="demo-acc-info"><b>' + esc(ROLES[d.role] || d.role) + '</b><small>' + esc(d.email) + ' · mot de passe : ' + esc(d.password) + '</small></div><button type="button" class="btn-mini demo-login" data-email="' + esc(d.email) + '" data-pwd="' + esc(d.password) + '">Se connecter →</button></div>'; }).join('') +
-      '</div>';
-  }
+  // ⚠️ PLUS D'ENCART DE CONNEXION RAPIDE (retiré le 05/08/2026, demande de l'utilisateur). Il
+  // affichait, sur la page de connexion publique, l'adresse ET le mot de passe en clair des
+  // comptes de démonstration. Les comptes eux-mêmes existent toujours en base pour les essais,
+  // mais plus rien ne les annonce, et la route qui les servait a été supprimée.
   function loginForm() {
     return '<form class="form auth-form" id="login-form" style="max-width:none">' + field('li-email', 'E-mail', 'email') + pwdField('li-pwd', 'Mot de passe') +
-      '<p class="auth-err" id="login-err"></p><button class="btn btn-primary" type="submit" style="justify-self:center">Se connecter →</button></form>' + demoBoxHTML();
+      '<p class="auth-err" id="login-err"></p><button class="btn btn-primary" type="submit" style="justify-self:center">Se connecter →</button></form>';
   }
   // corps du formulaire de création de compte (utilisé par la modale admin « Créer un compte »)
   function accountFieldsHTML() {

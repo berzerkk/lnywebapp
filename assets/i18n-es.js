@@ -347,7 +347,7 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Notifications": "Notificaciones",
   /* ---- espace documents (app) ---- */
   "Type de compte": "Tipo de cuenta", "Administrateur": "Administrador", "Apprenant": "Alumno", "Mot de passe": "Contraseña", "Confirmer le mot de passe": "Confirmar la contraseña",
-  "Créer mon compte →": "Crear mi cuenta →", "Se connecter →": "Iniciar sesión →", "⚡ Connexion rapide — comptes de démonstration": "⚡ Conexión rápida — cuentas de demostración",
+  "Créer mon compte →": "Crear mi cuenta →", "Se connecter →": "Iniciar sesión →",
   "Connexion impossible.": "No se pudo iniciar sesión.", "Création impossible.": "No se pudo crear la cuenta.", "Le mot de passe doit faire au moins 6 caractères.": "La contraseña debe tener al menos 6 caracteres.", "Les mots de passe ne correspondent pas.": "Las contraseñas no coinciden.",
   "Fiche apprenant": "Ficha del alumno", "Fiche formateur": "Ficha del formador", "Société": "Empresa", "Intitulé de la formation": "Título de la formación", "Date de début": "Fecha de inicio", "Date de fin": "Fecha de fin",
   "Avec certification": "Con certificación", "Sans certification": "Sin certificación", "Nationalité": "Nacionalidad", "Né(e) le": "Fecha de nacimiento", "Adresse": "Dirección",

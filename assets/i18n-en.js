@@ -369,7 +369,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Notifications": "Notifications",
   /* ---- espace documents (app) ---- */
   "Type de compte": "Account type", "Administrateur": "Administrator", "Apprenant": "Learner", "Mot de passe": "Password", "Confirmer le mot de passe": "Confirm password",
-  "Créer mon compte →": "Create my account →", "Se connecter →": "Sign in →", "⚡ Connexion rapide — comptes de démonstration": "⚡ Quick sign-in — demo accounts",
+  "Créer mon compte →": "Create my account →", "Se connecter →": "Sign in →",
   "Connexion impossible.": "Unable to sign in.", "Création impossible.": "Unable to create the account.", "Le mot de passe doit faire au moins 6 caractères.": "The password must be at least 6 characters long.", "Les mots de passe ne correspondent pas.": "The passwords do not match.",
   "Fiche apprenant": "Learner profile", "Fiche formateur": "Trainer profile", "Société": "Company", "Intitulé de la formation": "Course title", "Date de début": "Start date", "Date de fin": "End date",
   "Avec certification": "With certification", "Sans certification": "Without certification", "Nationalité": "Nationality", "Né(e) le": "Date of birth", "Adresse": "Address",

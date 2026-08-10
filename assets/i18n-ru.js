@@ -347,7 +347,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Notifications": "Уведомления",
   /* ---- espace documents (app) ---- */
   "Type de compte": "Тип аккаунта", "Administrateur": "Администратор", "Apprenant": "Слушатель", "Mot de passe": "Пароль", "Confirmer le mot de passe": "Подтвердите пароль",
-  "Créer mon compte →": "Создать аккаунт →", "Se connecter →": "Войти →", "⚡ Connexion rapide — comptes de démonstration": "⚡ Быстрый вход — демо-аккаунты",
+  "Créer mon compte →": "Создать аккаунт →", "Se connecter →": "Войти →",
   "Connexion impossible.": "Не удалось войти.", "Création impossible.": "Не удалось создать аккаунт.", "Le mot de passe doit faire au moins 6 caractères.": "Пароль должен содержать не менее 6 символов.", "Les mots de passe ne correspondent pas.": "Пароли не совпадают.",
   "Fiche apprenant": "Карточка слушателя", "Fiche formateur": "Карточка преподавателя", "Société": "Компания", "Intitulé de la formation": "Название курса", "Date de début": "Дата начала", "Date de fin": "Дата окончания",
   "Avec certification": "С сертификацией", "Sans certification": "Без сертификации", "Nationalité": "Гражданство", "Né(e) le": "Дата рождения", "Adresse": "Адрес",

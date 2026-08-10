@@ -348,7 +348,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Notifications": "通知",
   /* ---- espace documents (app) ---- */
   "Type de compte": "账户类型", "Administrateur": "管理员", "Apprenant": "学员", "Mot de passe": "密码", "Confirmer le mot de passe": "确认密码",
-  "Créer mon compte →": "创建我的账户 →", "Se connecter →": "登录 →", "⚡ Connexion rapide — comptes de démonstration": "⚡ 快速登录 — 演示账户",
+  "Créer mon compte →": "创建我的账户 →", "Se connecter →": "登录 →",
   "Connexion impossible.": "无法登录。", "Création impossible.": "无法创建账户。", "Le mot de passe doit faire au moins 6 caractères.": "密码至少需要 6 个字符。", "Les mots de passe ne correspondent pas.": "两次输入的密码不一致。",
   "Fiche apprenant": "学员档案", "Fiche formateur": "培训师档案", "Société": "公司", "Intitulé de la formation": "课程名称", "Date de début": "开始日期", "Date de fin": "结束日期",
   "Avec certification": "含认证", "Sans certification": "不含认证", "Nationalité": "国籍", "Né(e) le": "出生日期", "Adresse": "地址",

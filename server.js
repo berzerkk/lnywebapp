@@ -2779,7 +2779,10 @@ app.post('/api/presence/:id/cancel', auth, (req, res) => {
 });
 
 // comptes démo (email + mot de passe affichés sur la page de connexion)
-app.get('/api/demo-accounts', (req, res) => res.json({ accounts: DEMO_ACCOUNTS.map(d => ({ email: d.email, password: DEMO_PASSWORD, role: d.role, name: `${d.prenom} ${d.nom}` })) }));
+// ⚠️ GET /api/demo-accounts EST SUPPRIMÉE (05/08/2026, demande de l'utilisateur). Ouverte à tous
+// sans authentification, elle distribuait l'adresse ET le mot de passe en clair des comptes de
+// démonstration. L'encart de connexion rapide qui la consommait est parti avec elle : ne pas la
+// réintroduire. Les comptes démo restent seedés pour les essais, mais plus rien ne les annonce.
 
 // ---- test d'envoi (admin) --------------------------------------------------
 // Vérifier la configuration SMTP sans attendre qu'un vrai flux se déclenche. Contrairement à
