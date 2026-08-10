@@ -1622,8 +1622,17 @@ function imgSiPresent(noms) {
 function dxSignatureAntonin(largeur, variante) {
   const p = imgSiPresent(variante || SIGN_ANTONIN);
   if (!p) return [];
-  const w = largeur || 120, h = Math.round(w * (variante === SIGN_ANTONIN_TAMPON ? 0.45 : RATIO_SIGN));
-  try { return [new Paragraph({ children: [new ImageRun({ type: 'png', data: fs.readFileSync(p), transformation: { width: w, height: h } })] })]; } catch (e) { return []; }
+  try {
+    const buf = fs.readFileSync(p);
+    // ⚠️ Le rapport se lit DANS le fichier, il n'est plus codé en dur. L'ancien 0,45 du tampon
+    // était faux (l'image fait 453 × 263, soit 0,58) et Word, qui impose largeur ET hauteur,
+    // l'écrasait de 22 % — le PDF ne le montrait pas, doc.image conservant les proportions.
+    // Repli sur les constantes si l'en-tête PNG est illisible.
+    const dims = pngDims(buf);
+    const ratio = (dims && dims.w && dims.h) ? (dims.h / dims.w) : (variante === SIGN_ANTONIN_TAMPON ? 0.58 : RATIO_SIGN);
+    const w = largeur || 120, h = Math.round(w * ratio);
+    return [new Paragraph({ children: [new ImageRun({ type: 'png', data: buf, transformation: { width: w, height: h } })] })];
+  } catch (e) { return []; }
 }
 // Word : la MÊME image dans une cellule de tableau (case « signature administratif »)
 function dxSignatureCell(largeur, hMax) {
@@ -1702,12 +1711,19 @@ function buildAttestationDocx(d, user, ver) {
   kids.push(dxPara(d.commentaires || '', { after: 160 }));
   kids.push(dxPara('Fait à ' + (d.lieuFait || 'Nice') + ', le ' + (d.dateFait || ''), { before: 160, after: 320 }));
   // bloc de signature sur une ligne horizontale complète : les trois signataires ne se touchent pas
-  const sigCol = (lignes, extra) => new TableCell({ width: { size: 3009, type: WidthType.DXA }, borders: NO_BORDERS(), margins: { top: 0, bottom: 0, left: 0, right: 0 }, children: lignes.map(l => dxPara(l, { after: 20 })).concat(extra || []) });
+  // ⚠️ Chaque colonne porte désormais NOM puis qualité puis signature. Le nom au-dessus de
+  // « Le Formateur » et de « L'apprenant » est une demande de l'utilisateur (05/08/2026) : sans lui,
+  // le document ne disait pas QUI avait signé.
+  const sigCol = (lignes, extra) => new TableCell({ width: { size: 3009, type: WidthType.DXA }, borders: NO_BORDERS(), margins: { top: 0, bottom: 0, left: 0, right: 0 }, children: lignes.filter(l => l != null && l !== '').map(l => dxPara(l, { after: 20 })).concat(extra || []) });
+  // ⚠️ sigBox (et non un ratio en dur) : une signature manuscrite n'a ni le rapport de la signature
+  // d'Antonin ni celui du tampon, elle sortirait écrasée.
+  const sigParaAtt = (sig) => sig ? [new Paragraph({ children: [new ImageRun({ type: sig.type, data: sig.buffer, transformation: sigBox(sig, 110, 52) })] })] : [];
+  const sigFatt = sigImg(d.formateurSig), sigAatt = sigImg(d.apprenantSig);
   // trois colonnes égales et fixes, comme le PDF (signataires à x50, x221, x392)
   kids.push(new Table({ layout: TableLayoutType.FIXED, columnWidths: [3009, 3009, 3008], width: { size: 9026, type: WidthType.DXA }, borders: NO_BORDERS(), rows: [new TableRow({ children: [
     sigCol([(d.representant || 'Antonin HATTABE'), 'Président'], dxSignatureAntonin(110, SIGN_ANTONIN_TAMPON)),
-    sigCol(['Le Formateur']),
-    sigCol(["L'apprenant"])
+    sigCol([d.formateur, 'Le Formateur'], sigParaAtt(sigFatt)),
+    sigCol([d.apprenant, "L'apprenant"], sigParaAtt(sigAatt))
   ] })] }));
   const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
@@ -1748,15 +1764,25 @@ function buildAttestationPdf(d, user, ver) {
     doc.moveDown(1.2); p('Commentaires du formateur :', { bold: true, after: 0.2 }); p(d.commentaires || '', { after: 0.6 });
     p('Fait à ' + (d.lieuFait || 'Nice') + ', le ' + (d.dateFait || ''), { after: 1.4 });
     // bloc de signature sur une ligne horizontale complète : les trois signataires ne se touchent pas
-    pdfPlacePourSignature(doc, 110);
+    // ⚠️ Chaque colonne porte NOM, qualité, puis signature (demande de l'utilisateur, 05/08/2026).
+    // ⚠️ 150 pt réservés et non 110 : les trois colonnes portent maintenant une image, et
+    // pdfkit ne pagine pas tout seul un bloc dessiné à des coordonnées absolues.
+    const sigFatt = sigImg(d.formateurSig), sigAatt = sigImg(d.apprenantSig);
+    pdfPlacePourSignature(doc, 150);
     const colW = totalW / 3 - 12, y0 = doc.y;
     doc.font('Helvetica').fontSize(9.5).fillColor('#2a241d');
-    doc.text((d.representant || 'Antonin HATTABE'), left, y0, { width: colW });
-    doc.text('Président', left, doc.y, { width: colW });
-    const hSig = pdfSignatureAntonin(doc, left, doc.y + 4, colW * 0.8, SIGN_ANTONIN_TAMPON);
-    doc.text('Le Formateur', left + totalW / 3 + 6, y0, { width: colW });
-    doc.text("L'apprenant", left + (2 * totalW) / 3 + 12, y0, { width: colW });
-    doc.y = y0 + 26 + hSig;
+    const xs = [left, left + totalW / 3 + 6, left + (2 * totalW) / 3 + 12];
+    // ⚠️ chaque colonne repart de y0 : doc.y avance colonne par colonne, on ne peut pas
+    // l'utiliser comme référence commune.
+    const colAtt = (x, nom, role) => { doc.text(nom || '', x, y0, { width: colW }); doc.text(role, x, doc.y, { width: colW }); return doc.y; };
+    const yRep = colAtt(xs[0], (d.representant || 'Antonin HATTABE'), 'Président');
+    const hRep = pdfSignatureAntonin(doc, xs[0], yRep + 4, colW * 0.8, SIGN_ANTONIN_TAMPON, 58);
+    const poseSig = (sig, x, y) => { if (!sig) return 0; try { doc.image(sig.buffer, x, y + 4, { fit: [colW * 0.8, 52] }); return 56; } catch (e) { return 0; } };
+    const yFor = colAtt(xs[1], d.formateur, 'Le Formateur');
+    const hFor = poseSig(sigFatt, xs[1], yFor);
+    const yApp = colAtt(xs[2], d.apprenant, "L'apprenant");
+    const hApp = poseSig(sigAatt, xs[2], yApp);
+    doc.y = Math.max(yRep + hRep, yFor + hFor, yApp + hApp) + 12;
     pdfHeaderFooter(doc, user, ver); doc.end();
   });
 }
@@ -1926,7 +1952,10 @@ function contratBlocks(d) {
     { vide: 2 },
     { p: `Fait à ${d.lieuFait || 'Nice'}, le ${d.dateFait || ''}` },
     { vide: 2 },
-    { sign: { gauche: ["Pour le Donneur d'ordre, Languages and Success", rep, 'Président'], droite: ['Pour le Sous-traitant,', d.stnom || ''] } }
+    // ⚠️ Le tampon L&S se pose SOUS « Antonin HATTABE / Président » et la signature manuscrite du
+    // sous-traitant sous son nom (demande de l'utilisateur, 05/08/2026). Les deux images sont
+    // FACULTATIVES : sans elles le bloc reste exactement celui d'avant.
+    { sign: { gauche: ["Pour le Donneur d'ordre, Languages and Success", rep, 'Président'], droite: ['Pour le Sous-traitant,', d.stnom || ''], tampon: true, sigDroite: d.sousTraitantSig || null } }
   ];
 }
 function buildContratDocx(d, user, ver) {
@@ -1942,10 +1971,17 @@ function buildContratDocx(d, user, ver) {
     else if (b.vide) { for (let i = 0; i < b.vide; i++) kids.push(dxPara('', { size: 19, after: 120 })); }
     else if (b.sign) {
       // les deux blocs de signature aux extrémités, sur la même ligne
-      const col = (lignes, align) => new TableCell({ width: { size: 4513, type: WidthType.DXA }, borders: NO_BORDERS(), margins: { top: 0, bottom: 0, left: 0, right: 0 }, children: lignes.map(l => new Paragraph({ alignment: align, children: runs(ctSeg(l), { size: 19 }) })) });
+      // ⚠️ Les images vont DANS la cellule, sous les lignes de texte : la grille reste fixe, donc
+      // la colonne droite ne décolle pas de la marge (c'est ce que prévient le commentaire ci-dessous).
+      const col = (lignes, align, images) => new TableCell({ width: { size: 4513, type: WidthType.DXA }, borders: NO_BORDERS(), margins: { top: 0, bottom: 0, left: 0, right: 0 }, children: lignes.map(l => new Paragraph({ alignment: align, children: runs(ctSeg(l), { size: 19 }) })).concat(images || []) });
+      const sigST = sigImg(b.sign.sigDroite);
+      const imgST = sigST ? [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new ImageRun({ type: sigST.type, data: sigST.buffer, transformation: sigBox(sigST, 120, 56) })] })] : [];
       // ⚠️ grille FIXE et marges nulles : sans elles, Word répartit les colonnes d'après leur
       // contenu et le bloc « Pour le Sous-traitant » ne tombe plus sur la marge droite.
-      kids.push(new Table({ layout: TableLayoutType.FIXED, columnWidths: [4513, 4513], width: { size: 9026, type: WidthType.DXA }, borders: NO_BORDERS(), rows: [new TableRow({ children: [col(b.sign.gauche, AlignmentType.LEFT), col(b.sign.droite, AlignmentType.RIGHT)] })] }));
+      kids.push(new Table({ layout: TableLayoutType.FIXED, columnWidths: [4513, 4513], width: { size: 9026, type: WidthType.DXA }, borders: NO_BORDERS(), rows: [new TableRow({ children: [
+        col(b.sign.gauche, AlignmentType.LEFT, b.sign.tampon ? dxSignatureAntonin(130, SIGN_ANTONIN_TAMPON) : []),
+        col(b.sign.droite, AlignmentType.RIGHT, imgST)
+      ] })] }));
     }
     else if (b.li) kids.push(new Paragraph({ spacing: { after: 50 }, children: runs([{ t: '• ' }].concat(ctSeg(b.li)), { size: 18 }) }));
     else if (b.li2) kids.push(new Paragraph({ spacing: { after: 40 }, children: runs([{ t: '        –  ' }].concat(ctSeg(b.li2)), { size: 18 }) }));
@@ -1980,6 +2016,10 @@ function buildContratPdf(d, user, ver) {
       else if (b.vide) doc.moveDown(b.vide * 1.2);
       else if (b.sign) {
         // les deux blocs de signature aux extrémités, sur la même ligne
+        // ⚠️ Ce bloc dessine à des coordonnées ABSOLUES : pdfkit ne le pagine pas tout seul, et le
+        // contrat fait dix articles, donc la position de fin varie. Sans cette réservation, le
+        // tampon et la signature déborderaient sur le pied de page quand le texte finit bas.
+        pdfPlacePourSignature(doc, 130);
         const y0 = doc.y, colW = totalW / 2 - 10;
         doc.font('Helvetica').fontSize(9.2).fillColor('#2a241d');
         const bloc = (lignes, x, align) => {
@@ -1995,7 +2035,12 @@ function buildContratPdf(d, user, ver) {
         };
         const yG = bloc(b.sign.gauche, left, 'left');
         const yD = bloc(b.sign.droite, left + totalW / 2 + 10, 'right');
-        doc.y = Math.max(yG, yD); doc.moveDown(0.5);
+        // le tampon sous « Antonin HATTABE / Président », la signature du sous-traitant sous son nom
+        const hT = b.sign.tampon ? pdfSignatureAntonin(doc, left, yG + 6, 130, SIGN_ANTONIN_TAMPON, 62) : 0;
+        const sST = sigImg(b.sign.sigDroite);
+        let hS = 0;
+        if (sST) { try { doc.image(sST.buffer, left + totalW - 120, yD + 6, { fit: [120, 54] }); hS = 58; } catch (e) { } }
+        doc.y = Math.max(yG + hT, yD + hS); doc.moveDown(0.5);
       }
       else if (b.li || b.li2) rich((b.li ? [{ t: '•  ' }] : [{ t: '        –  ' }]).concat(ctSeg(b.li || b.li2)), { size: 9, after: b.li ? 0.2 : 0.18 });
       else rich(b.rp || ctSeg(b.p), { size: 9.2, after: b.after ? 0.9 : 0.45, bold: b.bold, italics: b.italics, before: b.before ? 0.5 : 0 });

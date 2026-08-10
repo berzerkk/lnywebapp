@@ -723,6 +723,15 @@ footer a:hover{color:#fff8ef}
 .doc-meta b{font-size:14.5px;word-break:break-word}
 .doc-meta small{color:var(--ink-soft);font-size:12px}
 .docs li .btn-mini{margin-left:auto}
+/* Liste de documents bornée : on voit les 3 derniers, le reste défile. Sans ça, un dossier bien
+   rempli poussait la messagerie hors de l'écran. Même procédé que .chat-msgs. */
+.docs-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
+.docs-h span{font-size:13px;font-weight:600;color:var(--ink)}
+.docs-h small{font-size:11.5px;color:var(--ink-soft)}
+.docs-scroll{max-height:200px;overflow-y:auto;overflow-x:hidden;padding-right:4px}
+/* la barre de défilement ne doit pas trancher sur la carte crème */
+.docs-scroll::-webkit-scrollbar{width:8px}
+.docs-scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
 .space-empty{text-align:center;padding:48px 22px}
 .se-ic{font-size:40px;margin-bottom:8px}
 .admin-card{margin-top:4px}
@@ -1088,6 +1097,15 @@ footer a:hover{color:#fff8ef}
   .btn-mini{padding:11px 16px}
   .req-acts{gap:9px}
   .docs li{gap:10px}
+  /* ⚠️ En mobile, .doc-meta est comprimé à ~100 px par le bouton « Télécharger » (108 px, qui ne
+     rétrécit pas) : le nom du fichier et la ligne d'informations s'y repliaient sur six lignes,
+     d'où des lignes de 142 px. On rend l'icône à la largeur disponible, on borne le nom à deux
+     lignes et on met les informations sur une seule, avec ellipse. La ligne retombe à ~80 px et
+     l'essentiel — le début du nom — reste lisible. */
+  .docs li .doc-ic{display:none}
+  .doc-meta b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .doc-meta small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .docs-scroll{max-height:264px}
 }
 
 /* post LinkedIn en bas d'un article : note interne, visible de l'administration seule.

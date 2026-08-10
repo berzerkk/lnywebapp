@@ -372,7 +372,12 @@
   function docsBlock(docs) {
     return '<label class="upload-zone"><input type="file" id="doc-input" multiple hidden /><span class="uz-ic">⬆</span>' +
       '<span><b>Envoyer un document</b><br><small>Cliquez ou déposez un fichier (max 25 Mo) — il ira dans le canal sélectionné</small></span></label>' +
-      ((docs && docs.length) ? '<ul class="docs">' + docs.map(function (d) {
+      // ⚠️ La liste est BORNÉE et défile (demande de l'utilisateur : elle mangeait toute la page
+      // dès qu'un dossier était bien rempli). Le serveur renvoie les documents du plus récent au
+      // plus ancien, donc les 3 derniers sont ceux qu'on voit sans rien faire.
+      ((docs && docs.length) ? '<div class="docs-h"><span>' + docs.length + (docs.length > 1 ? ' documents' : ' document') + '</span>' +
+        (docs.length > 3 ? '<small>les plus récents en premier — faites défiler pour voir les autres</small>' : '') + '</div>' +
+        '<div class="docs-scroll"><ul class="docs">' + docs.map(function (d) {
         var mine = (ME.role === 'admin') ? d.fromAdmin : (!d.fromAdmin && d.from === ME.id);
         return '<li><span class="doc-ic">📄</span><span class="doc-meta"><b>' + esc(d.name) + '</b><small>' + fmtSize(d.size) + ' · ' + (mine ? 'envoyé par vous' : 'de ' + esc(d.fromName)) + ' · ' + fmtDate(d.date) + '</small></span>' +
           '<a class="btn-mini" href="/api/documents/' + d.id + '/download?token=' + encodeURIComponent(token()) + '">Télécharger</a>' +
@@ -380,7 +385,7 @@
           ((mine && ME.role !== 'eleve') || ME.role === 'admin'
             ? '<button class="adm-del doc-del" type="button" data-id="' + d.id + '" data-name="' + esc(d.name) + '" title="Supprimer ce document">🗑</button>' : '') +
           '</li>';
-      }).join('') + '</ul>' : '<p class="ds-empty" style="margin:14px 0">Aucun document dans ce canal.</p>');
+      }).join('') + '</ul></div>' : '<p class="ds-empty" style="margin:14px 0">Aucun document dans ce canal.</p>');
   }
   function groupView(g, messages, docs) {
     if (!g) return '<div class="ds-card space-empty"><div class="se-ic">📁</div><h3>Vos dossiers</h3><p class="ds-empty">Sélectionnez un dossier à gauche pour voir les documents et discuter.</p></div>';
