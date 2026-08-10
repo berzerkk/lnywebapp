@@ -121,7 +121,9 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
-const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], contratRefs: [], logins: [], docVersions: {}, articles: [], secret: crypto.randomBytes(32).toString('hex') });
+// ⚠️ Toute NOUVELLE collection doit figurer ici : normalizeDB la crée alors toute seule sur les
+// bases déjà en service, production comprise. Oubliée, elle vaut undefined au premier accès.
+const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], attestations: [], contrats: [], contratRefs: [], logins: [], docVersions: {}, articles: [], secret: crypto.randomBytes(32).toString('hex') });
 function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys(def)) { if (d[k] == null) d[k] = def[k]; } return migrateGroups(d); }
 // MIGRATION (27/07/2026) : un dossier passe de { prof, eleve } (une seule personne de chaque côté)
 // à { profs: [...], eleves: [...] }. Les bases existantes (dont la prod) sont converties au chargement ;
@@ -766,6 +768,67 @@ app.post('/api/me/password', auth, async (req, res) => {
   // le jeton reste valable : la personne n'est pas déconnectée de l'onglet où elle travaille
   res.json({ ok: true });
 });
+// ---- MOT DE PASSE OUBLIÉ (05/08/2026) --------------------------------------
+// ⚠️ CHAMP DISTINCT `u.reset`, JAMAIS `u.activation`. Le champ d'activation est unique : y poser
+// un jeton de réinitialisation écraserait l'invitation en cours, et — bien pire — activationOf
+// ne distingue pas les deux natures de jeton, donc un lien de réinitialisation serait accepté par
+// POST /api/activate, qui lèverait mustActivate au passage.
+// ⚠️ Durée COURTE (1 heure) et non les 14 jours d'une invitation : celle-ci est posée par un
+// administrateur, celui-là se déclenche par n'importe qui depuis un formulaire public.
+const RESET_DUREE = 60 * 60 * 1000;
+const resetOf = (t) => {
+  // ⚠️ comparaison en minuscules : le motif côté navigateur est insensible à la casse, et un
+  // client de messagerie qui capitaliserait le lien passerait le client pour échouer ici.
+  const k = String(t || '').toLowerCase();
+  return db.users.find(u => u.reset && u.reset.token === k && u.reset.exp > Date.now());
+};
+app.post('/api/password-reset/request', (req, res) => {
+  const mail = String((req.body || {}).email || '').trim().toLowerCase();
+  const u = mail ? db.users.find(x => x.email === mail) : null;
+  if (u) {
+    // ⚠️ Un compte encore en attente d'activation reçoit son lien d'ACTIVATION, pas un lien de
+    // réinitialisation : c'est le même besoin (choisir un mot de passe) et cela évite de lui
+    // poser deux jetons de natures différentes. Son invitation n'est pas écrasée pour autant.
+    if (u.mustActivate) {
+      if (!u.activation || u.activation.exp < Date.now()) u.activation = newActivation();
+      sendActivationMail(u, null);
+    } else {
+      u.reset = { token: crypto.randomBytes(32).toString('hex'), exp: Date.now() + RESET_DUREE };
+      const url = SITE_URL + '/espace-documents.html#reinit=' + u.reset.token;
+      sendMailSafe(u.email, 'Réinitialiser votre mot de passe — Languages & Success',
+        'Bonjour ' + u.prenom + ',\n\nVous avez demandé à réinitialiser le mot de passe de votre espace documents.\nChoisissez-en un nouveau (lien valable 1 heure, utilisable une seule fois) :\n' + url
+          + "\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe actuel reste valable.\nPour nous joindre : contact@languagesandsuccess.com\n\nLanguages & Success",
+        mailHtml('Réinitialiser votre mot de passe',
+          ['Bonjour ' + u.prenom + ',', 'Vous avez demandé à réinitialiser le mot de passe de votre espace documents.',
+           'Ce lien est valable une heure et ne fonctionne qu\'une fois.',
+           "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe actuel reste valable."],
+          'Choisir un nouveau mot de passe', url));
+    }
+    save();
+  }
+  // ⚠️ RÉPONSE IDENTIQUE que l'adresse existe ou non : sinon ce formulaire, public et sans
+  // limitation de débit, devient un annuaire qui dit qui est client de l'organisme.
+  res.json({ ok: true });
+});
+app.get('/api/password-reset/:token', (req, res) => {
+  const u = resetOf(req.params.token);
+  if (!u) return res.status(404).json({ error: 'Ce lien est invalide ou a expiré. Demandez-en un nouveau.' });
+  res.json({ ok: true, prenom: u.prenom, email: u.email });
+});
+app.post('/api/password-reset', async (req, res) => {
+  const { token, password } = req.body || {};
+  const u = resetOf(token);
+  if (!u) return res.status(404).json({ error: 'Ce lien est invalide ou a expiré. Demandez-en un nouveau.' });
+  if (String(password || '').length < 6) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 6 caractères.' });
+  u.passwordHash = await bcrypt.hash(String(password), 10);
+  delete u.reset;                            // usage unique : sans ce delete, le lien reste rejouable une heure
+  delete u.mustActivate;                     // par sécurité : un compte en attente ne doit pas rester bloqué
+  db.logins.push({ id: crypto.randomUUID(), user: u.id, email: u.email, ip: clientIp(req), date: Date.now() });
+  if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
+  save();
+  // meFull et non pubFull : comme l'activation, on connecte, et la visite guidée en dépend
+  res.json({ token: sign(u), user: meFull(u) });
+});
 // l'administration renvoie le lien (perdu, expiré, adresse corrigée)
 app.post('/api/admin/users/:id/reinvite', auth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
@@ -933,6 +996,8 @@ function deleteGroupCascade(gid) {
   db.messages = db.messages.filter(m => m.group !== gid);
   db.qs = db.qs.filter(q => q.group !== gid);
   db.presences = db.presences.filter(p => p.group !== gid); // sinon signatures manuscrites orphelines
+  db.attestations = db.attestations.filter(a => a.group !== gid);   // idem : données personnelles
+  db.contrats = db.contrats.filter(c => c.group !== gid);
   db.worksheets = db.worksheets.filter(w => w.group !== gid);
   db.docgens = db.docgens.filter(x => x.group !== gid);
   db.notifs = db.notifs.filter(n => n.group !== gid);   // sinon badges fantômes sur un dossier disparu
@@ -992,6 +1057,10 @@ app.get('/api/messages', auth, (req, res) => {
       const o = { id: m.id, from: m.from, fromAdmin: !!m.fromAdmin, fromName: m.fromAdmin ? 'Administration L&S' : fullName(m.from), text: m.text, date: m.date, kind: m.kind || 'text' };
       if (m.kind === 'qs') { const q = db.qs.find(x => x.id === m.qsId); o.qs = { id: m.qsId, type: m.qsType, title: (QS_TEMPLATES[m.qsType] || {}).title || 'Questionnaire', status: q ? q.status : 'pending', docId: q ? q.docId : null }; }
       if (m.kind === 'presence') { const p = db.presences.find(x => x.id === m.presenceId); o.presence = { id: m.presenceId, type: p ? p.type : null, title: (PRESENCE_TEMPLATES[p && p.type] || {}).title || 'Feuille de présence', status: p ? p.status : 'pending', docId: p ? p.docId : null }; }
+      // ⚠️ Un kind non hydraté ici arrive au client avec un objet vide : la carte s'affiche sans
+      // titre, sans statut et sans bouton, SANS la moindre erreur. Panne parfaitement silencieuse.
+      if (m.kind === 'attestation') { const a = db.attestations.find(x => x.id === m.attestationId); o.attestation = { id: m.attestationId, title: 'Attestation de fin de formation', status: a ? a.status : 'pending', docId: a ? a.docId : null }; }
+      if (m.kind === 'contrat') { const c = db.contrats.find(x => x.id === m.contratId); o.contrat = { id: m.contratId, title: 'Contrat de sous-traitance', status: c ? c.status : 'pending', docId: c ? c.docId : null, prof: c ? c.prof : null, ref: c ? c.ref : '' }; }
       return o;
     });
   res.json({ messages: msgs });
@@ -1039,7 +1108,10 @@ app.delete('/api/documents/:id', auth, (req, res) => {
   if (!canChannel(g, req.user, d.channel)) return res.status(403).json({ error: 'Accès refusé.' });
   const isMine = req.user.role === 'admin' ? true : (!d.fromAdmin && d.from === req.user.id);
   if (req.user.role === 'eleve' || !isMine) return res.status(403).json({ error: 'Seul l\'expéditeur ou l\'administration peut supprimer ce document.' });
-  if (db.presences.some(p => p.docId === d.id) || db.qs.some(q => q.docId === d.id)) {
+  // ⚠️ Toute collection de pièces signées doit figurer ici, sinon la pièce justificative
+  // redevient supprimable par son expéditeur ou par l'administration.
+  if (db.presences.some(p => p.docId === d.id) || db.qs.some(q => q.docId === d.id)
+    || db.attestations.some(a => a.docId === d.id) || db.contrats.some(c => c.docId === d.id)) {
     return res.status(400).json({ error: 'Ce document est une pièce signée : il ne peut pas être supprimé.' });
   }
   try { fs.unlinkSync(path.join(UPLOADS_DIR, d.stored)); } catch (e) { }
@@ -1786,22 +1858,27 @@ function buildAttestationPdf(d, user, ver) {
     pdfHeaderFooter(doc, user, ver); doc.end();
   });
 }
-app.post('/api/attestation/generate', auth, async (req, res) => {
-  const { group, fields, format } = req.body || {};
-  const g = groupById(group);
-  if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  const ver = bumpVersion(g, 'attestation');
-  const d = fields || {};
-  let buf, ext, ctype;
+// ⚠️ POST /api/attestation/generate (téléchargement direct, sans signature) est SUPPRIMÉE le
+// 05/08/2026, à la demande de l'utilisateur : l'attestation ne s'obtient plus que signée du
+// formateur ET de l'apprenant. Le circuit est plus bas : /api/attestation/send puis /:id/sign.
+// Le buildAttestationDocx reste utilisé par la route Word de la pièce signée.
+// Aperçu du document AVANT signature, pour que l'apprenant relise ce qu'il signe.
+// ⚠️ jeton en query (userDepuisRequete) : le lien est un <a href>, qui ne peut pas porter
+// d'en-tête Authorization.
+app.get('/api/attestation/:id/apercu', async (req, res) => {
+  const u = userDepuisRequete(req);
+  if (!u) return res.status(401).json({ error: 'Non authentifié.' });
+  const a = db.attestations.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Attestation introuvable.' });
+  const g = groupById(a.group);
+  if (!isMember(g, u)) return res.status(403).json({ error: 'Accès refusé.' });
   try {
-    if (format === 'word' || format === 'docx') { buf = await buildAttestationDocx(d, req.user, ver); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
-    else { buf = await buildAttestationPdf(d, req.user, ver); ext = 'pdf'; ctype = 'application/pdf'; }
-  } catch (e) { console.error('attestation:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
-  recordDocgen(g, req.user, { kind: 'attestation', title: 'Attestation de fin de formation', format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.apprenant || 'apprenant' });
-  const name = '4 - ' + safeFile('Attestation de fin de formation') + ' - ' + safeFile(d.apprenant || 'apprenant') + ' - ' + nameDate() + '.' + ext;
-  res.setHeader('Content-Type', ctype);
-  res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
-  res.send(buf);
+    // verOf et non bumpVersion : relire ne doit pas faire avancer la version du document
+    const buf = await buildAttestationPdf(Object.assign({}, a.fields, { formateurSig: a.formateurSig, apprenantSig: a.apprenantSig }), u, verOf(g, 'attestation'));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', "inline; filename*=UTF-8''" + encodeURIComponent(safeFile('Attestation de fin de formation') + '.pdf'));
+    res.send(buf);
+  } catch (e) { console.error('attestation apercu:', e); res.status(500).json({ error: 'Erreur de génération.' }); }
 });
 
 // ---- Contrat de sous-traitance (admin uniquement) --------------------------
@@ -2819,6 +2896,224 @@ app.post('/api/presence/:id/cancel', auth, (req, res) => {
   db.presences = db.presences.filter(x => x.id !== p.id);
   db.messages = db.messages.filter(m => !(m.kind === 'presence' && m.presenceId === p.id));
   if (g) notify(g.eleve, `${senderDisplay(req.user)} a annulé une demande de signature.`, g.id);
+  save();
+  res.json({ ok: true });
+});
+
+// ---- ATTESTATION DE FIN DE STAGE : circuit de signature ---------------------
+// (05/08/2026) Le formateur remplit et signe, l'apprenant relit et signe, le PDF final se dépose
+// dans le canal commun. La génération directe a été RETIRÉE : l'attestation ne s'obtient plus
+// que signée des deux parties (décision de l'utilisateur).
+// ⚠️ Même ordre que la feuille de présence : on génère AVANT de basculer l'état, sinon un échec
+// laisserait une attestation « signée » sans document et non re-signable.
+async function depositAttestationDoc(a, byUser) {
+  const d = Object.assign({}, a.fields, { formateurSig: a.formateurSig, apprenantSig: a.apprenantSig });
+  const ver = bumpVersion(groupById(a.group), 'attestation');
+  const buf = await buildAttestationPdf(d, byUser, ver);
+  const stored = crypto.randomUUID() + '.pdf';
+  fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
+  const name = '4 - ' + safeFile('Attestation de fin de formation') + ' - ' + safeFile((a.fields && a.fields.apprenant) || 'apprenant') + ' - ' + nameDate() + ' - signée.pdf';
+  const doc = { id: crypto.randomUUID(), group: a.group, channel: 'commun', from: byUser.id, fromAdmin: byUser.role === 'admin', name, size: buf.length, type: 'application/pdf', stored, date: Date.now(), ver };
+  db.docs.push(doc);
+  return doc;
+}
+app.post('/api/attestation/send', auth, (req, res) => {
+  const { group, fields, formateurSig } = req.body || {};
+  const g = groupById(group);
+  if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  if (!sigImg(formateurSig)) return res.status(400).json({ error: 'Signature du formateur manquante.' });
+  if (!g.eleve) return res.status(400).json({ error: 'Ce dossier ne compte aucun apprenant.' });
+  const a = { id: crypto.randomUUID(), group: g.id, fields: fields || {}, formateurSig, apprenantSig: null, status: 'pending', docId: null, by: req.user.id, date: Date.now() };
+  db.attestations.push(a);
+  db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'commun', from: req.user.id, fromAdmin: req.user.role === 'admin', kind: 'attestation', attestationId: a.id, text: 'Attestation de fin de formation à signer', date: Date.now() });
+  notify(g.eleve, `${senderDisplay(req.user)} vous demande de signer votre attestation de fin de formation.`, g.id);
+  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(x => notify(x.id, `${senderDisplay(req.user)} a envoyé une attestation de fin de formation à signer.`, g.id));
+  const eleveU = realUser(g.eleve);
+  if (eleveU) {
+    const url = SITE_URL + '/espace-documents.html';
+    const ligne = senderDisplay(req.user) + ' vous a envoyé votre attestation de fin de formation à signer.';
+    sendMailSafe(eleveU.email, 'Attestation de fin de formation à signer — Languages & Success',
+      'Bonjour ' + eleveU.prenom + ',\n\n' + ligne + '\n\nConnectez-vous à votre espace documents pour la relire et la signer :\n' + url + '\n\nLanguages & Success',
+      mailHtml('Un document à signer vous attend',
+        ['Bonjour ' + eleveU.prenom + ',', ligne, 'Connectez-vous à votre espace documents pour la relire et la signer.'],
+        'Signer le document', url));
+  }
+  save();
+  res.json({ ok: true, id: a.id });
+});
+app.get('/api/attestation/:id', auth, (req, res) => {
+  const a = db.attestations.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Attestation introuvable.' });
+  if (!isMember(groupById(a.group), req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  // les champs sont lisibles par tous les membres : c'est ce que l'apprenant doit RELIRE avant de
+  // signer. La signature manuscrite du formateur reste réservée à son auteur et à l'administration.
+  const out = { id: a.id, title: 'Attestation de fin de formation', status: a.status, docId: a.docId, fields: a.fields || {} };
+  if (req.user.id === a.by || req.user.role === 'admin') out.formateurSig = a.formateurSig || null;
+  res.json({ attestation: out });
+});
+app.post('/api/attestation/:id/update', auth, (req, res) => {
+  const a = db.attestations.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Attestation introuvable.' });
+  if (req.user.id !== a.by && req.user.role !== 'admin') return res.status(403).json({ error: 'Seul l\'envoyeur peut modifier.' });
+  if (a.status === 'done') return res.status(400).json({ error: 'Déjà signée : modification impossible.' });
+  const { fields, formateurSig } = req.body || {};
+  if (fields) a.fields = fields;
+  if (formateurSig && sigImg(formateurSig)) a.formateurSig = formateurSig;   // sinon on garde l'existante
+  const g = groupById(a.group);
+  if (g) notify(g.eleve, `${senderDisplay(req.user)} a mis à jour l'attestation à signer.`, g.id);
+  save();
+  res.json({ ok: true, id: a.id });
+});
+app.post('/api/attestation/:id/sign', auth, async (req, res) => {
+  const a = db.attestations.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Attestation introuvable.' });
+  const g = groupById(a.group);
+  if (!isMember(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  // c'est l'APPRENANT qui atteste avoir suivi la formation : personne ne signe à sa place
+  if (req.user.id !== g.eleve) return res.status(403).json({ error: 'Seul l\'apprenant peut signer son attestation.' });
+  if (a.status === 'done') return res.status(400).json({ error: 'Attestation déjà signée.' });
+  const sig = (req.body || {}).sig;
+  if (!sigImg(sig)) return res.status(400).json({ error: 'Signature manquante.' });
+  const byUser = db.users.find(u => u.id === a.by) || req.user;
+  let doc;
+  try { doc = await depositAttestationDoc(Object.assign({}, a, { apprenantSig: sig }), byUser); }
+  catch (e) { console.error('attestation sign:', e); return res.status(500).json({ error: 'Erreur de génération du document. L\'attestation reste à signer, réessayez.' }); }
+  a.apprenantSig = sig; a.status = 'done'; a.signedBy = req.user.id; a.signedAt = Date.now(); a.docId = doc.id;
+  recordDocgen(g, byUser, { kind: 'attestation', tpl: 'attestation', title: 'Attestation de fin de formation', format: 'pdf', apprenant: (a.fields && a.fields.apprenant) || 'apprenant' });
+  notifyChannel(g, 'commun', req.user, `${senderDisplay(req.user)} a signé son attestation de fin de formation — document déposé dans le dossier.`);
+  if (byUser && byUser.id !== req.user.id) {
+    const urlS = SITE_URL + '/espace-documents.html';
+    sendMailSafe(byUser.email, 'Document signé par ' + senderDisplay(req.user) + ' — Languages & Success',
+      'Bonjour ' + byUser.prenom + ',\n\n' + senderDisplay(req.user) + " a signé l'attestation de fin de formation.\nLe document final avec les signatures est disponible sur votre espace documents.\n\n" + urlS + '\n\nLanguages & Success',
+      mailHtml('Le document est signé ✓',
+        ['Bonjour ' + byUser.prenom + ',', senderDisplay(req.user) + " a signé l'attestation de fin de formation.", 'Le document final avec les signatures est disponible sur votre espace documents.'],
+        'Voir le document', urlS));
+  }
+  save();
+  res.json({ ok: true, doc: docPub(doc) });
+});
+app.post('/api/attestation/:id/cancel', auth, (req, res) => {
+  const a = db.attestations.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Attestation introuvable.' });
+  if (req.user.id !== a.by && req.user.role !== 'admin') return res.status(403).json({ error: 'Seul l\'envoyeur peut annuler.' });
+  if (a.status === 'done') return res.status(400).json({ error: 'Déjà signée : annulation impossible.' });
+  const g = groupById(a.group);
+  db.attestations = db.attestations.filter(x => x.id !== a.id);
+  db.messages = db.messages.filter(m => !(m.kind === 'attestation' && m.attestationId === a.id));
+  if (g) notify(g.eleve, `${senderDisplay(req.user)} a annulé une demande de signature.`, g.id);
+  save();
+  res.json({ ok: true });
+});
+
+// ---- CONTRAT DE SOUS-TRAITANCE : circuit de signature -----------------------
+// (05/08/2026) L'administration envoie le contrat au formateur, qui le relit sur le site et le
+// signe. ⚠️ TOUT SE PASSE DANS LE CANAL PRIVÉ : le contrat porte la rémunération du formateur et
+// son SIRET, l'apprenant ne doit ni le voir ni être notifié.
+// ⚠️ La référence est FIGÉE à l'envoi : newContratRef() consomme un numéro à chaque appel, la
+// régénérer à la signature donnerait deux références pour un même contrat.
+async function depositContratDoc(c, adminUser) {
+  const d = Object.assign({}, c.fields, { sousTraitantSig: c.profSig });
+  const ver = bumpVersion(groupById(c.group), 'contrat');
+  const buf = await buildContratPdf(d, adminUser, ver);
+  const stored = crypto.randomUUID() + '.pdf';
+  fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
+  const name = '7 - ' + safeFile('Contrat de sous-traitance') + ' - ' + safeFile((c.fields && c.fields.stnom) || 'formateur') + ' - ' + nameDate() + ' - signé.pdf';
+  const doc = { id: crypto.randomUUID(), group: c.group, channel: 'prive', from: adminUser.id, fromAdmin: true, name, size: buf.length, type: 'application/pdf', stored, date: Date.now(), ver };
+  db.docs.push(doc);
+  return doc;
+}
+app.post('/api/contrat/send', auth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
+  const { group, fields, prof } = req.body || {};
+  const g = groupById(group);
+  if (!g) return res.status(404).json({ error: 'Dossier introuvable.' });
+  // ⚠️ le signataire est un IDENTIFIANT vérifié contre le dossier, pas le nom libre saisi dans le
+  // formulaire : sans ça un contrat pourrait partir au nom de quelqu'un qui n'est pas du dossier.
+  const cibP = targetProf(g, prof, req.user);
+  if (!cibP || cibP.error || !cibP.id) return res.status(400).json({ error: (cibP && cibP.error) || 'Précisez le formateur concerné.' });
+  const f = (fields || {});
+  const c = { id: crypto.randomUUID(), group: g.id, prof: cibP.id, fields: Object.assign({}, f, { ref: f.ref || newContratRef() }), profSig: null, status: 'pending', docId: null, by: req.user.id, date: Date.now() };
+  c.ref = c.fields.ref;
+  db.contrats.push(c);
+  db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'prive', from: req.user.id, fromAdmin: true, kind: 'contrat', contratId: c.id, text: 'Contrat de sous-traitance à signer', date: Date.now() });
+  notify(cibP.id, `${senderDisplay(req.user)} vous a envoyé un contrat de sous-traitance à signer.`, g.id);
+  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(x => notify(x.id, `${senderDisplay(req.user)} a envoyé un contrat de sous-traitance à ${fullName(cibP.id)}.`, g.id));
+  const profU = realUser(cibP.id);
+  if (profU) {
+    const url = SITE_URL + '/espace-documents.html';
+    const ligne = "L'administration vous a envoyé un contrat de sous-traitance. Relisez-le sur votre espace documents : vous pourrez le signer directement en ligne.";
+    sendMailSafe(profU.email, 'Contrat de sous-traitance à signer — Languages & Success',
+      'Bonjour ' + profU.prenom + ',\n\n' + ligne + '\n\n' + url + '\n\nLanguages & Success',
+      mailHtml('Un contrat à relire et à signer',
+        ['Bonjour ' + profU.prenom + ',', ligne],
+        'Ouvrir le contrat', url));
+  }
+  save();
+  res.json({ ok: true, id: c.id });
+});
+app.get('/api/contrat/:id', auth, (req, res) => {
+  const c = db.contrats.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: 'Contrat introuvable.' });
+  // ⚠️ canChannel 'prive' et non isMember : l'apprenant est membre du dossier mais n'a AUCUN
+  // accès au canal privé, donc aucun droit de lire ce contrat.
+  if (!canChannel(groupById(c.group), req.user, 'prive')) return res.status(403).json({ error: 'Accès refusé.' });
+  res.json({ contrat: { id: c.id, title: 'Contrat de sous-traitance', status: c.status, docId: c.docId, prof: c.prof, ref: c.ref || '', fields: c.fields || {} } });
+});
+// aperçu du contrat AVANT signature : le formateur doit pouvoir lire ce qu'il signe.
+// ⚠️ jeton en query (userDepuisRequete) et non middleware auth : le lien est un <a href>, qui
+// ne peut pas porter d'en-tête Authorization.
+app.get('/api/contrat/:id/apercu', async (req, res) => {
+  const u = userDepuisRequete(req);
+  if (!u) return res.status(401).json({ error: 'Non authentifié.' });
+  const c = db.contrats.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: 'Contrat introuvable.' });
+  if (!canChannel(groupById(c.group), u, 'prive')) return res.status(403).json({ error: 'Accès refusé.' });
+  try {
+    // verOf et non bumpVersion : relire un contrat ne doit pas faire avancer sa version
+    const buf = await buildContratPdf(Object.assign({}, c.fields, { sousTraitantSig: c.profSig }), u, verOf(groupById(c.group), 'contrat'));
+    const name = safeFile('Contrat de sous-traitance') + ' - ' + safeFile((c.fields && c.fields.stnom) || 'formateur') + '.pdf';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', "inline; filename*=UTF-8''" + encodeURIComponent(name));
+    res.send(buf);
+  } catch (e) { console.error('contrat apercu:', e); res.status(500).json({ error: 'Erreur de génération.' }); }
+});
+app.post('/api/contrat/:id/sign', auth, async (req, res) => {
+  const c = db.contrats.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: 'Contrat introuvable.' });
+  const g = groupById(c.group);
+  // ⚠️ SEUL le formateur désigné signe : ni un autre formateur du dossier, ni l'administration.
+  // Un contrat est un engagement personnel, on ne signe pas à la place de quelqu'un.
+  if (req.user.id !== c.prof) return res.status(403).json({ error: 'Seul le formateur concerné peut signer ce contrat.' });
+  if (c.status === 'done') return res.status(400).json({ error: 'Contrat déjà signé.' });
+  const sig = (req.body || {}).sig;
+  if (!sigImg(sig)) return res.status(400).json({ error: 'Signature manquante.' });
+  const adminU = db.users.find(u => u.id === c.by) || req.user;
+  let doc;
+  try { doc = await depositContratDoc(Object.assign({}, c, { profSig: sig }), adminU); }
+  catch (e) { console.error('contrat sign:', e); return res.status(500).json({ error: 'Erreur de génération du document. Le contrat reste à signer, réessayez.' }); }
+  c.profSig = sig; c.status = 'done'; c.signedAt = Date.now(); c.docId = doc.id;
+  recordDocgen(g, adminU, { kind: 'contrat', tpl: 'contrat', title: 'Contrat de sous-traitance', format: 'pdf', apprenant: (c.fields && c.fields.stnom) || 'formateur' });
+  // ⚠️ canal PRIVÉ : notifyChannel n'y prévient que les formateurs du dossier et les admins.
+  notifyChannel(g, 'prive', req.user, `${senderDisplay(req.user)} a signé le contrat de sous-traitance — document déposé dans le canal privé.`);
+  if (adminU && adminU.id !== req.user.id) {
+    const urlS = SITE_URL + '/espace-documents.html';
+    sendMailSafe(adminU.email, 'Contrat signé par ' + senderDisplay(req.user) + ' — Languages & Success',
+      'Bonjour ' + adminU.prenom + ',\n\n' + senderDisplay(req.user) + ' a signé le contrat de sous-traitance.\nLe document final est déposé dans le canal privé du dossier.\n\n' + urlS + '\n\nLanguages & Success',
+      mailHtml('Le contrat est signé ✓',
+        ['Bonjour ' + adminU.prenom + ',', senderDisplay(req.user) + ' a signé le contrat de sous-traitance.', 'Le document final est déposé dans le canal privé du dossier.'],
+        'Voir le document', urlS));
+  }
+  save();
+  res.json({ ok: true, doc: docPub(doc) });
+});
+app.post('/api/contrat/:id/cancel', auth, (req, res) => {
+  const c = db.contrats.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: 'Contrat introuvable.' });
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
+  if (c.status === 'done') return res.status(400).json({ error: 'Déjà signé : annulation impossible.' });
+  db.contrats = db.contrats.filter(x => x.id !== c.id);
+  db.messages = db.messages.filter(m => !(m.kind === 'contrat' && m.contratId === c.id));
+  notify(c.prof, `${senderDisplay(req.user)} a annulé la demande de signature du contrat.`, c.group);
   save();
   res.json({ ok: true });
 });

@@ -132,6 +132,11 @@
     // lien d'activation reçu par e-mail : la personne choisit elle-même son mot de passe
     var act = /[#&]activation=([a-f0-9]{16,})/i.exec(location.hash || '');
     if (act && app()) { ME = null; renderHeader(); renderActivate(act[1]); return; }
+    // ⚠️ préfixe DISTINCT de l'activation : les deux jetons n'ouvrent pas le même écran, et
+    // celui-ci doit être testé AVANT `if (!token())`, sinon un jeton resté en localStorage
+    // afficherait le tableau de bord au lieu de l'écran de réinitialisation.
+    var rst = /[#&]reinit=([a-f0-9]{16,})/i.exec(location.hash || '');
+    if (rst && app()) { ME = null; renderHeader(); renderReset(rst[1]); return; }
     if (!token()) { ME = null; renderHeader(); if (app()) renderAuth(); return; }
     api('/api/me').then(function (r) {
       if (!r.ok) { setToken(null); ME = null; renderHeader(); if (app()) renderAuth(); return; }
@@ -169,6 +174,7 @@
         setToken(r.data.token); ME = r.data.user; selected = null; afterAuth();
       });
     };
+    var ob = el.querySelector('.li-oubli'); if (ob) ob.onclick = function () { openForgotModal(); };
   }
   // ---- première connexion : la personne définit son mot de passe -----------
   function renderActivate(tok) {
@@ -221,7 +227,69 @@
   // mais plus rien ne les annonce, et la route qui les servait a été supprimée.
   function loginForm() {
     return '<form class="form auth-form" id="login-form" style="max-width:none">' + field('li-email', 'E-mail', 'email') + pwdField('li-pwd', 'Mot de passe') +
-      '<p class="auth-err" id="login-err"></p><button class="btn btn-primary" type="submit" style="justify-self:center">Se connecter →</button></form>';
+      '<p class="auth-err" id="login-err"></p><button class="btn btn-primary" type="submit" style="justify-self:center">Se connecter →</button></form>' +
+      '<p class="chan-note" style="text-align:center;margin:14px 0 0"><button type="button" class="link-btn li-oubli">Mot de passe oublié ?</button></p>';
+  }
+  // ---- mot de passe oublié : demande du lien -------------------------------
+  // ⚠️ La réponse est TOUJOURS la même, que l'adresse ait un compte ou non : le message ne dit
+  // donc jamais « si ce compte existe » d'un côté et « compte inconnu » de l'autre. Sinon ce
+  // formulaire, public, dirait qui est client de l'organisme.
+  function openForgotModal() {
+    var m = buildFsModal('oubli-modal', 'Mot de passe oublié',
+      '<p class="ds-empty" style="margin:0 0 14px">Indiquez l\'adresse e-mail de votre compte. Si elle correspond à un compte, vous recevrez un lien pour choisir un nouveau mot de passe. Ce lien est valable une heure.</p>' +
+      '<div class="gf-grid">' + gi('ou-email', 'Votre adresse e-mail', (document.getElementById('li-email') || {}).value || '') + '<span></span></div>' +
+      '<p class="fe-err auth-err" id="ou-err" style="margin:8px 0 0"></p>',
+      '<button class="btn btn-primary ou-send" type="button" style="padding:11px 22px">Envoyer le lien →</button>');
+    var bt = m.querySelector('.ou-send');
+    bt.onclick = function () {
+      var mail = val('ou-email');
+      if (!mail || mail.indexOf('@') < 0) { document.getElementById('ou-err').textContent = 'Indiquez une adresse e-mail valide.'; return; }
+      bt.disabled = true; bt.textContent = 'Envoi…';
+      apiJSON('/api/password-reset/request', 'POST', { email: mail }).then(function () {
+        closeFsModal('oubli-modal');
+        alertDialog("Si un compte existe avec cette adresse, un lien vient de partir. Regardez votre boîte de réception, et vos indésirables. Le lien est valable une heure.", 'Demande enregistrée');
+      });
+    };
+  }
+  // ---- mot de passe oublié : choix du nouveau mot de passe ------------------
+  // Jumeau de renderActivate, avec un préfixe de lien DIFFÉRENT (#reinit=) : deux jetons de
+  // natures différentes derrière le même préfixe rendraient les deux écrans indiscernables.
+  function renderReset(tok) {
+    var el = app(); if (!el) return;
+    el.innerHTML = '<div class="auth-wrap"><div class="auth-tabs"><button class="auth-tab on" type="button">Nouveau mot de passe</button></div>' +
+      '<p class="ds-empty">Vérification de votre lien…</p></div>';
+    api('/api/password-reset/' + encodeURIComponent(tok)).then(function (r) {
+      var wrap = el.querySelector('.auth-wrap'); if (!wrap) return;
+      if (!r.ok) {
+        wrap.innerHTML = '<div class="auth-tabs"><button class="auth-tab on" type="button">Lien expiré</button></div>' +
+          '<p class="auth-err" style="display:block;text-align:center">' + esc((r.data && r.data.error) || 'Ce lien est invalide ou a expiré.') + '</p>' +
+          '<p class="chan-note" style="text-align:center">Demandez-en un nouveau depuis « Mot de passe oublié ? », ou écrivez à <a href="mailto:contact@languagesandsuccess.com">contact@languagesandsuccess.com</a>.</p>' +
+          '<p style="text-align:center;margin-top:6px"><button class="btn btn-ghost act-back" type="button">Retour à la connexion</button></p>';
+        wrap.querySelector('.act-back').onclick = function () { location.replace(location.pathname + location.search); };
+        return;
+      }
+      setToken(null);   // poste partagé : le lien vaut pour SON destinataire
+      renderHeader();
+      wrap.innerHTML = '<div class="auth-tabs"><button class="auth-tab on" type="button">Bonjour ' + esc(r.data.prenom) + '</button></div>' +
+        '<form class="form auth-form" id="rst-form" style="max-width:none">' +
+        '<p class="chan-note" style="margin:0 0 4px">Choisissez le nouveau mot de passe de votre compte <b>' + esc(r.data.email) + '</b> (6 caractères minimum).</p>' +
+        pwdField('rs-pwd', 'Nouveau mot de passe') + pwdField('rs-pwd2', 'Confirmer le mot de passe') +
+        '<p class="auth-err" id="rst-err"></p><button class="btn btn-primary" type="submit" style="justify-self:center">Valider et accéder à mon espace →</button></form>';
+      wireEyes(wrap);
+      wrap.querySelector('#rst-form').onsubmit = function (e) {
+        e.preventDefault();
+        var p1 = val('rs-pwd'), p2 = val('rs-pwd2');
+        if (p1.length < 6) { err('rst-err', 'Le mot de passe doit faire au moins 6 caractères.'); return; }
+        if (p1 !== p2) { err('rst-err', 'Les deux mots de passe ne correspondent pas.'); return; }
+        var btn = wrap.querySelector('#rst-form button[type=submit]'); btn.disabled = true;
+        apiJSON('/api/password-reset', 'POST', { token: tok, password: p1 }).then(function (r2) {
+          btn.disabled = false;
+          if (!r2.ok) { err('rst-err', (r2.data && r2.data.error) || 'Réinitialisation impossible.'); return; }
+          history.replaceState(null, '', location.pathname + location.search);   // le jeton sort de l'URL
+          setToken(r2.data.token); ME = r2.data.user; selected = null; afterAuth();
+        });
+      };
+    });
   }
   // corps du formulaire de création de compte (utilisé par la modale admin « Créer un compte »)
   function accountFieldsHTML() {
@@ -325,14 +393,44 @@
       '<div class="qs-card-msg"><span class="qs-ic">🖊️</span><div class="qs-card-body"><b>' + esc(p.title || 'Feuille de présence') + '</b>' +
       '<div class="qs-status' + (p.status === 'done' ? ' done' : '') + '">' + (p.status === 'done' ? 'Signée ✓' : 'À signer') + '</div>' + actions + '</div></div><time>' + fmtTime(m.date) + '</time></div>';
   }
+  // Attestation de fin de formation : même carte que la feuille de présence, mais c'est
+  // l'apprenant qui signe en second (le formateur a déjà signé à l'envoi).
+  function attestationMsgHTML(m) {
+    var a = m.attestation || {}, mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
+    var actions;
+    if (a.status === 'done' && a.docId) actions = '<div class="req-acts"><a class="btn-mini" href="/api/documents/' + a.docId + '/download?token=' + encodeURIComponent(token()) + '">Télécharger l\'attestation signée</a></div>';
+    else if (ME.role === 'eleve') actions = '<div class="req-acts"><a class="btn-mini ghost" href="/api/attestation/' + a.id + '/apercu?token=' + encodeURIComponent(token()) + '" target="_blank" rel="noopener">Lire le document</a><button class="btn-mini at-sign-btn" data-at="' + a.id + '">Signer →</button></div>';
+    else actions = '<span class="qs-wait">En attente de la signature de l\'apprenant…</span><div class="req-acts"><a class="btn-mini ghost" href="/api/attestation/' + a.id + '/apercu?token=' + encodeURIComponent(token()) + '" target="_blank" rel="noopener">Relire</a><button class="btn-mini ghost at-cancel-btn" data-at="' + a.id + '">Annuler</button></div>';
+    return '<div class="msg ' + (mine ? 'me' : 'them') + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') +
+      '<div class="qs-card-msg"><span class="qs-ic">🎓</span><div class="qs-card-body"><b>' + esc(a.title || 'Attestation de fin de formation') + '</b>' +
+      '<div class="qs-status' + (a.status === 'done' ? ' done' : '') + '">' + (a.status === 'done' ? 'Signée ✓' : 'À signer') + '</div>' + actions + '</div></div><time>' + fmtTime(m.date) + '</time></div>';
+  }
+  // Contrat de sous-traitance : carte du CANAL PRIVÉ. L'apprenant n'y a aucun accès, ni au canal
+  // ni au document : le contrat porte la rémunération du formateur et son SIRET.
+  function contratMsgHTML(m) {
+    var c = m.contrat || {}, mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
+    var aSigner = (ME.role === 'prof' && c.prof === ME.id);
+    var actions;
+    if (c.status === 'done' && c.docId) actions = '<div class="req-acts"><a class="btn-mini" href="/api/documents/' + c.docId + '/download?token=' + encodeURIComponent(token()) + '">Télécharger le contrat signé</a></div>';
+    else if (aSigner) actions = '<div class="req-acts"><a class="btn-mini ghost" href="/api/contrat/' + c.id + '/apercu?token=' + encodeURIComponent(token()) + '" target="_blank" rel="noopener">Lire le contrat</a><button class="btn-mini ct-sign-btn" data-ct="' + c.id + '">Signer →</button></div>';
+    else actions = '<span class="qs-wait">En attente de la signature du formateur…</span><div class="req-acts"><a class="btn-mini ghost" href="/api/contrat/' + c.id + '/apercu?token=' + encodeURIComponent(token()) + '" target="_blank" rel="noopener">Relire</a>' +
+      (ME.role === 'admin' ? '<button class="btn-mini ghost ct-cancel-btn" data-ct="' + c.id + '">Annuler</button>' : '') + '</div>';
+    return '<div class="msg ' + (mine ? 'me' : 'them') + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') +
+      '<div class="qs-card-msg"><span class="qs-ic">📝</span><div class="qs-card-body"><b>' + esc(c.title || 'Contrat de sous-traitance') + '</b>' +
+      (c.ref ? '<small class="ct-ref">' + esc(c.ref) + '</small>' : '') +
+      '<div class="qs-status' + (c.status === 'done' ? ' done' : '') + '">' + (c.status === 'done' ? 'Signé ✓' : 'À signer') + '</div>' + actions + '</div></div><time>' + fmtTime(m.date) + '</time></div>';
+  }
   // l'envoyeur (formateur/admin) annule une demande en attente (QS ou présence)
   function cancelRequest(kind, id) {
+    var URLS = { presence: '/api/presence/', qs: '/api/qs/', attestation: '/api/attestation/', contrat: '/api/contrat/' };
     confirmDialog({
-      title: kind === 'presence' ? 'Annuler la demande de signature ?' : 'Annuler le questionnaire ?',
-      message: "La demande sera retirée du dossier et l'apprenant ne pourra plus y répondre. Vous pourrez en renvoyer une nouvelle.",
+      title: kind === 'qs' ? 'Annuler le questionnaire ?' : 'Annuler la demande de signature ?',
+      message: kind === 'contrat'
+        ? 'Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.'
+        : "La demande sera retirée du dossier et l'apprenant ne pourra plus y répondre. Vous pourrez en renvoyer une nouvelle.",
       confirm: 'Annuler la demande', cancel: 'Revenir',
       onConfirm: function () {
-        var url = (kind === 'presence' ? '/api/presence/' : '/api/qs/') + encodeURIComponent(id) + '/cancel';
+        var url = (URLS[kind] || '/api/qs/') + encodeURIComponent(id) + '/cancel';
         apiJSON(url, 'POST', {}).then(function (r) { if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; } renderDashboard(); });
       }
     });
@@ -364,6 +462,8 @@
       ((messages && messages.length) ? messages.map(function (m) {
         if (m.kind === 'qs') return qsMsgHTML(m);
         if (m.kind === 'presence') return presenceMsgHTML(m);
+        if (m.kind === 'attestation') return attestationMsgHTML(m);
+        if (m.kind === 'contrat') return contratMsgHTML(m);
         var mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
         return '<div class="msg ' + (mine ? 'me' : 'them') + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') + '<span class="bubble">' + esc(m.text) + '</span><time>' + fmtTime(m.date) + '</time></div>';
       }).join('') : '<p class="ds-empty" style="text-align:center;padding:24px 0">Aucun message. Démarrez la conversation.</p>') +
@@ -696,6 +796,10 @@
     document.querySelectorAll('.qs-edit-btn').forEach(function (b) { b.onclick = function () { editRequest('qs', b.getAttribute('data-qs'), b.getAttribute('data-type')); }; });
     document.querySelectorAll('.pr-cancel-btn').forEach(function (b) { b.onclick = function () { cancelRequest('presence', b.getAttribute('data-pr')); }; });
     document.querySelectorAll('.pr-edit-btn').forEach(function (b) { b.onclick = function () { editRequest('presence', b.getAttribute('data-pr')); }; });
+    document.querySelectorAll('.at-sign-btn').forEach(function (b) { b.onclick = function () { openSignatureModal('attestation', b.getAttribute('data-at')); }; });
+    document.querySelectorAll('.ct-sign-btn').forEach(function (b) { b.onclick = function () { openSignatureModal('contrat', b.getAttribute('data-ct')); }; });
+    document.querySelectorAll('.at-cancel-btn').forEach(function (b) { b.onclick = function () { cancelRequest('attestation', b.getAttribute('data-at')); }; });
+    document.querySelectorAll('.ct-cancel-btn').forEach(function (b) { b.onclick = function () { cancelRequest('contrat', b.getAttribute('data-ct')); }; });
     var f = document.getElementById('chat-form'); if (!f) return;
     f.onsubmit = function (e) {
       e.preventDefault();
@@ -1424,13 +1528,24 @@
     var fin = '<h4 class="gen-h">Niveau &amp; commentaires</h4><div class="gf-grid">' + gi('att-niveau', 'Niveau atteint', '') + gi('att-certif', 'Certification', pre.certification) + gi('att-dateeval', "Date de l'évaluation", '') + gi('att-resultat', 'Résultat', '') + '</div>' +
       '<div class="gf-grid">' + ga('att-comments', 'Commentaires du formateur', '', 3) + '</div>' +
       '<div class="gf-grid">' + gi('att-lieufait', 'Fait à', pre.lieuFait) + gi('att-datefait', 'Le', pre.dateFait) + '</div>';
-    var footer = '<label class="gen-chan">Format <select id="att-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label><button class="btn btn-primary att-gen" type="button" style="padding:11px 22px">Générer le document →</button>';
-    var m = buildFsModal('att-modal', 'Attestation de fin de stage', head + obj + comps + fin, footer);
-    m.querySelector('.att-gen').onclick = function () {
+    // ⚠️ L'attestation ne se télécharge plus directement : elle part à l'apprenant pour signature.
+    // Le formateur signe ici même, à l'envoi, comme pour la feuille de présence.
+    var sigF = '<h4 class="gen-h">Votre signature</h4><p class="ds-empty" style="margin:0 0 8px">Signez à la souris (ou au doigt), ou téléversez une image de votre signature. L\'apprenant signera à son tour, puis le document se déposera dans le dossier.</p>' + sigPadHTML();
+    var footer = '<button class="btn btn-primary att-send" type="button" style="padding:11px 22px">Envoyer à l\'apprenant pour signature →</button>';
+    var m = buildFsModal('att-modal', 'Attestation de fin de stage', head + obj + comps + fin + sigF, footer);
+    var padAtt = mountSignaturePad(m.querySelector('.sigpad'));
+    m.querySelector('.att-send').onclick = function () {
       var competences = [];
       for (var i = 0; i < 6; i++) { var lbl = val('att-comp-l-' + i); if (lbl && lbl.trim()) competences.push({ label: lbl, niveau: val('att-comp-n-' + i) }); }
       var fields = { representant: val('att-rep'), apprenant: val('att-apprenant'), societe: val('att-societe'), intitule: val('att-intitule'), formateur: val('att-formateur'), dateDebut: val('att-debut'), dateFin: val('att-fin'), dureeTotale: val('att-duree'), dureeDetail: val('att-detail'), lieu: val('att-lieu'), objectifs: val('att-objectifs'), competences: competences, niveauAtteint: val('att-niveau'), certification: val('att-certif'), dateEval: val('att-dateeval'), resultat: val('att-resultat'), commentaires: val('att-comments'), lieuFait: val('att-lieufait'), dateFait: val('att-datefait') };
-      downloadDoc(m, '.att-gen', '/api/attestation/generate', { group: selected, fields: fields, format: document.getElementById('att-format').value }, '4 - Attestation de fin de formation - ' + (fields.apprenant || 'apprenant'));
+      if (padAtt.isEmpty()) { alertDialog('Signez l\'attestation avant de l\'envoyer.'); return; }
+      var b = m.querySelector('.att-send'); b.disabled = true; b.textContent = 'Envoi…';
+      apiJSON('/api/attestation/send', 'POST', { group: selected, fields: fields, formateurSig: padAtt.dataURL() }).then(function (r) {
+        b.disabled = false; b.textContent = 'Envoyer à l\'apprenant pour signature →';
+        if (!r.ok) { alertDialog((r.data && r.data.error) || 'Envoi impossible.'); return; }
+        closeFsModal('att-modal'); renderDashboard();
+        alertDialog("L'attestation est partie. L'apprenant la retrouvera dans la discussion commune, et reçoit un e-mail.", 'Envoyée pour signature');
+      });
     };
   }
 
@@ -1456,11 +1571,28 @@
       gi('ct-taux', 'Taux horaire HT par heure synchrone (ex : 25,00 €)', '') + gi('ct-montant', 'Montant total HT (ex : 1 000,00 €)', '') + '</div>' +
       '<div class="gf-grid">' + gi('ct-heuressync', 'Volume d\'heures synchrones (ex : 40h00)', '') + '<span></span></div>' +
       '<div class="gf-grid">' + gi('ct-lieufait', 'Fait à', pre.lieuFait) + gi('ct-datefait', 'Le', pre.dateFait) + '</div>';
-    var footer = '<label class="gen-chan">Format <select id="ct-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label><button class="btn btn-primary ct-gen" type="button" style="padding:11px 22px">Générer le document →</button>';
+    // Deux sorties : l'envoi au formateur pour signature (le circuit voulu) et le téléchargement
+    // direct, conservé pour garder une copie ou relire avant d'envoyer.
+    var footer = '<label class="gen-chan">Format <select id="ct-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +
+      '<button class="btn btn-ghost ct-gen" type="button" style="padding:11px 18px">Télécharger</button>' +
+      '<button class="btn btn-primary ct-send" type="button" style="padding:11px 22px">Envoyer au formateur pour signature →</button>';
     var m = buildFsModal('ct-modal', 'Contrat de sous-traitance', intro + art1 + art6, footer);
+    var champsCt = function () {
+      return { stnom: val('ct-stnom'), stNaissance: val('ct-naissance'), stNationalite: val('ct-nationalite'), stAdresse: val('ct-adresse'), stSiret: val('ct-siret'), stNda: val('ct-nda'), intitule: val('ct-intitule'), langue: val('ct-langue'), stagiaire: val('ct-stagiaire'), programme: val('ct-programme'), mission: val('ct-mission'), lieu: val('ct-lieu'), dateDebut: val('ct-debut'), dateFin: val('ct-fin'), tauxHoraire: val('ct-taux'), montantTotal: val('ct-montant'), heuresSync: val('ct-heuressync'), lieuFait: val('ct-lieufait'), dateFait: val('ct-datefait') };
+    };
     m.querySelector('.ct-gen').onclick = function () {
-      var fields = { stnom: val('ct-stnom'), stNaissance: val('ct-naissance'), stNationalite: val('ct-nationalite'), stAdresse: val('ct-adresse'), stSiret: val('ct-siret'), stNda: val('ct-nda'), intitule: val('ct-intitule'), langue: val('ct-langue'), stagiaire: val('ct-stagiaire'), programme: val('ct-programme'), mission: val('ct-mission'), lieu: val('ct-lieu'), dateDebut: val('ct-debut'), dateFin: val('ct-fin'), tauxHoraire: val('ct-taux'), montantTotal: val('ct-montant'), heuresSync: val('ct-heuressync'), lieuFait: val('ct-lieufait'), dateFait: val('ct-datefait') };
+      var fields = champsCt();
       downloadDoc(m, '.ct-gen', '/api/contrat/generate', { group: selected, prof: GEN_PROF, fields: fields, format: document.getElementById('ct-format').value }, '7 - Contrat de sous-traitance - ' + (fields.stnom || 'formateur'));
+    };
+    m.querySelector('.ct-send').onclick = function () {
+      var fields = champsCt();
+      var b = m.querySelector('.ct-send'); b.disabled = true; b.textContent = 'Envoi…';
+      apiJSON('/api/contrat/send', 'POST', { group: selected, prof: GEN_PROF, fields: fields }).then(function (r) {
+        b.disabled = false; b.textContent = 'Envoyer au formateur pour signature →';
+        if (!r.ok) { alertDialog((r.data && r.data.error) || 'Envoi impossible.'); return; }
+        closeFsModal('ct-modal'); channel = 'prive'; renderDashboard();
+        alertDialog('Le contrat est parti. Le formateur le retrouvera dans le canal privé du dossier, et reçoit un e-mail. L\'apprenant n\'y a aucun accès.', 'Envoyé pour signature');
+      });
     };
   }
 
@@ -1667,6 +1799,53 @@
   }
   var PRESENCE_TPL_CACHE = null;
   // ---- l'apprenant signe la feuille de présence reçue ----------------------
+  // ---- signature d'une attestation ou d'un contrat -------------------------
+  // Une seule modale pour les deux : le document se relit dans un onglet à part (bouton « Lire »
+  // de la carte), la modale ne porte donc que le rappel et le pad.
+  // ⚠️ Elle N'AFFICHE PAS le contenu du contrat : il tient sur dix articles, un récapitulatif
+  // partiel donnerait l'illusion d'avoir tout lu. Le lien d'aperçu sert le PDF entier.
+  var SIGNABLES = {
+    attestation: {
+      titre: 'Signer votre attestation de fin de formation',
+      rappel: "Vous vous apprêtez à signer votre attestation de fin de formation. Ouvrez-la d'abord avec « Lire le document » : une fois votre signature envoyée, elle est définitive.",
+      confirmation: 'Une fois votre signature envoyée, l\'attestation sera finalisée et vous ne pourrez plus la modifier.',
+      url: '/api/attestation/'
+    },
+    contrat: {
+      titre: 'Signer le contrat de sous-traitance',
+      rappel: "Vous vous apprêtez à signer votre contrat de sous-traitance. Ouvrez-le d'abord avec « Lire le contrat » et relisez-le entièrement : votre signature vous engage.",
+      confirmation: 'Une fois votre signature envoyée, le contrat sera finalisé et vous ne pourrez plus revenir dessus.',
+      url: '/api/contrat/'
+    }
+  };
+  function openSignatureModal(kind, id) {
+    var cfg = SIGNABLES[kind]; if (!cfg) return;
+    api(cfg.url + encodeURIComponent(id)).then(function (r) {
+      if (!r.ok) { alertDialog((r.data && r.data.error) || 'Erreur'); return; }
+      var o = r.data[kind] || {};
+      if (o.status === 'done') { alertDialog('Ce document est déjà signé.'); renderDashboard(); return; }
+      var body = '<p class="ds-empty" style="margin:0 0 14px">' + esc(cfg.rappel) + '</p>' +
+        '<div class="req-acts" style="margin:0 0 18px"><a class="btn-mini ghost" href="' + cfg.url + encodeURIComponent(id) + '/apercu?token=' + encodeURIComponent(token()) + '" target="_blank" rel="noopener">' + (kind === 'contrat' ? 'Lire le contrat' : 'Lire le document') + '</a></div>' +
+        '<h4 class="gen-h">Votre signature</h4><p class="ds-empty" style="margin:0 0 8px">Signez à la souris (ou au doigt), ou téléversez une image de votre signature.</p>' + sigPadHTML();
+      var m = buildFsModal('sig-modal', cfg.titre, body, '<button class="btn btn-primary sig-send" type="button" style="padding:11px 22px">Envoyer ma signature →</button>');
+      var pad = mountSignaturePad(m.querySelector('.sigpad'));
+      m.querySelector('.sig-send').onclick = function () {
+        if (pad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature).'); return; }
+        confirmDialog({
+          title: 'Envoyer votre signature ?', message: cfg.confirmation,
+          confirm: "Confirmer l'envoi", cancel: 'Revenir',
+          onConfirm: function () {
+            var btn = m.querySelector('.sig-send'); btn.disabled = true; btn.textContent = 'Envoi…';
+            apiJSON(cfg.url + encodeURIComponent(id) + '/sign', 'POST', { sig: pad.dataURL() }).then(function (rr) {
+              if (!rr.ok) { btn.disabled = false; btn.textContent = 'Envoyer ma signature →'; alertDialog((rr.data && rr.data.error) || 'Erreur'); return; }
+              closeFsModal('sig-modal'); renderDashboard();
+            });
+          }
+        });
+      };
+    });
+  }
+
   function openPresenceSignModal(presenceId) {
     // on charge aussi les modèles : ils décrivent les lignes d'en-tête du récapitulatif
     Promise.all([

@@ -725,6 +725,8 @@ footer a:hover{color:#fff8ef}
 .docs li .btn-mini{margin-left:auto}
 /* Liste de documents bornée : on voit les 3 derniers, le reste défile. Sans ça, un dossier bien
    rempli poussait la messagerie hors de l'écran. Même procédé que .chat-msgs. */
+/* référence du contrat, sous son titre dans la carte du canal privé */
+.ct-ref{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:1px}
 .docs-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
 .docs-h span{font-size:13px;font-weight:600;color:var(--ink)}
 .docs-h small{font-size:11.5px;color:var(--ink-soft)}
