@@ -715,6 +715,11 @@ footer a:hover{color:#fff8ef}
 .btn-mini:hover{background:#a85c44;border-color:#a85c44}
 .upload-zone{display:flex;align-items:center;gap:14px;border:1.5px dashed color-mix(in oklab,var(--accent) 40%,var(--line));border-radius:13px;padding:18px;cursor:pointer;margin-bottom:18px;transition:.15s}
 .upload-zone:hover{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 5%,#fff)}
+/* fichier survolé pendant un glisser-déposer : la zone se marque nettement, sinon rien ne dit
+   qu'on peut lâcher ici. Trait plein et non pointillé : c'est le signal « prêt à recevoir ». */
+.upload-zone.over{border-style:solid;border-color:var(--accent);background:color-mix(in oklab,var(--accent) 12%,#fff);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 18%,transparent)}
+/* ⚠️ les enfants ne doivent pas intercepter le survol, sinon dragleave se déclenche sur chacun */
+.upload-zone.over *{pointer-events:none}
 .uz-ic{font-size:22px;color:var(--accent)}
 .upload-zone small{color:var(--ink-soft)}
 .docs li{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:11px}

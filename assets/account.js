@@ -844,24 +844,75 @@
       });
     };
   }
+  // Envoi d'une liste de fichiers, quelle qu'en soit l'origine : le sélecteur ou un dépôt.
+  function envoyerFichiers(files) {
+    files = Array.prototype.slice.call(files || []);
+    if (!files.length) return;
+    var done = 0;
+    files.forEach(function (file) {
+      var fd = new FormData(); fd.append('group', selected); fd.append('channel', channel); fd.append('file', file);
+      fetch('/api/documents', { method: 'POST', headers: { Authorization: 'Bearer ' + token() }, body: fd })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }).catch(function () { return { ok: r.ok, data: {} }; }); })
+        .then(function (r) { if (!r.ok) alertDialog((r.data && r.data.error) || ('« ' + file.name + ' » n\'a pas été envoyé. Réessayez.')); })
+        // coupure réseau (serveur en cours de mise à jour, wifi perdu) : on le dit
+        // clairement et on précise que le fichier peut simplement être renvoyé
+        .catch(function () { alertDialog('« ' + file.name + ' » n\'a pas été envoyé : connexion au serveur interrompue. Vous pouvez le renvoyer.'); })
+        .then(function () { if (++done === files.length) renderDashboard(); });
+    });
+  }
+  // ⚠️ Sans ces deux écouteurs sur la FENÊTRE, un fichier lâché À CÔTÉ de la zone fait quitter
+  // l'espace documents : le navigateur ouvre le fichier à la place de la page, et tout travail
+  // en cours est perdu. On les pose une seule fois, pas à chaque rendu.
+  var refusGlobalPose = false;
+  function refuserDepotAilleurs() {
+    if (refusGlobalPose) return;
+    refusGlobalPose = true;
+    ['dragover', 'drop'].forEach(function (ev) {
+      window.addEventListener(ev, function (e) {
+        if (e.target && e.target.closest && e.target.closest('.upload-zone')) return;   // la zone gère le sien
+        e.preventDefault();
+      });
+    });
+  }
   function wireUpload() {
+    refuserDepotAilleurs();
     var input = document.getElementById('doc-input'); if (!input) return;
     input.onchange = function () {
-      var files = Array.prototype.slice.call(input.files || []); if (!files.length) return; var done = 0;
+      var files = input.files;
       // on vide la sélection tout de suite : sans ça, re-choisir LE MÊME fichier après
       // un échec ne déclenche aucun événement et l'utilisateur croit l'espace bloqué
+      var copie = Array.prototype.slice.call(files || []);
       input.value = '';
-      files.forEach(function (file) {
-        var fd = new FormData(); fd.append('group', selected); fd.append('channel', channel); fd.append('file', file);
-        fetch('/api/documents', { method: 'POST', headers: { Authorization: 'Bearer ' + token() }, body: fd })
-          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }).catch(function () { return { ok: r.ok, data: {} }; }); })
-          .then(function (r) { if (!r.ok) alertDialog((r.data && r.data.error) || ('« ' + file.name + ' » n\'a pas été envoyé. Réessayez.')); })
-          // coupure réseau (serveur en cours de mise à jour, wifi perdu) : on le dit
-          // clairement et on précise que le fichier peut simplement être renvoyé
-          .catch(function () { alertDialog('« ' + file.name + ' » n\'a pas été envoyé : connexion au serveur interrompue. Vous pouvez le renvoyer.'); })
-          .then(function () { if (++done === files.length) renderDashboard(); });
-      });
+      envoyerFichiers(copie);
     };
+    // ---- glisser-déposer ---------------------------------------------------
+    var zone = input.closest('.upload-zone'); if (!zone) return;
+    // ⚠️ dragleave se déclenche AUSSI en passant sur un enfant de la zone : sans compteur, le
+    // surlignage clignote dès que le curseur survole l'icône ou le texte.
+    var profondeur = 0;
+    var allume = function (on) { zone.classList.toggle('over', on); };
+    zone.addEventListener('dragenter', function (e) { e.preventDefault(); profondeur++; allume(true); });
+    // ⚠️ dropEffect sur 'copy' : sans lui le curseur affiche l'interdiction sur certains systèmes
+    zone.addEventListener('dragover', function (e) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; });
+    zone.addEventListener('dragleave', function () { if (--profondeur <= 0) { profondeur = 0; allume(false); } });
+    zone.addEventListener('drop', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      profondeur = 0; allume(false);
+      var dt = e.dataTransfer; if (!dt) return;
+      // ⚠️ On écarte les DOSSIERS : leur entrée figure bien dans dt.files mais avec une taille
+      // nulle et aucun type, et le serveur recevrait un fichier vide portant le nom du dossier.
+      var items = dt.items ? Array.prototype.slice.call(dt.items) : null;
+      var fichiers = Array.prototype.slice.call(dt.files || []);
+      if (items && items.length === fichiers.length) {
+        fichiers = fichiers.filter(function (f, i) {
+          var it = items[i];
+          var entry = it && it.webkitGetAsEntry && it.webkitGetAsEntry();
+          return entry ? entry.isFile : true;
+        });
+        if (!fichiers.length) { alertDialog('Les dossiers ne peuvent pas être envoyés : déposez les fichiers un par un.'); return; }
+      }
+      envoyerFichiers(fichiers);
+    });
   }
   function admDocLi(d) {
     return '<li><span class="doc-ic">📄</span><span class="doc-meta"><b>' + esc(d.name) + '</b><small>' + fmtSize(d.size) + ' · ' + (d.channel === 'prive' ? '🔒 privé' : 'commun') + ' · ' + fmtDate(d.date) + '</small></span>' +
