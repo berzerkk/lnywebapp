@@ -2118,15 +2118,28 @@ function buildContratPdf(d, user, ver) {
         pdfPlacePourSignature(doc, 130);
         const y0 = doc.y, colW = totalW / 2 - 10;
         doc.font('Helvetica').fontSize(9.2).fillColor('#2a241d');
+        // ⚠️ On ne passe PLUS par { align, continued }. pdfkit aligne CHAQUE segment séparément
+        // dans la largeur donnée : sur la colonne de droite, les trois morceaux de
+        // « Pour le / Sous-traitant / , » étaient donc chacun collés au bord droit, l'un
+        // par-dessus l'autre. Le Word ne montrait rien, c'est lui qui compose la ligne.
+        // On mesure la ligne entière, on en déduit son abscisse de départ, puis on pose les
+        // segments à la suite — l'alignement redevient celui de la LIGNE, pas du morceau.
+        const largeurSeg = (s) => { doc.font(s.b ? 'Helvetica-Bold' : 'Helvetica'); return doc.widthOfString(s.t); };
         const bloc = (lignes, x, align) => {
           let y = y0;
+          const h = doc.currentLineHeight(true);
           lignes.forEach(l => {
-            ctSeg(l).forEach((s, i) => {
+            const segs = ctSeg(l);
+            const total = segs.reduce((a, s) => a + largeurSeg(s), 0);
+            let cx = align === 'right' ? x + colW - Math.min(total, colW) : x;
+            segs.forEach(s => {
               doc.font(s.b ? 'Helvetica-Bold' : 'Helvetica');
-              doc.text(s.t, i === 0 ? x : doc.x, i === 0 ? y : doc.y, { width: colW, align: align, continued: i < ctSeg(l).length - 1 });
+              doc.text(s.t, cx, y, { lineBreak: false });    // lineBreak:false : pas de retour à la ligne parasite
+              cx += largeurSeg(s);
             });
-            y = doc.y;
+            y += h;
           });
+          doc.y = y;
           return y;
         };
         const yG = bloc(b.sign.gauche, left, 'left');
