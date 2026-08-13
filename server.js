@@ -601,7 +601,10 @@ const fullName = (id) => { const u = realUser(id); return u ? `${u.prenom} ${u.n
 const senderDisplay = (u) => (u.role === 'admin' ? 'Administration L&S' : `${u.prenom} ${u.nom}`);
 const nameDate = () => new Date().toLocaleDateString('fr-FR').replace(/\//g, '-'); // date sans « / » pour les noms de fichiers
 const safeFile = (s) => String(s || '').replace(/[\\/:*?"<>|]/g, '-');
-function notify(userId, text, group) { if (!userId) return; db.notifs.push({ id: crypto.randomUUID(), user: userId, text, group: group || null, read: false, date: Date.now() }); }
+// ⚠️ `channel` est le 4ᵉ paramètre, FACULTATIF : sans lui la notification n'appartient à aucun
+// canal et sera consommée en ouvrant le dossier, quel que soit l'onglet. C'est ce qu'on veut pour
+// tout ce qui n'est pas rattaché à une discussion (demande de signature, changement de dossier…).
+function notify(userId, text, group, channel) { if (!userId) return; db.notifs.push({ id: crypto.randomUUID(), user: userId, text, group: group || null, channel: channel || null, read: false, date: Date.now() }); }
 
 // ---- dossiers --------------------------------------------------------------
 const groupById = (id) => db.groups.find(g => g.id === id);
@@ -634,7 +637,10 @@ function channelRecipients(g, ch, senderId) {
   ids.delete(senderId);
   return [...ids];
 }
-function notifyChannel(g, ch, sender, text) { channelRecipients(g, ch, sender.id).forEach(id => notify(id, text, g.id)); }
+// ⚠️ La notification porte le CANAL d'origine. Sans lui, ouvrir un dossier (qui atterrit toujours
+// sur « commun ») effaçait aussi les notifications du canal privé : le formateur perdait l'alerte
+// d'un message privé sans l'avoir jamais vue. Défaut réel, signalé par l'utilisateur le 05/08/2026.
+function notifyChannel(g, ch, sender, text) { channelRecipients(g, ch, sender.id).forEach(id => notify(id, text, g.id, ch)); }
 
 // ---- app -------------------------------------------------------------------
 const app = express();
@@ -1194,7 +1200,20 @@ app.post('/api/notifications/read', auth, (req, res) => { db.notifs.forEach(n =>
 app.post('/api/notifications/delete', auth, (req, res) => { const id = (req.body || {}).id; db.notifs = db.notifs.filter(n => !(n.user === req.user.id && n.id === id)); save(); res.json({ ok: true }); });
 app.post('/api/notifications/clear', auth, (req, res) => { db.notifs = db.notifs.filter(n => n.user !== req.user.id); save(); res.json({ ok: true }); });
 // supprime les notifs de l'utilisateur liées à UN dossier (appelé quand il ouvre le dossier)
-app.post('/api/notifications/clear-group', auth, (req, res) => { const gid = (req.body || {}).group; db.notifs = db.notifs.filter(n => !(n.user === req.user.id && n.group === gid)); save(); res.json({ ok: true }); });
+// Consomme les notifications d'un dossier. ⚠️ Si un canal est précisé, on ne consomme QUE celles
+// de ce canal (plus celles sans canal, qui ne dépendent d'aucune discussion) : le formateur qui
+// ouvre l'onglet commun ne doit pas perdre l'alerte d'un message arrivé dans le privé.
+app.post('/api/notifications/clear-group', auth, (req, res) => {
+  const { group: gid, channel } = req.body || {};
+  const ch = (channel === 'commun' || channel === 'prive') ? channel : null;
+  db.notifs = db.notifs.filter(n => {
+    if (n.user !== req.user.id || n.group !== gid) return true;
+    if (!ch) return false;                       // pas de canal demandé : on vide tout le dossier
+    return !(n.channel === ch || !n.channel);    // sinon : ce canal + les notifs sans canal
+  });
+  save();
+  res.json({ ok: true });
+});
 
 // ---- vue admin globale (centralisée) ---------------------------------------
 app.get('/api/admin/overview', auth, (req, res) => {

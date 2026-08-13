@@ -162,9 +162,11 @@
   // ---- connexion (l'inscription publique est fermée : comptes créés par l'admin)
   function renderAuth() {
     var el = app(); if (!el) return;
-    el.innerHTML = '<div class="auth-wrap"><div class="auth-tabs">' +
-      '<button class="auth-tab on" type="button">Se connecter</button></div>' +
-      loginForm() + '</div>';
+    // ⚠️ Plus de titre « Se connecter » au-dessus du formulaire : seul, dans un cadre d'onglets,
+    // il ressemblait à un bouton (demande de l'utilisateur, 05/08/2026). Le bouton d'envoi porte
+    // déjà le libellé. Les écrans d'activation et de réinitialisation gardent le leur : il y
+    // annonce une situation (« Bienvenue X », « Lien expiré ») et non une action.
+    el.innerHTML = '<div class="auth-wrap">' + loginForm() + '</div>';
     wireEyes(el);
     var lf = document.getElementById('login-form');
     if (lf) lf.onsubmit = function (e) {
@@ -337,6 +339,21 @@
       '<button type="button" class="btn btn-ghost ds-pwd">Changer mon mot de passe</button>' +
       '<button class="btn btn-ghost ds-logout">Se déconnecter</button></div></div>';
   }
+  // Consomme les notifications d'un dossier pour UN canal, puis redessine. Les notifications sans
+  // canal (demandes de signature, changements de composition) partent avec le premier canal ouvert.
+  function consommerNotifs(groupId, ch) {
+    var aPurger = NOTIFS.some(function (n) { return n.group === groupId && (n.channel === ch || !n.channel); });
+    if (!aPurger) { renderDashboard(); return; }
+    apiJSON('/api/notifications/clear-group', 'POST', { group: groupId, channel: ch }).then(function () {
+      NOTIFS = NOTIFS.filter(function (n) { return !(n.group === groupId && (n.channel === ch || !n.channel)); });
+      renderDashboard();
+    });
+  }
+  // pastille de non-lu sur un onglet de canal
+  function pastilleCanal(groupId, ch) {
+    var n = NOTIFS.filter(function (x) { return x.group === groupId && x.channel === ch && !x.read; }).length;
+    return n ? '<span class="chan-dot">' + (n > 9 ? '9+' : n) + '</span>' : '';
+  }
   function notifCardHTML(unread) {
     // ds-card-notifs : ancre stable de la visite guidée (une ancre positionnelle du type
     // « .ds-side > .ds-card:first-child » se déplacerait en silence si une carte était ajoutée).
@@ -500,8 +517,10 @@
       (ME.role !== 'eleve' ? '<button class="btn-mini gen-btn">📄 Générer un document</button>' : '');
     return '<div class="ds-card"><div class="ds-card-h"><h3>Dossier — ' + esc(groupTitle(g)) + '</h3>' +
       (acts ? '<div class="ds-card-acts">' + acts + '</div>' : '') + '</div>' + membersChips(g) +
-      '<div class="chan-tabs"><button class="chan-tab' + (channel === 'commun' ? ' on' : '') + '" data-ch="commun">💬 Discussion commune</button>' +
-      (canPrive ? '<button class="chan-tab' + (channel === 'prive' ? ' on' : '') + '" data-ch="prive">🔒 Privé · formateur + admin</button>' : '') + '</div>' +
+      // pastille sur l'onglet qui porte du non-lu : sans elle, rien ne dit qu'il se passe quelque
+      // chose dans l'autre canal tant qu'on n'y va pas
+      '<div class="chan-tabs"><button class="chan-tab' + (channel === 'commun' ? ' on' : '') + '" data-ch="commun">💬 Discussion commune' + pastilleCanal(g.id, 'commun') + '</button>' +
+      (canPrive ? '<button class="chan-tab' + (channel === 'prive' ? ' on' : '') + '" data-ch="prive">🔒 Privé · formateur + admin' + pastilleCanal(g.id, 'prive') + '</button>' : '') + '</div>' +
       (channel === 'prive' ? '<p class="chan-note">Canal privé : l\'apprenant n\'a pas accès à ce canal.</p>' : '') +
       docsBlock(docs) + '<h4 class="ds-sub">Messagerie</h4>' + chatHTML(messages) + '</div>';
   }
@@ -568,10 +587,9 @@
     el.querySelectorAll('.contact').forEach(function (li) {
       li.onclick = function () {
         selected = li.getAttribute('data-id'); channel = 'commun';
-        // ouvrir le dossier « consomme » ses notifications (badge + cloche)
-        if (NOTIFS.some(function (n) { return n.group === selected; })) {
-          apiJSON('/api/notifications/clear-group', 'POST', { group: selected }).then(function () { renderDashboard(); });
-        } else renderDashboard();
+        // ⚠️ On ne consomme que les notifications du canal qu'on ouvre (ici « commun ») : celles
+        // du canal privé doivent survivre, sinon le formateur perd l'alerte sans l'avoir vue.
+        consommerNotifs(selected, 'commun');
       };
     });
     el.querySelectorAll('.doc-del').forEach(function (b) {
@@ -590,7 +608,13 @@
         });
       };
     });
-    el.querySelectorAll('.chan-tab').forEach(function (t) { t.onclick = function () { channel = t.getAttribute('data-ch'); renderDashboard(); }; });
+    el.querySelectorAll('.chan-tab').forEach(function (t) {
+      t.onclick = function () {
+        channel = t.getAttribute('data-ch');
+        // changer d'onglet consomme les notifications de CE canal, et de lui seul
+        consommerNotifs(selected, channel);
+      };
+    });
     var gb = el.querySelector('.gen-btn'); if (gb) gb.onclick = openTemplatePicker;
     var geb = el.querySelector('.grp-edit-btn'); if (geb && selG) geb.onclick = function () { openEditGroup(selG); };
     if (selG) { wireChat(); wireUpload(); }

@@ -941,6 +941,10 @@ footer a:hover{color:#fff8ef}
 .chan-tabs{display:flex;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:14px}
 .chan-tab{flex:1;border:0;background:none;font:inherit;font-weight:600;font-size:13.5px;color:var(--ink-soft);padding:9px;border-radius:8px;cursor:pointer;transition:.15s}
 .chan-tab.on{background:var(--accent);color:#fff}
+/* pastille de non-lu sur un onglet de canal : elle dit qu'il se passe quelque chose dans l'autre
+   discussion, ce que rien n'indiquait avant */
+.chan-dot{display:inline-block;min-width:17px;height:17px;line-height:17px;padding:0 4px;margin-left:6px;border-radius:9px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;vertical-align:1px}
+.chan-tab.on .chan-dot{background:#fff;color:var(--accent)}
 .chan-note{font-size:12.5px;color:#7a4ac0;background:#f4eefc;border:1px solid #e6d8f7;border-radius:9px;padding:8px 12px;margin:0 0 14px}
 /* générateur de documents */
 .gen-card{max-width:720px}
@@ -1107,6 +1111,16 @@ footer a:hover{color:#fff8ef}
 @media (max-width:620px){
   .btn-mini{padding:11px 16px}
   .req-acts{gap:9px}
+  /* ⚠️ Barre de la vue globale : en flex, les quatre commandes tombaient chacune sur sa ligne
+     avec des largeurs toutes différentes (153, 151, 218, 208 px), toutes calées à gauche — un
+     escalier irrégulier sur 358 px de haut. En grille à deux colonnes, elles forment un bloc
+     régulier et la barre se replie de moitié. */
+  /* ⚠️ minmax(0,1fr) et NON 1fr : le minimum implicite de `1fr` est le min-content de la colonne,
+     donc un libellé qui ne se coupe pas (« 🕐 Historique de connexions ») élargit la colonne et
+     fait déborder la page de 82 px. Même piège que .ds-grid. */
+  .adm-bar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:stretch}
+  .adm-bar .adm-toggle,.adm-bar .adm-search{grid-column:1 / -1}
+  .adm-bar .btn-mini{width:100%;min-width:0;justify-content:center;text-align:center;padding-left:8px;padding-right:8px;white-space:normal;line-height:1.25}
   .docs li{gap:10px}
   /* ⚠️ En mobile, .doc-meta est comprimé à ~100 px par le bouton « Télécharger » (108 px, qui ne
      rétrécit pas) : le nom du fichier et la ligne d'informations s'y repliaient sur six lignes,
