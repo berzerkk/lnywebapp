@@ -123,7 +123,7 @@ if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
 // ⚠️ Toute NOUVELLE collection doit figurer ici : normalizeDB la crée alors toute seule sur les
 // bases déjà en service, production comprise. Oubliée, elle vaut undefined au premier accès.
-const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], attestations: [], contrats: [], contratRefs: [], logins: [], docVersions: {}, articles: [], secret: crypto.randomBytes(32).toString('hex') });
+const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], attestations: [], contrats: [], contratRefs: [], logins: [], demoSeeded: false, docVersions: {}, articles: [], secret: crypto.randomBytes(32).toString('hex') });
 function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys(def)) { if (d[k] == null) d[k] = def[k]; } return migrateGroups(d); }
 // MIGRATION (27/07/2026) : un dossier passe de { prof, eleve } (une seule personne de chaque côté)
 // à { profs: [...], eleves: [...] }. Les bases existantes (dont la prod) sont converties au chargement ;
@@ -3631,18 +3631,32 @@ const ADMIN_EMAIL = 'admin@languagesandsuccess.com';
 const ADMIN_MDP_INITIAL = process.env.ADMIN_PASSWORD || 'changez-ce-mot-de-passe';
 async function ensureDemo() {
   let changed = false;
+  // Le compte administrateur permanent, lui, est TOUJOURS garanti : sans lui personne ne peut
+  // plus entrer, et une suppression accidentelle serait irréparable.
   if (!db.users.some(u => u.email === ADMIN_EMAIL)) {
     db.users.push({ id: crypto.randomUUID(), prenom: 'Administration', nom: 'L&S', email: ADMIN_EMAIL, passwordHash: await bcrypt.hash(ADMIN_MDP_INITIAL, 10), role: 'admin', profile: {} });
     changed = true;
   }
-  for (const d of DEMO_ACCOUNTS) {
-    if (!db.users.some(u => u.email === d.email)) {
-      db.users.push({ id: crypto.randomUUID(), prenom: d.prenom, nom: d.nom, email: d.email, passwordHash: await bcrypt.hash(DEMO_PASSWORD, 10), role: d.role, profile: d.profile });
-      changed = true;
+  // ⚠️ LES COMPTES DE DÉMO NE SONT SEMÉS QU'UNE SEULE FOIS DANS LA VIE DE LA BASE (demande de
+  // l'utilisateur, 05/08/2026 : « à chaque fois que tu déploies Paul et Léa reviennent, c'est
+  // relou »). Avant, la boucle les recréait à CHAQUE démarrage : les supprimer ne servait à
+  // rien, le déploiement suivant relançait le conteneur et ils repoussaient.
+  // ⚠️ Le drapeau `db.demoSeeded` est INDISPENSABLE : une condition du genre « la base est-elle
+  // vide ? » ne suffit pas — quand on supprime les deux comptes de démo et qu'il ne reste que
+  // l'administrateur, la base redevient « vide » et ils repoussent. Défaut réellement produit
+  // par le premier essai de ce correctif.
+  if (!db.demoSeeded) {
+    for (const d of DEMO_ACCOUNTS) {
+      if (!db.users.some(u => u.email === d.email)) {
+        db.users.push({ id: crypto.randomUUID(), prenom: d.prenom, nom: d.nom, email: d.email, passwordHash: await bcrypt.hash(DEMO_PASSWORD, 10), role: d.role, profile: d.profile });
+        changed = true;
+      }
     }
+    const prof = db.users.find(u => u.email === 'prof@ls.fr'), eleve = db.users.find(u => u.email === 'eleve@ls.fr');
+    if (prof && eleve && !db.groups.some(g => gProfs(g).includes(prof.id) && g.eleve === eleve.id)) { db.groups.push({ id: crypto.randomUUID(), profs: [prof.id], eleve: eleve.id, date: Date.now() }); changed = true; }
+    db.demoSeeded = true;   // une fois posé, ce drapeau ne se lève plus jamais
+    changed = true;
   }
-  const prof = db.users.find(u => u.email === 'prof@ls.fr'), eleve = db.users.find(u => u.email === 'eleve@ls.fr');
-  if (prof && eleve && !db.groups.some(g => gProfs(g).includes(prof.id) && g.eleve === eleve.id)) { db.groups.push({ id: crypto.randomUUID(), profs: [prof.id], eleve: eleve.id, date: Date.now() }); changed = true; }
   if (changed) save();
 }
 

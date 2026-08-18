@@ -393,8 +393,8 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Retour à la connexion": "返回登录",
   "Activation impossible.": "无法激活。",
   "⏳ En attente": "⏳ 待处理",
-  "Renvoyer le lien de première connexion ?": "重新发送首次登录链接？",
-  "Renvoyer le lien de première connexion": "重新发送首次登录链接",
+  
+  
   "Envoi impossible.": "无法发送。",
   "Compte": "账户", "Accès total · partagé": "完全访问 · 共享", "Apprenant + Admin": "学员 + 管理员", "Formateur + Admin": "培训师 + 管理员", "Formateur + Apprenant + Admin": "培训师 + 学员 + 管理员",
   "Sélectionnez un dossier à gauche pour voir les documents et discuter.": "在左侧选择一个档案夹，即可查看文档并交流。",

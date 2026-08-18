@@ -414,8 +414,8 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Retour à la connexion": "Back to sign-in",
   "Activation impossible.": "Activation failed.",
   "⏳ En attente": "⏳ Pending",
-  "Renvoyer le lien de première connexion ?": "Resend the first sign-in link?",
-  "Renvoyer le lien de première connexion": "Resend the first sign-in link",
+  
+  
   "Envoi impossible.": "Sending failed.",
   "Compte": "Account", "Accès total · partagé": "Full access · shared", "Apprenant + Admin": "Learner + Admin", "Formateur + Admin": "Trainer + Admin", "Formateur + Apprenant + Admin": "Trainer + Learner + Admin",
   "Sélectionnez un dossier à gauche pour voir les documents et discuter.": "Select a folder on the left to see documents and chat.",

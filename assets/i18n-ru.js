@@ -392,8 +392,8 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Retour à la connexion": "Вернуться ко входу",
   "Activation impossible.": "Активация невозможна.",
   "⏳ En attente": "⏳ Ожидание",
-  "Renvoyer le lien de première connexion ?": "Отправить ссылку для первого входа повторно?",
-  "Renvoyer le lien de première connexion": "Отправить ссылку для первого входа повторно",
+  
+  
   "Envoi impossible.": "Отправка невозможна.",
   "Compte": "Аккаунт", "Accès total · partagé": "Полный доступ · общий", "Apprenant + Admin": "Слушатель + Админ", "Formateur + Admin": "Преподаватель + Админ", "Formateur + Apprenant + Admin": "Преподаватель + Слушатель + Админ",
   "Sélectionnez un dossier à gauche pour voir les documents et discuter.": "Выберите досье слева, чтобы увидеть документы и общаться.",

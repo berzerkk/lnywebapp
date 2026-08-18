@@ -973,7 +973,6 @@
           (u.pending ? '<button class="pend-chip" type="button" data-pend="' + u.id + '" title="Voir depuis quand ce compte attend, et le relancer">⏳ En attente</button>' : '') +
           (!u.pending && u.lastSeen ? '<span class="seen-chip" title="Dernière fois que la personne a utilisé son espace documents">👋 ' + esc(depuis(u.lastSeen)) + '</span>' : '') +
           '<span class="role-chip role-' + u.role + '">' + ROLES[u.role] + '</span>' +
-          (canEdit ? '<button class="adm-reinv" type="button" data-id="' + u.id + '" data-label="' + esc(u.email || '') + '" title="Renvoyer le lien de première connexion">✉️</button>' : '') +
           '<button class="adm-hist" type="button" data-id="' + u.id + '" data-name="' + esc(fullName(u)) + '" title="Historique de connexions">🕐</button>' +
           (canEdit ? '<button class="adm-edit" type="button" data-id="' + u.id + '" title="Modifier la fiche">✏️</button>' : '') +
           (canDel ? '<button class="adm-del" type="button" data-del="user" data-id="' + u.id + '" data-label="' + esc(fullName(u)) + '" title="Supprimer ce compte">🗑</button>' : '') + '</li>';
@@ -1042,23 +1041,6 @@
         var id = b.getAttribute('data-pend');
         var u = (ADMIN_OVERVIEW && ADMIN_OVERVIEW.users || []).filter(function (x) { return x.id === id; })[0];
         if (u) openPendingModal(u);
-      };
-    });
-    document.querySelectorAll('.adm-reinv').forEach(function (b) {
-      b.onclick = function () {
-        var id = b.getAttribute('data-id'), mail = b.getAttribute('data-label');
-        confirmDialog({
-          title: 'Renvoyer le lien de première connexion ?',
-          message: 'Un nouveau lien sera envoyé à ' + mail + ' pour choisir un mot de passe. L\'ancien lien cessera de fonctionner. Si la personne s\'est déjà connectée, son mot de passe actuel restera valable tant qu\'elle n\'utilise pas ce nouveau lien.',
-          confirm: 'Envoyer', cancel: 'Annuler',
-          onConfirm: function () {
-            apiJSON('/api/admin/users/' + encodeURIComponent(id) + '/reinvite', 'POST', {}).then(function (r) {
-              if (!r.ok) { alertDialog((r.data && r.data.error) || 'Envoi impossible.'); return; }
-              alertDialog('Lien envoyé à ' + mail + '.');
-              api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; rerenderAdmin(false); } });
-            });
-          }
-        });
       };
     });
     document.querySelectorAll('.adm-edit').forEach(function (b) {

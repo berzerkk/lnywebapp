@@ -392,8 +392,8 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Retour à la connexion": "Torna all'accesso",
   "Activation impossible.": "Attivazione impossibile.",
   "⏳ En attente": "⏳ In attesa",
-  "Renvoyer le lien de première connexion ?": "Reinviare il link di primo accesso?",
-  "Renvoyer le lien de première connexion": "Reinviare il link di primo accesso",
+  
+  
   "Envoi impossible.": "Invio impossibile.",
   "Compte": "Account", "Accès total · partagé": "Accesso totale · condiviso", "Apprenant + Admin": "Allievo + Admin", "Formateur + Admin": "Formatore + Admin", "Formateur + Apprenant + Admin": "Formatore + Allievo + Admin",
   "Sélectionnez un dossier à gauche pour voir les documents et discuter.": "Selezionate una pratica a sinistra per vedere i documenti e chattare.",

@@ -392,8 +392,8 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Retour à la connexion": "Volver a la conexión",
   "Activation impossible.": "Activación imposible.",
   "⏳ En attente": "⏳ Pendiente",
-  "Renvoyer le lien de première connexion ?": "¿Reenviar el enlace de primera conexión?",
-  "Renvoyer le lien de première connexion": "Reenviar el enlace de primera conexión",
+  
+  
   "Envoi impossible.": "Envío imposible.",
   "Compte": "Cuenta", "Accès total · partagé": "Acceso total · compartido", "Apprenant + Admin": "Alumno + Admin", "Formateur + Admin": "Formador + Admin", "Formateur + Apprenant + Admin": "Formador + Alumno + Admin",
   "Sélectionnez un dossier à gauche pour voir les documents et discuter.": "Seleccione un expediente a la izquierda para ver los documentos y chatear.",

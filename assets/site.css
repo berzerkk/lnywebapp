@@ -801,8 +801,8 @@ footer a:hover{color:#fff8ef}
 .adm-del{flex:none;border:0;background:color-mix(in oklab,#c0392b 9%,#fff);color:#c0392b;font-size:15px;width:30px;height:30px;border-radius:9px;cursor:pointer;transition:.15s;line-height:1}
 .adm-del:hover{background:#c0392b;color:#fff}
 .admin-users li .adm-del{margin-left:8px}
-.adm-edit,.adm-hist,.adm-reinv,.adm-grp-edit{flex:none;border:1px solid var(--line);background:var(--bg-card);font-size:14px;width:30px;height:30px;border-radius:9px;cursor:pointer;transition:.15s;line-height:1;padding:0}
-.adm-edit:hover,.adm-hist:hover,.adm-reinv:hover,.adm-grp-edit:hover{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 10%,#fff)}
+.adm-edit,.adm-hist,.adm-grp-edit{flex:none;border:1px solid var(--line);background:var(--bg-card);font-size:14px;width:30px;height:30px;border-radius:9px;cursor:pointer;transition:.15s;line-height:1;padding:0}
+.adm-edit:hover,.adm-hist:hover,.adm-grp-edit:hover{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 10%,#fff)}
 .admin-users li .adm-edit{margin-left:8px}
 /* composition d'un dossier : liste à cocher des formateurs (autant que voulu) */
 .pick-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;max-height:280px;overflow:auto;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
