@@ -528,5 +528,21 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Ce lien est invalide ou a expiré.": "该链接无效或已失效。",
   "Demandez-en un nouveau depuis « Mot de passe oublié ? », ou écrivez à": "请通过「忘记密码？」重新申请一个，或写信至",
   "Réinitialisation impossible.": "无法重置密码。",
-  "Ce lien est invalide ou a expiré. Demandez-en un nouveau.": "该链接无效或已失效。请重新申请一个。"
+  "Ce lien est invalide ou a expiré. Demandez-en un nouveau.": "该链接无效或已失效。请重新申请一个。",
+  /* ---- comptes en attente et derniere activite ---- */
+  "Voir depuis quand ce compte attend, et le relancer": "查看该账户已等待多久，并发送催办提醒",
+  "Dernière fois que la personne a utilisé son espace documents": "该用户上次使用文档空间的时间",
+  "Ce compte est créé, mais la personne n’a pas encore choisi son mot de passe. Tant qu’elle ne l’a pas fait, elle ne peut pas se connecter.": "该账户已创建，但用户尚未设置密码。在设置密码之前，他无法登录。",
+  "Compte créé": "账户创建时间",
+  "Invitation envoyée": "邀请发送时间",
+  "Lien encore valable": "链接仍然有效",
+  "Relances envoyées": "已发送提醒次数",
+  "date inconnue": "日期未知",
+  "durée inconnue": "期限未知",
+  "Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.": "该链接已失效。发送提醒会生成一个新链接，有效期 14 天。",
+  "✉️ Envoyer une relance": "✉️ 发送提醒",
+  "Relance envoyée": "提醒已发送",
+  "Connexions (saisies du mot de passe)": "登录记录（输入密码）",
+  "Aucune activité enregistrée depuis la mise en service de ce suivi.": "自该记录功能启用以来，暂无活动。",
+  "Compte jamais activé : la personne n’a pas encore choisi son mot de passe.": "账户从未激活：用户尚未设置密码。"
 });

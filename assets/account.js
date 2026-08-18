@@ -970,7 +970,8 @@
         var canDel = u.id !== ME.id, canEdit = u.role === 'eleve' || u.role === 'prof';
         return '<li><span class="avatar">' + esc(initials(fullName(u))) + '</span><span class="c-name">' + esc(fullName(u)) + '<small>' + esc(u.email || '') + '</small>' +
           '<small class="adm-contacts">' + (ds.length ? 'Dossiers : ' + ds.map(esc).join(', ') : 'Aucun dossier') + '</small></span>' +
-          (u.pending ? '<span class="pend-chip" title="Le compte a été créé, la personne n\'a pas encore choisi son mot de passe">⏳ En attente</span>' : '') +
+          (u.pending ? '<button class="pend-chip" type="button" data-pend="' + u.id + '" title="Voir depuis quand ce compte attend, et le relancer">⏳ En attente</button>' : '') +
+          (!u.pending && u.lastSeen ? '<span class="seen-chip" title="Dernière fois que la personne a utilisé son espace documents">👋 ' + esc(depuis(u.lastSeen)) + '</span>' : '') +
           '<span class="role-chip role-' + u.role + '">' + ROLES[u.role] + '</span>' +
           (canEdit ? '<button class="adm-reinv" type="button" data-id="' + u.id + '" data-label="' + esc(u.email || '') + '" title="Renvoyer le lien de première connexion">✉️</button>' : '') +
           '<button class="adm-hist" type="button" data-id="' + u.id + '" data-name="' + esc(fullName(u)) + '" title="Historique de connexions">🕐</button>' +
@@ -1033,6 +1034,14 @@
         var id = b.getAttribute('data-id');
         var g = ((ADMIN_OVERVIEW && ADMIN_OVERVIEW.groups) || []).filter(function (x) { return x.id === id; })[0];
         if (g) openEditGroup(g);
+      };
+    });
+    // la pastille « En attente » ouvre le détail (depuis quand, lien encore valable, relances)
+    document.querySelectorAll('.pend-chip').forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-pend');
+        var u = (ADMIN_OVERVIEW && ADMIN_OVERVIEW.users || []).filter(function (x) { return x.id === id; })[0];
+        if (u) openPendingModal(u);
       };
     });
     document.querySelectorAll('.adm-reinv').forEach(function (b) {
@@ -1217,13 +1226,20 @@
   // ---- admin : historique de connexions (global ou par compte) -------------
   function openLoginsModal(userId, userName) {
     var title = userId ? 'Connexions — ' + userName : 'Historique de connexions';
-    var m = buildFsModal('lg-modal', title, '<div id="lg-holder"><p class="ds-empty">Chargement…</p></div>', '');
+    // ⚠️ L'historique ne voit que les CONNEXIONS. Quelqu'un qui reste connecté (le jeton vit
+    // 30 jours) n'y réapparaît jamais : sans la ligne « dernière activité », on croit à tort
+    // qu'il n'est pas revenu depuis sa dernière saisie de mot de passe.
+    var u = userId && ADMIN_OVERVIEW && (ADMIN_OVERVIEW.users || []).filter(function (x) { return x.id === userId; })[0];
+    var entete = u ? '<p class="lg-seen">' + (u.lastSeen
+      ? 'Dernière activité sur la plateforme : <b>' + esc(depuis(u.lastSeen)) + '</b> <small>(' + esc(fmtDate(u.lastSeen)) + ')</small>'
+      : (u.pending ? 'Compte jamais activé : la personne n’a pas encore choisi son mot de passe.' : 'Aucune activité enregistrée depuis la mise en service de ce suivi.')) + '</p>' : '';
+    var m = buildFsModal('lg-modal', title, entete + '<div id="lg-holder"><p class="ds-empty">Chargement…</p></div>', '');
     api('/api/admin/logins' + (userId ? '?user=' + encodeURIComponent(userId) : '')).then(function (r) {
       var holder = m.querySelector('#lg-holder'); if (!holder) return;
       var list = (r.ok && r.data.logins) || [];
-      holder.innerHTML = list.length ? '<ul class="notif-list">' + list.map(function (l) {
+      holder.innerHTML = (list.length ? '<h4 class="gen-h">Connexions (saisies du mot de passe)</h4><ul class="notif-list">' + list.map(function (l) {
         return '<li><span><b>' + esc(l.name) + '</b> · ' + esc(l.email) + ' · IP ' + esc(l.ip || '?') + '</span><time>' + fmtDate(l.date) + '</time></li>';
-      }).join('') + '</ul>' : '<p class="ds-empty">Aucune connexion enregistrée.</p>';
+      }).join('') + '</ul>' : '<p class="ds-empty">Aucune connexion enregistrée.</p>');
     });
   }
   // ---- changer son propre mot de passe -------------------------------------
@@ -1256,6 +1272,55 @@
         if (!r.ok) return dire((r.data && r.data.error) || 'Changement impossible.');
         closeFsModal('pwd-modal');
         alertDialog('Votre nouveau mot de passe est actif. Notez-le : il n\'y a aucun moyen de le retrouver, seule l\'administration peut vous renvoyer un lien.', 'Mot de passe modifié');
+      });
+    };
+  }
+
+  // ---- durées lisibles -----------------------------------------------------
+  // « il y a 3 jours » plutôt qu'une date brute : la question posée est toujours « depuis
+  // combien de temps ? », jamais « quel jour exactement ».
+  function duree(ms) {
+    var m = Math.max(0, Math.round(ms / 60000));
+    if (m < 1) return 'à l\u2019instant';
+    if (m < 60) return m + (m > 1 ? ' minutes' : ' minute');
+    var h = Math.round(m / 60);
+    if (h < 24) return h + (h > 1 ? ' heures' : ' heure');
+    var j = Math.round(h / 24);
+    if (j < 31) return j + (j > 1 ? ' jours' : ' jour');
+    var mo = Math.round(j / 30.4);
+    return mo + ' mois';
+  }
+  function depuis(ts) { return ts ? 'il y a ' + duree(Date.now() - ts) : ''; }
+
+  // ---- admin : compte en attente d'activation ------------------------------
+  // Répond à une seule question : depuis quand cette personne n'a-t-elle pas choisi son mot de
+  // passe, et comment la relancer.
+  function openPendingModal(u) {
+    var expire = u.invitationExpire || 0;
+    var perime = expire && expire < Date.now();
+    var ligne = function (lib, val, alerte) {
+      return '<li><span>' + esc(lib) + '</span><b' + (alerte ? ' class="pend-alerte"' : '') + '>' + esc(val) + '</b></li>';
+    };
+    var corps = '<p class="ds-empty" style="margin:0 0 14px">Ce compte est créé, mais la personne n’a pas encore choisi son mot de passe. Tant qu’elle ne l’a pas fait, elle ne peut pas se connecter.</p>' +
+      '<ul class="pend-list">' +
+      ligne('Compte créé', u.dateCreation ? depuis(u.dateCreation) : 'date inconnue') +
+      ligne('Invitation envoyée', u.invitationEnvoyee ? depuis(u.invitationEnvoyee) : 'date inconnue') +
+      ligne(perime ? 'Lien expiré' : 'Lien encore valable', expire ? (perime ? depuis(expire) : 'pendant ' + duree(expire - Date.now())) : 'durée inconnue', perime) +
+      ligne('Relances envoyées', String(u.relances || 0) + (u.derniereRelance ? ' — dernière ' + depuis(u.derniereRelance) : '')) +
+      '</ul>' +
+      (perime ? '<p class="chan-note" style="margin:14px 0 0">Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.</p>' : '');
+    var m = buildFsModal('pend-modal', 'Compte en attente — ' + fullName(u), corps,
+      '<p class="fe-err auth-err" id="pend-err" style="margin:0 12px 0 0"></p>' +
+      '<button class="btn btn-primary pend-relance" type="button" style="padding:11px 22px">✉️ Envoyer une relance</button>');
+    var bt = m.querySelector('.pend-relance');
+    bt.onclick = function () {
+      bt.disabled = true; bt.textContent = 'Envoi…';
+      apiJSON('/api/admin/users/' + encodeURIComponent(u.id) + '/reinvite', 'POST', {}).then(function (r) {
+        bt.disabled = false; bt.textContent = '✉️ Envoyer une relance';
+        if (!r.ok) { document.getElementById('pend-err').textContent = (r.data && r.data.error) || 'Envoi impossible.'; return; }
+        closeFsModal('pend-modal');
+        alertDialog('Un nouveau lien vient de partir à ' + u.email + '. Il est valable 14 jours.', 'Relance envoyée');
+        api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; rerenderAdmin(false); } });
       });
     };
   }

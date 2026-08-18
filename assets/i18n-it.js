@@ -527,5 +527,21 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Ce lien est invalide ou a expiré.": "Questo link non è valido o è scaduto.",
   "Demandez-en un nouveau depuis « Mot de passe oublié ? », ou écrivez à": "Richiedetene uno nuovo da «Password dimenticata?», oppure scrivete a",
   "Réinitialisation impossible.": "Reimpostazione impossibile.",
-  "Ce lien est invalide ou a expiré. Demandez-en un nouveau.": "Questo link non è valido o è scaduto. Richiedetene uno nuovo."
+  "Ce lien est invalide ou a expiré. Demandez-en un nouveau.": "Questo link non è valido o è scaduto. Richiedetene uno nuovo.",
+  /* ---- comptes en attente et derniere activite ---- */
+  "Voir depuis quand ce compte attend, et le relancer": "Vedere da quanto tempo questo account è in attesa, e inviare un sollecito",
+  "Dernière fois que la personne a utilisé son espace documents": "L'ultima volta che questa persona ha usato la sua area documenti",
+  "Ce compte est créé, mais la personne n’a pas encore choisi son mot de passe. Tant qu’elle ne l’a pas fait, elle ne peut pas se connecter.": "L'account è creato, ma la persona non ha ancora scelto la sua password. Finché non lo fa, non può accedere.",
+  "Compte créé": "Account creato",
+  "Invitation envoyée": "Invito inviato",
+  "Lien encore valable": "Link ancora valido",
+  "Relances envoyées": "Solleciti inviati",
+  "date inconnue": "data sconosciuta",
+  "durée inconnue": "durata sconosciuta",
+  "Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.": "Il link non funziona più. Un sollecito ne genera uno nuovo, valido 14 giorni.",
+  "✉️ Envoyer une relance": "✉️ Invia un sollecito",
+  "Relance envoyée": "Sollecito inviato",
+  "Connexions (saisies du mot de passe)": "Accessi (password inserita)",
+  "Aucune activité enregistrée depuis la mise en service de ce suivi.": "Nessuna attività registrata dall'attivazione di questo monitoraggio.",
+  "Compte jamais activé : la personne n’a pas encore choisi son mot de passe.": "Account mai attivato: la persona non ha ancora scelto la sua password."
 });

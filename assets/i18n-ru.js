@@ -527,5 +527,21 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Ce lien est invalide ou a expiré.": "Эта ссылка недействительна или её срок истёк.",
   "Demandez-en un nouveau depuis « Mot de passe oublié ? », ou écrivez à": "Запросите новую через «Забыли пароль?» или напишите на",
   "Réinitialisation impossible.": "Сброс пароля невозможен.",
-  "Ce lien est invalide ou a expiré. Demandez-en un nouveau.": "Эта ссылка недействительна или её срок истёк. Запросите новую."
+  "Ce lien est invalide ou a expiré. Demandez-en un nouveau.": "Эта ссылка недействительна или её срок истёк. Запросите новую.",
+  /* ---- comptes en attente et derniere activite ---- */
+  "Voir depuis quand ce compte attend, et le relancer": "Посмотреть, как долго аккаунт ожидает, и отправить напоминание",
+  "Dernière fois que la personne a utilisé son espace documents": "Когда человек последний раз заходил в раздел документов",
+  "Ce compte est créé, mais la personne n’a pas encore choisi son mot de passe. Tant qu’elle ne l’a pas fait, elle ne peut pas se connecter.": "Аккаунт создан, но человек ещё не выбрал пароль. Пока он этого не сделает, войти он не сможет.",
+  "Compte créé": "Аккаунт создан",
+  "Invitation envoyée": "Приглашение отправлено",
+  "Lien encore valable": "Ссылка ещё действительна",
+  "Relances envoyées": "Отправлено напоминаний",
+  "date inconnue": "дата неизвестна",
+  "durée inconnue": "срок неизвестен",
+  "Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.": "Ссылка больше не работает. Напоминание создаст новую, действительную 14 дней.",
+  "✉️ Envoyer une relance": "✉️ Отправить напоминание",
+  "Relance envoyée": "Напоминание отправлено",
+  "Connexions (saisies du mot de passe)": "Входы (с вводом пароля)",
+  "Aucune activité enregistrée depuis la mise en service de ce suivi.": "С момента включения этого учёта активность не зафиксирована.",
+  "Compte jamais activé : la personne n’a pas encore choisi son mot de passe.": "Аккаунт ни разу не активирован: человек ещё не выбрал пароль."
 });

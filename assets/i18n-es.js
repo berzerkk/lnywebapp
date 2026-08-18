@@ -527,5 +527,21 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Ce lien est invalide ou a expiré.": "Este enlace no es válido o ha caducado.",
   "Demandez-en un nouveau depuis « Mot de passe oublié ? », ou écrivez à": "Pida uno nuevo desde «¿Ha olvidado su contraseña?», o escriba a",
   "Réinitialisation impossible.": "No se pudo restablecer la contraseña.",
-  "Ce lien est invalide ou a expiré. Demandez-en un nouveau.": "Este enlace no es válido o ha caducado. Pida uno nuevo."
+  "Ce lien est invalide ou a expiré. Demandez-en un nouveau.": "Este enlace no es válido o ha caducado. Pida uno nuevo.",
+  /* ---- comptes en attente et derniere activite ---- */
+  "Voir depuis quand ce compte attend, et le relancer": "Ver desde cuándo espera esta cuenta, y enviar un recordatorio",
+  "Dernière fois que la personne a utilisé son espace documents": "La última vez que esta persona usó su portal de documentos",
+  "Ce compte est créé, mais la personne n’a pas encore choisi son mot de passe. Tant qu’elle ne l’a pas fait, elle ne peut pas se connecter.": "La cuenta está creada, pero la persona todavía no ha elegido su contraseña. Mientras no lo haga, no podrá iniciar sesión.",
+  "Compte créé": "Cuenta creada",
+  "Invitation envoyée": "Invitación enviada",
+  "Lien encore valable": "Enlace todavía válido",
+  "Relances envoyées": "Recordatorios enviados",
+  "date inconnue": "fecha desconocida",
+  "durée inconnue": "duración desconocida",
+  "Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.": "El enlace ya no funciona. Un recordatorio genera uno nuevo, válido durante 14 días.",
+  "✉️ Envoyer une relance": "✉️ Enviar un recordatorio",
+  "Relance envoyée": "Recordatorio enviado",
+  "Connexions (saisies du mot de passe)": "Conexiones (contraseña introducida)",
+  "Aucune activité enregistrée depuis la mise en service de ce suivi.": "Ninguna actividad registrada desde la puesta en marcha de este seguimiento.",
+  "Compte jamais activé : la personne n’a pas encore choisi son mot de passe.": "Cuenta nunca activada: la persona todavía no ha elegido su contraseña."
 });

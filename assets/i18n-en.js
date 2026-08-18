@@ -549,5 +549,21 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Ce lien est invalide ou a expiré.": "This link is invalid or has expired.",
   "Demandez-en un nouveau depuis « Mot de passe oublié ? », ou écrivez à": "Request a new one from “Forgotten your password?”, or write to",
   "Réinitialisation impossible.": "Unable to reset the password.",
-  "Ce lien est invalide ou a expiré. Demandez-en un nouveau.": "This link is invalid or has expired. Request a new one."
+  "Ce lien est invalide ou a expiré. Demandez-en un nouveau.": "This link is invalid or has expired. Request a new one.",
+  /* ---- comptes en attente et derniere activite ---- */
+  "Voir depuis quand ce compte attend, et le relancer": "See how long this account has been waiting, and send a reminder",
+  "Dernière fois que la personne a utilisé son espace documents": "The last time this person used their document portal",
+  "Ce compte est créé, mais la personne n’a pas encore choisi son mot de passe. Tant qu’elle ne l’a pas fait, elle ne peut pas se connecter.": "This account exists, but the person has not chosen their password yet. Until they do, they cannot sign in.",
+  "Compte créé": "Account created",
+  "Invitation envoyée": "Invitation sent",
+  "Lien encore valable": "Link still valid",
+  "Relances envoyées": "Reminders sent",
+  "date inconnue": "date unknown",
+  "durée inconnue": "duration unknown",
+  "Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.": "The link no longer works. A reminder generates a new one, valid for 14 days.",
+  "✉️ Envoyer une relance": "✉️ Send a reminder",
+  "Relance envoyée": "Reminder sent",
+  "Connexions (saisies du mot de passe)": "Sign-ins (password entered)",
+  "Aucune activité enregistrée depuis la mise en service de ce suivi.": "No activity recorded since this tracking was introduced.",
+  "Compte jamais activé : la personne n’a pas encore choisi son mot de passe.": "Account never activated: the person has not chosen their password yet."
 });

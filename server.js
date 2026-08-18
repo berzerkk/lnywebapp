@@ -679,6 +679,13 @@ function auth(req, res, next) {
   try {
     const u = realUser(jwt.verify(token, db.secret).id);
     if (!u) return res.status(401).json({ error: 'Session invalide.' });
+    // ⚠️ DERNIÈRE ACTIVITÉ. L'historique des connexions ne voit que les LOGINS : quelqu'un qui
+    // reste connecté (le jeton vit 30 jours) n'y réapparaît jamais, et on ne sait plus s'il
+    // utilise la plateforme. On horodate donc chaque requête authentifiée.
+    // ⚠️ Écriture BRIDÉE à 5 minutes : save() réécrit tout db.json, le faire à chaque appel
+    // (la cloche est interrogée toutes les 20 s par onglet ouvert) userait le disque pour rien.
+    const maintenant = Date.now();
+    if (maintenant - (u.lastSeen || 0) > 5 * 60 * 1000) { u.lastSeen = maintenant; save(); }
     req.user = u; next();
   } catch (e) { return res.status(401).json({ error: 'Session expirée.' }); }
 }
@@ -703,14 +710,18 @@ app.post('/api/admin/users', auth, async (req, res) => {
   const user = {
     id: crypto.randomUUID(), prenom: prenom.trim(), nom: nom.trim(), email: mail, role,
     passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10), // inutilisable
-    activation: newActivation(), mustActivate: true, profile: cleanProfile(role, profile)
+    activation: newActivation(), mustActivate: true, profile: cleanProfile(role, profile),
+    // ⚠️ dateCreation : sans elle, impossible de dire depuis COMBIEN DE TEMPS un compte attend.
+    // Les comptes créés avant le 05/08/2026 n'en ont pas : on retombe alors sur la date du
+    // lien d'activation (exp - 14 jours), qui est la meilleure approximation disponible.
+    dateCreation: Date.now(), relances: 0
   };
   db.users.push(user); save();
   sendActivationMail(user, req.user);
   res.json({ ok: true, user: pubFull(user) });
 });
 // lien d'activation : jeton aléatoire, à usage unique, valable 14 jours
-function newActivation() { return { token: crypto.randomBytes(32).toString('hex'), exp: Date.now() + 14 * 24 * 60 * 60 * 1000 }; }
+function newActivation() { return { token: crypto.randomBytes(32).toString('hex'), envoyeLe: Date.now(), exp: Date.now() + 14 * 24 * 60 * 60 * 1000 }; }
 function sendActivationMail(user, byUser) {
   const url = SITE_URL + '/espace-documents.html#activation=' + user.activation.token;
   const par = byUser ? (' par ' + senderDisplay(byUser)) : '';
@@ -738,6 +749,7 @@ app.post('/api/activate', async (req, res) => {
   u.passwordHash = await bcrypt.hash(String(password), 10);
   delete u.activation;                       // usage unique
   delete u.mustActivate;
+  u.lastSeen = Date.now();   // une connexion compte comme une activite
   db.logins.push({ id: crypto.randomUUID(), user: u.id, email: u.email, ip: clientIp(req), date: Date.now() });
   if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
   save();
@@ -829,6 +841,7 @@ app.post('/api/password-reset', async (req, res) => {
   u.passwordHash = await bcrypt.hash(String(password), 10);
   delete u.reset;                            // usage unique : sans ce delete, le lien reste rejouable une heure
   delete u.mustActivate;                     // par sécurité : un compte en attente ne doit pas rester bloqué
+  u.lastSeen = Date.now();   // une connexion compte comme une activite
   db.logins.push({ id: crypto.randomUUID(), user: u.id, email: u.email, ip: clientIp(req), date: Date.now() });
   if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
   save();
@@ -841,7 +854,10 @@ app.post('/api/admin/users/:id/reinvite', auth, (req, res) => {
   const u = realUser(req.params.id);
   if (!u) return res.status(404).json({ error: 'Compte introuvable.' });
   if (u.role === 'admin') return res.status(400).json({ error: 'Compte administrateur : non concerné.' });
-  u.activation = newActivation(); save();
+  u.activation = newActivation();
+  u.relances = (u.relances || 0) + 1;
+  u.derniereRelance = Date.now();
+  save();
   sendActivationMail(u, req.user);
   res.json({ ok: true });
 });
@@ -864,6 +880,7 @@ app.post('/api/login', async (req, res) => {
     });
   }
   if (!user || !(await bcrypt.compare(password || '', user.passwordHash))) return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });
+  user.lastSeen = Date.now();   // une connexion compte comme une activite
   // historique de connexions (borné aux 1000 dernières entrées)
   db.logins.push({ id: crypto.randomUUID(), user: user.id, email: user.email, ip: clientIp(req), date: Date.now() });
   if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
@@ -1226,7 +1243,16 @@ app.get('/api/admin/overview', auth, (req, res) => {
   }));
   const docs = db.docs.slice().sort((a, b) => b.date - a.date).map(d => { const g = groupById(d.group); return Object.assign(docPub(d), { groupLabel: g ? membersLabel(g) : '—' }); });
   // `pending` = compte créé mais mot de passe pas encore choisi (jamais le jeton lui-même)
-  const users = db.users.map(u => Object.assign(pubFull(u), { pending: !!u.mustActivate }));
+  const users = db.users.map(u => Object.assign(pubFull(u), {
+    pending: !!u.mustActivate,
+    // ⚠️ JAMAIS le jeton lui-même : seulement des dates.
+    dateCreation: u.dateCreation || (u.activation && u.activation.exp ? u.activation.exp - 14 * 24 * 60 * 60 * 1000 : null),
+    invitationEnvoyee: (u.activation && (u.activation.envoyeLe || (u.activation.exp ? u.activation.exp - 14 * 24 * 60 * 60 * 1000 : null))) || null,
+    invitationExpire: (u.activation && u.activation.exp) || null,
+    relances: u.relances || 0,
+    derniereRelance: u.derniereRelance || null,
+    lastSeen: u.lastSeen || null
+  }));
   res.json({ users, groups, docs });
 });
 

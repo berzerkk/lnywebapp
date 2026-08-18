@@ -739,6 +739,22 @@ footer a:hover{color:#fff8ef}
 .ds-sep{border:0;height:2px;border-radius:2px;background:var(--accent);margin:18px 0 0}
 /* le premier filet touche la zone d'envoi, qui porte déjà 18 px de marge basse */
 .upload-zone + .ds-sep{margin-top:0}
+/* « En attente » est devenu un BOUTON : il doit poser lui-même sa couleur, son fond et son
+   habillage, sinon le navigateur impose les siens (fond gris, texte bleu système sur iPhone). */
+.pend-chip{flex:none;appearance:none;border:1px solid #e9d3a8;background:#fdf4e2;color:#8a6a20;font:inherit;font-size:11.5px;font-weight:700;line-height:1.2;padding:5px 9px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:.15s}
+.pend-chip:hover{border-color:#d9b76e;background:#fbe9c8}
+/* dernière venue sur la plateforme, à côté du rôle */
+.seen-chip{font-size:11.5px;color:var(--ink-soft);white-space:nowrap}
+/* détail du compte en attente */
+.pend-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.pend-list li{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:10px 0;border-top:1px solid var(--line)}
+.pend-list li:first-child{border-top:0}
+.pend-list span{color:var(--ink-soft);font-size:13.5px}
+.pend-list b{font-size:14px;text-align:right}
+.pend-alerte{color:#a8331f}
+/* rappel de la dernière activité, en tête de l'historique des connexions */
+.lg-seen{margin:0 0 14px;padding:11px 13px;border-radius:11px;background:var(--bg);border:1px solid var(--line);font-size:13.5px;line-height:1.5}
+.lg-seen small{color:var(--ink-soft)}
 /* référence du contrat, sous son titre dans la carte du canal privé */
 .ct-ref{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:1px}
 .docs-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
