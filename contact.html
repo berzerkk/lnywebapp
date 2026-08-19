@@ -153,7 +153,9 @@
           <div class="field"><label for="c-email">E-mail</label><input id="c-email" name="email" type="email" required /></div>
           <div class="field"><label for="c-tel">Téléphone</label><input id="c-tel" name="tel" type="tel" /></div>
         </div>
-        <div class="field"><label for="c-msg">Votre message</label><textarea id="c-msg" name="message" placeholder="Dites-nous votre objectif, votre disponibilité, votre statut (salarié, entreprise, indépendant…)"></textarea></div>
+        <div class="field"><label for="c-msg">Votre message</label><textarea id="c-msg" name="message" required placeholder="Dites-nous votre objectif, votre disponibilité, votre statut (salarié, entreprise, indépendant…)"></textarea></div>
+        <!-- pot de miel anti-robots : invisible pour un humain, le serveur ignore tout envoi où il est rempli -->
+        <input id="c-web" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px" />
         <label class="consent"><input type="checkbox" required /> <span>J'accepte que mes données soient traitées pour répondre à ma demande, conformément à la <a href="confidentialite.html" style="color:var(--accent)">politique de confidentialité</a>.</span></label>
         <button class="btn btn-primary" type="submit" style="justify-self:center">Envoyer ma demande →</button>
         <p class="form-note" id="c-status"></p>
@@ -177,12 +179,39 @@
 (function(){
   var f=document.getElementById('contact-form');
   if(!f) return;
+  var st=document.getElementById('c-status');
+  var btn=f.querySelector('button[type=submit]');
   f.addEventListener('submit',function(e){
     e.preventDefault();
-    // NOTE: à brancher sur l'envoi e-mail / CRM côté backend.
-    document.getElementById('c-status').textContent='Merci ! Votre demande a bien été prise en compte, nous vous recontactons rapidement.';
-    document.getElementById('c-status').style.color='var(--accent)';
-    f.reset();
+    btn.disabled=true;
+    st.style.color='';
+    st.textContent='Envoi en cours…';
+    fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      prenom:document.getElementById('c-prenom').value,
+      nom:document.getElementById('c-nom').value,
+      email:document.getElementById('c-email').value,
+      tel:document.getElementById('c-tel').value,
+      message:document.getElementById('c-msg').value,
+      website:document.getElementById('c-web').value
+    })})
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,data:j};},function(){return {ok:r.ok,data:{}};});})
+    .then(function(r){
+      btn.disabled=false;
+      if(!r.ok){
+        // l'échec est dit honnêtement, et le formulaire N'EST PAS vidé : le message tapé reste
+        st.style.color='#b3402a';
+        st.textContent=(r.data&&r.data.error)||'Votre demande n’a pas pu être envoyée. Réessayez dans un instant, ou écrivez-nous à contact@languagesandsuccess.com.';
+        return;
+      }
+      st.style.color='var(--accent)';
+      st.textContent='Merci ! Votre demande a bien été prise en compte, nous vous recontactons rapidement.';
+      f.reset();
+    })
+    .catch(function(){
+      btn.disabled=false;
+      st.style.color='#b3402a';
+      st.textContent='Votre demande n’a pas pu être envoyée. Réessayez dans un instant, ou écrivez-nous à contact@languagesandsuccess.com.';
+    });
   });
 })();
 </script>

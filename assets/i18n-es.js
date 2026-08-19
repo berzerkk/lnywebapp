@@ -296,12 +296,12 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Merci ! Votre demande a bien été prise en compte, nous vous recontactons rapidement.": "¡Gracias! Su solicitud ha sido registrada; le contactaremos rápidamente.",
   "Gratuit · 4 minutes · 15 questions": "Gratis · 4 minutos · 15 preguntas",
   "Quel est votre niveau,": "¿Cuál es su nivel,", "vraiment ?": "de verdad?",
-  "Répondez à 15 questions. À la fin, laissez vos coordonnées pour recevoir votre niveau estimé.": "Responda a 15 preguntas. Al final, deje sus datos para recibir su nivel estimado.",
+  
   "15 questions à choix multiple, de plus en plus exigeantes. Pas de piège : répondez spontanément. Vous pourrez revenir en arrière à tout moment.": "15 preguntas tipo test, cada vez más exigentes. Sin trampas: responda espontáneamente. Podrá volver atrás en cualquier momento.",
   "Langue du test": "Idioma del test", "Démarrer le test →": "Empezar el test →",
   "← Précédent": "← Anterior", "Suivant →": "Siguiente →",
   "Dernière étape": "Último paso", "Votre résultat est prêt 🎉": "Su resultado está listo 🎉",
-  "Indiquez vos coordonnées pour découvrir votre niveau estimé et recevoir votre bilan détaillé par e-mail.": "Indique sus datos para descubrir su nivel estimado y recibir su informe detallado por correo electrónico.",
+  
   "Langue qui vous intéresse": "Idioma que le interesa",
   "J'accepte d'être recontacté(e) par Languages & Success et que mes données soient traitées conformément à la": "Acepto ser contactado/a por Languages & Success y que mis datos sean tratados de conformidad con la",
   "politique de confidentialité": "política de privacidad",
@@ -531,7 +531,7 @@ window.__lsI18N && window.__lsI18N.register('es', {
   /* ---- comptes en attente et derniere activite ---- */
   "Voir depuis quand ce compte attend, et le relancer": "Ver desde cuándo espera esta cuenta, y enviar un recordatorio",
   "Dernière fois que la personne a utilisé son espace documents": "La última vez que esta persona usó su portal de documentos",
-  "Ce compte est créé, mais la personne n’a pas encore choisi son mot de passe. Tant qu’elle ne l’a pas fait, elle ne peut pas se connecter.": "La cuenta está creada, pero la persona todavía no ha elegido su contraseña. Mientras no lo haga, no podrá iniciar sesión.",
+  "Ce compte est créé, mais la personne n'a pas encore choisi son mot de passe. Tant qu'elle ne l'a pas fait, elle ne peut pas se connecter.": "La cuenta está creada, pero la persona todavía no ha elegido su contraseña. Mientras no lo haga, no podrá iniciar sesión.",
   "Compte créé": "Cuenta creada",
   "Invitation envoyée": "Invitación enviada",
   "Lien encore valable": "Enlace todavía válido",
@@ -543,5 +543,17 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Relance envoyée": "Recordatorio enviado",
   "Connexions (saisies du mot de passe)": "Conexiones (contraseña introducida)",
   "Aucune activité enregistrée depuis la mise en service de ce suivi.": "Ninguna actividad registrada desde la puesta en marcha de este seguimiento.",
-  "Compte jamais activé : la personne n’a pas encore choisi son mot de passe.": "Cuenta nunca activada: la persona todavía no ha elegido su contraseña."
+  "Compte jamais activé : la personne n'a pas encore choisi son mot de passe.": "Cuenta nunca activada: la persona todavía no ha elegido su contraseña.",
+  /* ---- formulaires contact et test ---- */
+  "Envoi en cours…": "Enviando…",
+  "Votre demande n'a pas pu être envoyée. Réessayez dans un instant, ou écrivez-nous à contact@languagesandsuccess.com.": "Su solicitud no ha podido enviarse. Inténtelo de nuevo en un momento, o escríbanos a contact@languagesandsuccess.com.",
+  "Trop de demandes. Patientez quelques minutes puis réessayez.": "Demasiadas solicitudes. Espere unos minutos y vuelva a intentarlo.",
+  "Vérifiez votre adresse e-mail.": "Compruebe su dirección de correo electrónico.",
+  "Champs manquants.": "Faltan campos.",
+  /* ---- formulaires : phrases honnetes et erreurs ---- */
+  "Répondez à 15 questions. À la fin, laissez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée.": "Responda a 15 preguntas. Al final, deje sus datos de contacto para descubrir su nivel estimado y su corrección detallada.",
+  "Indiquez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée. Notre équipe vous recontacte pour en parler.": "Indique sus datos de contacto para descubrir su nivel estimado y su corrección detallada. Nuestro equipo le contactará para hablar de ello.",
+  "Votre demande n'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.": "Su solicitud no ha podido transmitirse. Escríbanos directamente a contact@languagesandsuccess.com.",
+  "Vos coordonnées n'ont pas pu être transmises.": "Sus datos de contacto no han podido enviarse.",
+  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Escríbanos a contact@languagesandsuccess.com para que podamos contactarle."
 });

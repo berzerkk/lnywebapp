@@ -240,10 +240,16 @@ const MAIL_LOGO = path.join(__dirname, 'assets', 'ls-logo.png');
 // Composition du message, PARTAGÉE par tous les envois — les flux réels comme le test
 // d'envoi. C'est ce qui garantit que le test prouve quelque chose : s'il passait par un
 // chemin à lui, il ne vérifierait que lui-même.
-function composerMail(to, subject, text, html) {
+function composerMail(to, subject, text, html, opts) {
   const brut = String(text == null ? '' : text);
-  // la mention est ajoutée ICI : aucun appelant ne peut l'oublier
-  const avecMention = brut.indexOf(MAIL_NOREPLY) >= 0 ? brut : (brut + '\n\n---\n' + MAIL_NOREPLY);
+  // la mention est ajoutée ICI : aucun appelant ne peut l'oublier.
+  // ⚠️ Quand un Reply-To est posé (formulaire de contact), « merci de ne pas répondre » serait
+  // un contre-sens : répondre est précisément le geste attendu, et la réponse part chez le
+  // visiteur, pas vers nepasrepondre@.
+  const mention = (opts && opts.replyTo)
+    ? 'Vous pouvez répondre directement à cet e-mail : votre réponse partira à ' + opts.replyTo + '.'
+    : MAIL_NOREPLY;
+  const avecMention = brut.indexOf(mention) >= 0 ? brut : (brut + '\n\n---\n' + mention);
   // Auto-Submitted et X-Auto-Response-Suppress : ils évitent les réponses d'absence et les
   // accusés de réception automatiques, qui n'iraient de toute façon dans aucune boîte lue.
   const msg = { from: MAIL.from, to, subject, text: avecMention, html,
@@ -251,10 +257,14 @@ function composerMail(to, subject, text, html) {
   if (html && html.indexOf('cid:lslogo') !== -1 && fs.existsSync(MAIL_LOGO)) msg.attachments = [{ filename: 'ls-logo.png', path: MAIL_LOGO, cid: 'lslogo' }];
   return msg;
 }
-function sendMailSafe(to, subject, text, html) {
+// opts.replyTo (facultatif) : utilisé par le formulaire de contact pour qu'un simple « Répondre »
+// parte chez le visiteur, l'expéditeur nepasrepondre@ ne recevant rien.
+function sendMailSafe(to, subject, text, html, opts) {
   if (!mailer || !to || !/@/.test(to)) return;
   if (/@ls\.fr$/i.test(to)) return; // adresses fictives des comptes démo — jamais d'envoi réel
-  mailer.sendMail(composerMail(to, subject, text, html), (err) => {
+  const msg = composerMail(to, subject, text, html, opts);
+  if (opts && opts.replyTo && /@/.test(opts.replyTo)) msg.replyTo = opts.replyTo;
+  mailer.sendMail(msg, (err) => {
     if (err) console.error('✉ échec envoi à ' + to + ' :', err.message);
     else console.log('✉ mail envoyé à ' + to + ' — ' + subject);
   });
@@ -3208,6 +3218,159 @@ app.post('/api/admin/mail-test', auth, async (req, res) => {
     console.error('✉ ÉCHEC du test vers ' + to + ' :', e.message);
     res.status(502).json({ error: e.message, expediteur: MAIL.from, code: e.code, commande: e.command });
   }
+});
+
+// ---- formulaires publics du site vitrine : contact + test de niveau ---------
+// (19/08/2026) Jusqu'ici les deux formulaires n'envoyaient RIEN : le message « votre demande a
+// bien été prise en compte » s'affichait sans qu'aucune donnée ne parte nulle part.
+// Désormais : contact → Slack #contact + e-mail à contact@ ; test → Slack #contact (repli
+// e-mail). ⚠️ La route ne répond « ok » que si AU MOINS UN canal a réellement accepté l'envoi :
+// répondre « merci » quand tout a échoué serait exactement le défaut d'origine.
+
+// Webhook entrant Slack du canal #contact. ⚠️ L'URL d'un webhook vaut un SECRET (quiconque la
+// connaît peut poster dans le canal) : config HORS Git — data/slack.json {webhook} en local,
+// variable SLACK_WEBHOOK en production (via l'ENV_FILE). Sans config → désactivé proprement.
+function slackConfig() {
+  if (process.env.SLACK_WEBHOOK) return { webhook: process.env.SLACK_WEBHOOK };
+  try {
+    let t = fs.readFileSync(path.join(DATA_DIR, 'slack.json'), 'utf8');
+    if (t.charCodeAt(0) === 0xfeff) t = t.slice(1);   // BOM des fichiers créés sous Windows
+    const c = JSON.parse(t);
+    return (c && c.webhook) ? c : null;
+  } catch (e) { return null; }
+}
+const SLACK = slackConfig();
+console.log(SLACK ? '💬 notifications Slack activées (webhook #contact)'
+  : '💬 notifications Slack désactivées (poser data/slack.json {"webhook":…} ou SLACK_WEBHOOK)');
+// ⚠️ ÉCHAPPEMENT mrkdwn OBLIGATOIRE sur tout texte saisi par un visiteur : sans lui,
+// « <!channel> » dans un message pinge toute l'équipe, et « <https://hameçon|Cliquez ici> »
+// s'affiche dans #contact comme un lien légitime. Slack ne demande que ces trois caractères.
+function slackEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+// Renvoie une promesse qui dit si le message est PARTI : les routes de formulaire en dépendent.
+// Jamais de rejet : un Slack en panne ne doit pas faire planter la route.
+function notifierSlack(texte) {
+  if (!SLACK) return Promise.resolve(false);
+  return fetch(SLACK.webhook, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: texte }),
+    signal: AbortSignal.timeout(8000)
+  }).then(r => {
+    if (!r.ok) { console.error('💬 Slack a refusé l\'envoi (' + r.status + ')'); return false; }
+    return true;
+  }).catch(e => { console.error('💬 envoi Slack impossible :', e.message); return false; });
+}
+// Envoi e-mail ATTENDU (promesse booléenne), contrairement à sendMailSafe qui est muet par
+// construction : ici la route doit savoir si l'e-mail est parti pour répondre honnêtement.
+function envoyerMailAttendu(to, subject, text, html, opts) {
+  return new Promise((resolve) => {
+    if (!mailer || !to || !/@/.test(to) || /@ls\.fr$/i.test(to)) return resolve(false);
+    const msg = composerMail(to, subject, text, html, opts);
+    if (opts && opts.replyTo && /@/.test(opts.replyTo)) msg.replyTo = opts.replyTo;
+    mailer.sendMail(msg, (err) => {
+      if (err) { console.error('✉ échec envoi à ' + to + ' :', err.message); resolve(false); }
+      else { console.log('✉ mail envoyé à ' + to + ' — ' + subject); resolve(true); }
+    });
+  });
+}
+
+// Limite par IP des routes publiques, en mémoire. Sans elle, n'importe qui inonde le canal
+// Slack et la boîte contact@ en boucle. ⚠️ Elle tourne APRÈS la validation : un e-mail mal
+// tapé ne consomme pas le quota (sinon cinq fautes de frappe fermaient la porte au prospect).
+// ⚠️ Le quota du test est plus large que celui du contact : une classe ou une entreprise
+// entière peut passer le test derrière UNE seule IP (NAT).
+const quotasFormulaires = new Map();
+function tropDeDemandes(ip, route, max) {
+  const FENETRE = 10 * 60 * 1000;
+  const k = route + '|' + ip, maintenant = Date.now();
+  const liste = (quotasFormulaires.get(k) || []).filter(t => maintenant - t < FENETRE);
+  if (liste.length >= max) { quotasFormulaires.set(k, liste); return true; }
+  liste.push(maintenant);
+  quotasFormulaires.set(k, liste);
+  // la table ne doit pas grossir sans fin : purge des entrées éteintes au-delà de 5000 clés
+  if (quotasFormulaires.size > 5000) {
+    for (const [ck, ts] of quotasFormulaires) { if (!ts.some(t => maintenant - t < FENETRE)) quotasFormulaires.delete(ck); }
+  }
+  return false;
+}
+const CONTACT_DEST = 'contact@languagesandsuccess.com';
+const champCourt = (v, max) => sTrim(v).slice(0, max || 120);
+const EMAIL_VALIDE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+// Formulaire de contact → Slack #contact + e-mail à contact@ (Reply-To = le visiteur : un
+// simple « Répondre » lui écrit directement).
+app.post('/api/contact', async (req, res) => {
+  const b = req.body || {};
+  // pot de miel : le champ « website » est invisible pour un humain. Un robot qui le remplit
+  // reçoit un faux succès et rien n'est transmis — le faire échouer lui apprendrait à s'adapter.
+  if (sTrim(b.website)) return res.json({ ok: true });
+  const prenom = champCourt(b.prenom, 80), nom = champCourt(b.nom, 80);
+  const email = champCourt(b.email, 160).toLowerCase(), tel = champCourt(b.tel, 40);
+  const message = sTrim(b.message).slice(0, 5000);
+  if (!prenom || !nom || !message) return res.status(400).json({ error: 'Champs manquants.' });
+  if (!EMAIL_VALIDE.test(email)) return res.status(400).json({ error: 'Vérifiez votre adresse e-mail.' });
+  if (tropDeDemandes(clientIp(req), 'contact', 5)) return res.status(429).json({ error: 'Trop de demandes. Patientez quelques minutes puis réessayez.' });
+  const qui = prenom + ' ' + nom + ' — ' + email + (tel ? ' — ' + tel : '');
+  // version HTML de l'e-mail : bornée à 40 lignes, AVEC marque de troncature (le texte brut,
+  // lui, porte toujours le message entier)
+  const lignesMsg = String(message).split('\n').filter(l => l.trim());
+  const lignesHtml = [qui].concat(lignesMsg.slice(0, 40));
+  if (lignesMsg.length > 40) lignesHtml.push('[…] Message tronqué ici — le texte complet est dans la version texte de cet e-mail.');
+  const [slackOk, mailOk] = await Promise.all([
+    notifierSlack('📩 *Nouvelle demande de contact*\n' + slackEsc(qui) + '\n\n' + slackEsc(message)),
+    envoyerMailAttendu(CONTACT_DEST, 'Nouvelle demande de contact — ' + prenom + ' ' + nom,
+      qui + '\n\n' + message,
+      mailHtml('Nouvelle demande de contact', lignesHtml, null, null),
+      { replyTo: email })
+  ]);
+  if (!slackOk && !mailOk) {
+    // rien n'est parti : on le DIT, et la demande entière va au journal — dernière trace possible
+    console.error('📩 DEMANDE DE CONTACT NON TRANSMISE (Slack et e-mail en échec) : ' + qui + ' — ' + message.slice(0, 300));
+    return res.status(502).json({ error: 'Votre demande n\'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.' });
+  }
+  console.log('📩 demande de contact reçue de ' + email + (slackOk ? ' [Slack]' : '') + (mailOk ? ' [e-mail]' : ''));
+  res.json({ ok: true });
+});
+
+// Test de niveau terminé → Slack #contact, repli e-mail si Slack est absent ou en panne :
+// la personne a coché « j'accepte d'être recontactée », on ne perd JAMAIS un prospect en silence.
+app.post('/api/test-niveau', async (req, res) => {
+  const b = req.body || {};
+  if (sTrim(b.website)) return res.json({ ok: true });
+  const prenom = champCourt(b.prenom, 80), nom = champCourt(b.nom, 80);
+  const email = champCourt(b.email, 160).toLowerCase(), tel = champCourt(b.tel, 40);
+  const langueTestee = champCourt(b.langueTestee, 40), langueVoulue = champCourt(b.langueVoulue, 40);
+  const niveau = champCourt(b.niveau, 8);
+  const score = Math.max(0, Math.min(50, parseInt(b.score, 10) || 0));
+  const total = Math.max(1, Math.min(50, parseInt(b.total, 10) || 10));
+  // ⚠️ chaque refus est JOURNALISÉ avec les coordonnées : c'est un prospect consentant, le
+  // journal est la dernière trace si le client n'affiche pas l'erreur
+  if (!prenom || !nom || !EMAIL_VALIDE.test(email)) {
+    console.warn('🧪 coordonnées refusées (champs/e-mail invalides) : ' + (b.prenom || '?') + ' ' + (b.nom || '?') + ' — ' + (b.email || '?') + ' — ' + (b.tel || '?'));
+    return res.status(400).json({ error: !EMAIL_VALIDE.test(email) ? 'Vérifiez votre adresse e-mail.' : 'Champs manquants.' });
+  }
+  if (tropDeDemandes(clientIp(req), 'test', 15)) {
+    console.warn('🧪 quota atteint pour ' + clientIp(req) + ' — coordonnées non transmises : ' + prenom + ' ' + nom + ' — ' + email + ' — ' + tel);
+    return res.status(429).json({ error: 'Trop de demandes. Patientez quelques minutes puis réessayez.' });
+  }
+  const lignes = [
+    prenom + ' ' + nom + ' — ' + email + (tel ? ' — ' + tel : ''),
+    'Test passé : ' + (langueTestee || '?') + ' · Résultat : ' + (niveau || '?') + ' (' + score + '/' + total + ')',
+    'Langue qui l\'intéresse : ' + (langueVoulue || langueTestee || '?'),
+    'A accepté d\'être recontacté(e).'
+  ];
+  const parti = await notifierSlack('🧪 *Test de niveau terminé*\n' + lignes.map(slackEsc).join('\n'));
+  let mailOk = false;
+  if (!parti) {
+    mailOk = await envoyerMailAttendu(CONTACT_DEST, 'Test de niveau terminé — ' + prenom + ' ' + nom + ' (' + (niveau || '?') + ')',
+      lignes.join('\n') + '\n\n(Envoyé par e-mail car Slack n\'a pas pu être joint.)',
+      mailHtml('Test de niveau terminé', lignes, null, null));
+  }
+  if (!parti && !mailOk) {
+    console.error('🧪 PROSPECT NON TRANSMIS (Slack et e-mail en échec) : ' + lignes.join(' | '));
+    return res.status(502).json({ error: 'Vos coordonnées n\'ont pas pu être transmises.' });
+  }
+  console.log('🧪 test de niveau : ' + email + ' → ' + (niveau || '?') + ' (' + score + '/' + total + ')' + (parti ? ' [Slack]' : ' [e-mail]'));
+  res.json({ ok: true });
 });
 
 // ---- statique (site) -------------------------------------------------------

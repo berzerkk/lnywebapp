@@ -137,7 +137,7 @@
     <div class="crumbs"><a href="index.html">Accueil</a> · Test de niveau</div>
     <span class="eyebrow">Gratuit · 4 minutes · 15 questions</span>
     <h1>Quel est votre niveau, <i>vraiment ?</i></h1>
-    <p class="lead">Répondez à 15 questions. À la fin, laissez vos coordonnées pour recevoir votre niveau estimé.</p>
+    <p class="lead">Répondez à 15 questions. À la fin, laissez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée.</p>
   </div>
 </header>
 
@@ -175,7 +175,7 @@
       <div class="quiz-card hidden" id="screen-gate">
         <span class="eyebrow">Dernière étape</span>
         <h2 style="font-family:var(--ff-head);font-size:clamp(24px,3vw,32px);margin:10px 0 6px">Votre résultat est prêt 🎉</h2>
-        <p class="lead-soft" style="margin-bottom:24px">Indiquez vos coordonnées pour découvrir votre niveau estimé et recevoir votre bilan détaillé par e-mail.</p>
+        <p class="lead-soft" style="margin-bottom:24px">Indiquez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée. Notre équipe vous recontacte pour en parler.</p>
         <form class="form" id="lead-form" style="max-width:none">
           <div class="row2">
             <div class="field"><label for="g-prenom">Prénom</label><input id="g-prenom" name="prenom" required /></div>
@@ -191,6 +191,8 @@
               <option value="Anglais">Anglais</option><option value="Italien">Italien</option><option value="Espagnol">Espagnol</option><option value="Allemand">Allemand</option><option value="Portugais">Portugais</option><option value="Chinois">Chinois</option><option value="Arabe">Arabe</option><option value="Japonais">Japonais</option><option value="Russe">Russe</option><option value="Hongrois">Hongrois</option><option value="Serbe">Serbe</option><option value="Français">Français</option>
             </select>
           </div>
+          <!-- pot de miel anti-robots : invisible pour un humain, le serveur ignore tout envoi où il est rempli -->
+          <input id="g-web" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px" />
           <label class="consent"><input type="checkbox" required /> <span>J'accepte d'être recontacté(e) par Languages &amp; Success et que mes données soient traitées conformément à la <a href="confidentialite.html" target="_blank" style="color:var(--accent)">politique de confidentialité</a>.</span></label>
           <button class="btn btn-primary" type="submit" style="justify-self:center">Voir mon résultat →</button>
         </form>
@@ -203,6 +205,7 @@
         <h2 style="font-family:var(--ff-head);font-size:clamp(22px,2.6vw,30px);margin:10px 0 6px" id="res-title">Niveau Seuil</h2>
         <p class="lead-soft" id="res-desc" style="margin:0 auto"></p>
         <p class="form-note" id="res-score" style="margin-top:14px"></p>
+        <p class="form-note" id="res-note" style="margin-top:6px;color:#b3402a;display:none"></p>
         <div class="res-skills" id="res-skills"></div>
         <div class="res-correction" id="res-correction" data-i18n-skip></div>
         <div class="cta-actions" style="justify-content:center;margin-top:28px">
@@ -302,7 +305,35 @@
     $('res-level').textContent=lvl.code;
     $('res-title').textContent=lvl.name;
     $('res-desc').textContent=lvl.desc;
-    $('res-score').textContent='Score : ' + score + ' / ' + Q.length + ' · Résultat envoyé à ' + ($('g-email').value || 'votre e-mail') + '.';
+    $('res-score').textContent='Score : ' + score + ' / ' + Q.length + '.';
+    // Les coordonnées partent pour de vrai (Slack #contact côté serveur, repli e-mail).
+    // ⚠️ Un échec est AFFICHÉ, plus jamais avalé : la personne a coché « j'accepte d'être
+    // recontactée », elle doit savoir si ses coordonnées ne sont pas passées (e-mail refusé,
+    // trop de demandes derrière la même connexion, panne). Le résultat du test, lui, reste
+    // affiché quoi qu'il arrive.
+    var langTestee = $('t-langue') ? $('t-langue').value : 'Anglais';
+    var noteEchec = function (raison) {
+      var n = $('res-note'); if (!n) return;
+      n.style.display = 'block';
+      // deux <span> séparés : chaque texte reste une clé i18n entière, traduite telle quelle
+      // la raison n'est ajoutée que si elle apporte autre chose que la phrase fixe (le 502
+      // du serveur renvoie exactement la même, elle s'affichait en double)
+      var fixe = 'Vos coordonnées n’ont pas pu être transmises.';
+      var apporte = raison && raison.replace(/’/g, "'") !== fixe.replace(/’/g, "'");
+      n.innerHTML = '<span>' + fixe + '</span> ' +
+        (apporte ? '<span>' + escx(raison) + '</span> ' : '') +
+        '<span>Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).</span>';
+    };
+    try {
+      fetch('/api/test-niveau', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        prenom: $('g-prenom').value, nom: $('g-nom').value, email: $('g-email').value, tel: $('g-tel').value,
+        langueTestee: langTestee, langueVoulue: $('g-langue') ? $('g-langue').value : '',
+        niveau: lvl.code, score: score, total: Q.length, website: $('g-web') ? $('g-web').value : ''
+      }) }).then(function (r) {
+        if (r.ok) return;
+        r.json().then(function (j) { noteEchec((j && j.error) || ''); }, function () { noteEchec(''); });
+      }, function () { noteEchec(''); });
+    } catch (e) { noteEchec(''); }
     // compétences associées au niveau
     $('res-skills').innerHTML = '<h3 class="res-h">Ce que vous savez faire à ce niveau</h3><ul class="skill-list">' +
       (lvl.can||[]).map(function(c){ return '<li><span class="tick">↳</span><span>'+escx(c)+'</span></li>'; }).join('') + '</ul>';

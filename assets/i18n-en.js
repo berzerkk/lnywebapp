@@ -315,12 +315,12 @@ window.__lsI18N && window.__lsI18N.register('en', {
   /* ---- test de niveau (UI) ---- */
   "Gratuit · 4 minutes · 15 questions": "Free · 4 minutes · 15 questions",
   "Quel est votre niveau,": "What is your level,", "vraiment ?": "really?",
-  "Répondez à 15 questions. À la fin, laissez vos coordonnées pour recevoir votre niveau estimé.": "Answer 15 questions. At the end, leave your contact details to receive your estimated level.",
+  
   "15 questions à choix multiple, de plus en plus exigeantes. Pas de piège : répondez spontanément. Vous pourrez revenir en arrière à tout moment.": "15 multiple-choice questions, increasingly demanding. No tricks: answer spontaneously. You can go back at any time.",
   "Langue du test": "Test language", "Démarrer le test →": "Start the test →",
   "← Précédent": "← Previous", "Suivant →": "Next →",
   "Dernière étape": "Last step", "Votre résultat est prêt 🎉": "Your result is ready 🎉",
-  "Indiquez vos coordonnées pour découvrir votre niveau estimé et recevoir votre bilan détaillé par e-mail.": "Enter your contact details to see your estimated level and receive your detailed report by e-mail.",
+  
   "Langue qui vous intéresse": "Language you are interested in",
   "J'accepte d'être recontacté(e) par Languages & Success et que mes données soient traitées conformément à la": "I agree to be contacted by Languages & Success and to my data being processed in accordance with the",
   "politique de confidentialité": "privacy policy",
@@ -553,7 +553,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   /* ---- comptes en attente et derniere activite ---- */
   "Voir depuis quand ce compte attend, et le relancer": "See how long this account has been waiting, and send a reminder",
   "Dernière fois que la personne a utilisé son espace documents": "The last time this person used their document portal",
-  "Ce compte est créé, mais la personne n’a pas encore choisi son mot de passe. Tant qu’elle ne l’a pas fait, elle ne peut pas se connecter.": "This account exists, but the person has not chosen their password yet. Until they do, they cannot sign in.",
+  "Ce compte est créé, mais la personne n'a pas encore choisi son mot de passe. Tant qu'elle ne l'a pas fait, elle ne peut pas se connecter.": "This account exists, but the person has not chosen their password yet. Until they do, they cannot sign in.",
   "Compte créé": "Account created",
   "Invitation envoyée": "Invitation sent",
   "Lien encore valable": "Link still valid",
@@ -565,5 +565,17 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Relance envoyée": "Reminder sent",
   "Connexions (saisies du mot de passe)": "Sign-ins (password entered)",
   "Aucune activité enregistrée depuis la mise en service de ce suivi.": "No activity recorded since this tracking was introduced.",
-  "Compte jamais activé : la personne n’a pas encore choisi son mot de passe.": "Account never activated: the person has not chosen their password yet."
+  "Compte jamais activé : la personne n'a pas encore choisi son mot de passe.": "Account never activated: the person has not chosen their password yet.",
+  /* ---- formulaires contact et test ---- */
+  "Envoi en cours…": "Sending…",
+  "Votre demande n'a pas pu être envoyée. Réessayez dans un instant, ou écrivez-nous à contact@languagesandsuccess.com.": "Your request could not be sent. Try again in a moment, or write to us at contact@languagesandsuccess.com.",
+  "Trop de demandes. Patientez quelques minutes puis réessayez.": "Too many requests. Wait a few minutes and try again.",
+  "Vérifiez votre adresse e-mail.": "Check your e-mail address.",
+  "Champs manquants.": "Missing fields.",
+  /* ---- formulaires : phrases honnetes et erreurs ---- */
+  "Répondez à 15 questions. À la fin, laissez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée.": "Answer 15 questions. At the end, leave your contact details to see your estimated level and your detailed correction.",
+  "Indiquez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée. Notre équipe vous recontacte pour en parler.": "Enter your contact details to see your estimated level and your detailed correction. Our team will get back to you to talk it through.",
+  "Votre demande n'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.": "Your request could not be delivered. Write to us directly at contact@languagesandsuccess.com.",
+  "Vos coordonnées n'ont pas pu être transmises.": "Your contact details could not be sent.",
+  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Write to us at contact@languagesandsuccess.com so we can get back to you."
 });

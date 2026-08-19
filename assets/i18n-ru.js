@@ -296,12 +296,12 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Merci ! Votre demande a bien été prise en compte, nous vous recontactons rapidement.": "Спасибо! Ваш запрос принят, мы скоро свяжемся с вами.",
   "Gratuit · 4 minutes · 15 questions": "Бесплатно · 4 минуты · 15 вопросов",
   "Quel est votre niveau,": "Каков ваш уровень", "vraiment ?": "на самом деле?",
-  "Répondez à 15 questions. À la fin, laissez vos coordonnées pour recevoir votre niveau estimé.": "Ответьте на 15 вопросов. В конце оставьте контакты, чтобы получить оценку уровня.",
+  
   "15 questions à choix multiple, de plus en plus exigeantes. Pas de piège : répondez spontanément. Vous pourrez revenir en arrière à tout moment.": "15 вопросов с выбором ответа, всё сложнее и сложнее. Без подвохов: отвечайте спонтанно. Вернуться назад можно в любой момент.",
   "Langue du test": "Язык теста", "Démarrer le test →": "Начать тест →",
   "← Précédent": "← Назад", "Suivant →": "Далее →",
   "Dernière étape": "Последний шаг", "Votre résultat est prêt 🎉": "Ваш результат готов 🎉",
-  "Indiquez vos coordonnées pour découvrir votre niveau estimé et recevoir votre bilan détaillé par e-mail.": "Укажите контакты, чтобы узнать оценку уровня и получить подробный отчёт по e-mail.",
+  
   "Langue qui vous intéresse": "Интересующий язык",
   "J'accepte d'être recontacté(e) par Languages & Success et que mes données soient traitées conformément à la": "Я согласен(на) на связь со мной от Languages & Success и на обработку моих данных в соответствии с",
   "politique de confidentialité": "политикой конфиденциальности",
@@ -531,7 +531,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   /* ---- comptes en attente et derniere activite ---- */
   "Voir depuis quand ce compte attend, et le relancer": "Посмотреть, как долго аккаунт ожидает, и отправить напоминание",
   "Dernière fois que la personne a utilisé son espace documents": "Когда человек последний раз заходил в раздел документов",
-  "Ce compte est créé, mais la personne n’a pas encore choisi son mot de passe. Tant qu’elle ne l’a pas fait, elle ne peut pas se connecter.": "Аккаунт создан, но человек ещё не выбрал пароль. Пока он этого не сделает, войти он не сможет.",
+  "Ce compte est créé, mais la personne n'a pas encore choisi son mot de passe. Tant qu'elle ne l'a pas fait, elle ne peut pas se connecter.": "Аккаунт создан, но человек ещё не выбрал пароль. Пока он этого не сделает, войти он не сможет.",
   "Compte créé": "Аккаунт создан",
   "Invitation envoyée": "Приглашение отправлено",
   "Lien encore valable": "Ссылка ещё действительна",
@@ -543,5 +543,17 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Relance envoyée": "Напоминание отправлено",
   "Connexions (saisies du mot de passe)": "Входы (с вводом пароля)",
   "Aucune activité enregistrée depuis la mise en service de ce suivi.": "С момента включения этого учёта активность не зафиксирована.",
-  "Compte jamais activé : la personne n’a pas encore choisi son mot de passe.": "Аккаунт ни разу не активирован: человек ещё не выбрал пароль."
+  "Compte jamais activé : la personne n'a pas encore choisi son mot de passe.": "Аккаунт ни разу не активирован: человек ещё не выбрал пароль.",
+  /* ---- formulaires contact et test ---- */
+  "Envoi en cours…": "Отправка…",
+  "Votre demande n'a pas pu être envoyée. Réessayez dans un instant, ou écrivez-nous à contact@languagesandsuccess.com.": "Ваш запрос не удалось отправить. Попробуйте ещё раз через минуту или напишите нам: contact@languagesandsuccess.com.",
+  "Trop de demandes. Patientez quelques minutes puis réessayez.": "Слишком много запросов. Подождите несколько минут и попробуйте снова.",
+  "Vérifiez votre adresse e-mail.": "Проверьте ваш адрес e-mail.",
+  "Champs manquants.": "Заполните все поля.",
+  /* ---- formulaires : phrases honnetes et erreurs ---- */
+  "Répondez à 15 questions. À la fin, laissez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée.": "Ответьте на 15 вопросов. В конце оставьте свои контактные данные, чтобы узнать ваш примерный уровень и подробный разбор ответов.",
+  "Indiquez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée. Notre équipe vous recontacte pour en parler.": "Укажите свои контактные данные, чтобы узнать ваш примерный уровень и подробный разбор ответов. Наша команда свяжется с вами, чтобы обсудить результат.",
+  "Votre demande n'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.": "Ваш запрос не удалось передать. Напишите нам напрямую: contact@languagesandsuccess.com.",
+  "Vos coordonnées n'ont pas pu être transmises.": "Ваши контактные данные не удалось отправить.",
+  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Напишите нам на contact@languagesandsuccess.com, чтобы мы могли с вами связаться."
 });

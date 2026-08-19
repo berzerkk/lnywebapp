@@ -297,12 +297,12 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Merci ! Votre demande a bien été prise en compte, nous vous recontactons rapidement.": "谢谢！您的请求已收到，我们会尽快与您联系。",
   "Gratuit · 4 minutes · 15 questions": "免费 · 4 分钟 · 15 道题",
   "Quel est votre niveau,": "您的水平", "vraiment ?": "究竟如何？",
-  "Répondez à 15 questions. À la fin, laissez vos coordonnées pour recevoir votre niveau estimé.": "回答 15 道题。最后留下联系方式，即可收到您的水平评估。",
+  
   "15 questions à choix multiple, de plus en plus exigeantes. Pas de piège : répondez spontanément. Vous pourrez revenir en arrière à tout moment.": "15 道选择题，难度递增。没有陷阱：凭直觉作答。随时可以返回上一题。",
   "Langue du test": "测试语言", "Démarrer le test →": "开始测试 →",
   "← Précédent": "← 上一题", "Suivant →": "下一题 →",
   "Dernière étape": "最后一步", "Votre résultat est prêt 🎉": "您的结果已生成 🎉",
-  "Indiquez vos coordonnées pour découvrir votre niveau estimé et recevoir votre bilan détaillé par e-mail.": "填写联系方式，查看您的水平评估并通过邮件接收详细报告。",
+  
   "Langue qui vous intéresse": "感兴趣的语言",
   "J'accepte d'être recontacté(e) par Languages & Success et que mes données soient traitées conformément à la": "我同意 Languages & Success 与我联系，并同意依据以下政策处理我的数据：",
   "politique de confidentialité": "隐私政策",
@@ -532,7 +532,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   /* ---- comptes en attente et derniere activite ---- */
   "Voir depuis quand ce compte attend, et le relancer": "查看该账户已等待多久，并发送催办提醒",
   "Dernière fois que la personne a utilisé son espace documents": "该用户上次使用文档空间的时间",
-  "Ce compte est créé, mais la personne n’a pas encore choisi son mot de passe. Tant qu’elle ne l’a pas fait, elle ne peut pas se connecter.": "该账户已创建，但用户尚未设置密码。在设置密码之前，他无法登录。",
+  "Ce compte est créé, mais la personne n'a pas encore choisi son mot de passe. Tant qu'elle ne l'a pas fait, elle ne peut pas se connecter.": "该账户已创建，但用户尚未设置密码。在设置密码之前，他无法登录。",
   "Compte créé": "账户创建时间",
   "Invitation envoyée": "邀请发送时间",
   "Lien encore valable": "链接仍然有效",
@@ -544,5 +544,17 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Relance envoyée": "提醒已发送",
   "Connexions (saisies du mot de passe)": "登录记录（输入密码）",
   "Aucune activité enregistrée depuis la mise en service de ce suivi.": "自该记录功能启用以来，暂无活动。",
-  "Compte jamais activé : la personne n’a pas encore choisi son mot de passe.": "账户从未激活：用户尚未设置密码。"
+  "Compte jamais activé : la personne n'a pas encore choisi son mot de passe.": "账户从未激活：用户尚未设置密码。",
+  /* ---- formulaires contact et test ---- */
+  "Envoi en cours…": "发送中…",
+  "Votre demande n'a pas pu être envoyée. Réessayez dans un instant, ou écrivez-nous à contact@languagesandsuccess.com.": "您的请求未能发送。请稍后重试，或直接写信至 contact@languagesandsuccess.com。",
+  "Trop de demandes. Patientez quelques minutes puis réessayez.": "请求过于频繁。请等待几分钟后重试。",
+  "Vérifiez votre adresse e-mail.": "请检查您的电子邮箱地址。",
+  "Champs manquants.": "请填写所有必填字段。",
+  /* ---- formulaires : phrases honnetes et erreurs ---- */
+  "Répondez à 15 questions. À la fin, laissez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée.": "回答 15 道题。最后留下您的联系方式，即可查看您的估计水平和详细订正。",
+  "Indiquez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée. Notre équipe vous recontacte pour en parler.": "填写您的联系方式，即可查看您的估计水平和详细订正。我们的团队会与您联系，进一步交流。",
+  "Votre demande n'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.": "您的请求未能送达。请直接写信至 contact@languagesandsuccess.com。",
+  "Vos coordonnées n'ont pas pu être transmises.": "您的联系方式未能发送。",
+  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "请写信至 contact@languagesandsuccess.com，以便我们与您联系。"
 });
