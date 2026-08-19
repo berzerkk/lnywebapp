@@ -1050,7 +1050,10 @@
         if (u) openFicheEdit(u);
       };
     });
-    document.querySelectorAll('.adm-del').forEach(function (b) {
+    // ⚠️ [data-del] OBLIGATOIRE : la corbeille d'un document porte AUSSI la classe .adm-del (pour
+    // l'apparence). Sans ce filtre, ce câblage — qui tourne APRÈS celui du dossier — écrasait son
+    // clic chez l'admin et envoyait DELETE /api/users/<id du document> → « Compte introuvable. »
+    document.querySelectorAll('.adm-del[data-del]').forEach(function (b) {
       b.onclick = function () {
         var kind = b.getAttribute('data-del'), id = b.getAttribute('data-id'), label = b.getAttribute('data-label');
         var isGroup = kind === 'group';
