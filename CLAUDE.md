@@ -205,7 +205,7 @@ Données : `db.json` = `{users, groups, docs, messages, notifs, secret}`.
 - (Phase 3 « Agenda + rappels » : **abandonnée pour l'instant** à la demande de l'utilisateur.)
 
 ## Pistes non faites
-- **ROTATION DU JETON DU TUNNEL CLOUDFLARE** (accepté par l'utilisateur le 20/08/2026) : le jeton actuel est **lisible dans l'historique Git public** (un `.env` commité puis supprimé au début du projet). Marche à suivre : tableau de bord Zero Trust → Networks → Tunnels → régénérer le jeton, le mettre dans l'ENV_FILE (fichier ENTIER), redéployer — l'ancien devient inutilisable. Purger l'historique ne suffit pas (GitHub garde les objets accessibles par SHA).
+- ✅ **ROTATION DU JETON CLOUDFLARE : FAITE le 20/08/2026** — et par la panne elle-même : le jeton retrouvé dans l'historique Git s'est révélé PÉRIMÉ quand l'ENV_FILE reconstruit a été collé (site en 530, tunnel refusé). L'utilisateur a régénéré le jeton au tableau de bord et recollé l'ENV_FILE : le site est revenu au premier essai, et le jeton qui traîne dans l'historique Git public est désormais MORT. Leçon : le jeton d'un tunnel se copie au tableau de bord (Cloudflare le re-montre à volonté), jamais depuis une source d'occasion. ⚠️ L'utilisateur possède désormais une COPIE LOCALE de son ENV_FILE : c'est elle qui fait foi pour toute mise à jour (les secrets GitHub sont en écriture seule).
 Déploiement en ligne (Render/Railway) ; suppression doc/contact ; relecture native des questions du test. (Formulaires contact/test : branchés le 19/08/2026.)
 
 ### Conformité / pages légales (audit du 30/07/2026)
