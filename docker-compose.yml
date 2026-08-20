@@ -17,6 +17,8 @@ services:
       - SITE_URL=${SITE_URL:-https://languagesandsuccess.com}
       # Webhook Slack du canal #contact (formulaires du site). Vide = Slack désactivé proprement.
       - SLACK_WEBHOOK=${SLACK_WEBHOOK:-}
+      # URL de l application web Apps Script du registre des prospects (Google Sheet). Vide = registre désactivé proprement.
+      - SHEET_WEBHOOK=${SHEET_WEBHOOK:-}
       # Sauvegarde offsite quotidienne (Backblaze B2) : valeurs injectées depuis
       # le .env (secret GitHub ENV_FILE). Vides = sauvegarde désactivée proprement.
       - B2_KEY_ID=${B2_KEY_ID:-}

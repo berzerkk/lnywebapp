@@ -3259,6 +3259,35 @@ function notifierSlack(texte) {
     return true;
   }).catch(e => { console.error('💬 envoi Slack impossible :', e.message); return false; });
 }
+// Registre des prospects : un Google Sheet, alimenté par une « application web » Apps Script
+// dont l'URL vaut un SECRET (même modèle que le webhook Slack). Config HORS Git :
+// data/sheet.json {url} en local, SHEET_WEBHOOK en production. Sans config → désactivé
+// proprement. ⚠️ C'est un REGISTRE, pas une alerte : il s'ajoute à Slack et à l'e-mail, il ne
+// remplace ni l'un ni l'autre — les trois tuyaux sont indépendants.
+function sheetConfig() {
+  if (process.env.SHEET_WEBHOOK) return { url: process.env.SHEET_WEBHOOK };
+  try {
+    let t = fs.readFileSync(path.join(DATA_DIR, 'sheet.json'), 'utf8');
+    if (t.charCodeAt(0) === 0xfeff) t = t.slice(1);
+    const c = JSON.parse(t);
+    return (c && c.url) ? c : null;
+  } catch (e) { return null; }
+}
+const SHEET = sheetConfig();
+console.log(SHEET ? '📊 registre des prospects activé (Google Sheet)'
+  : '📊 registre des prospects désactivé (poser data/sheet.json {"url":…} ou SHEET_WEBHOOK)');
+// Promesse booléenne, jamais de rejet. ⚠️ Apps Script répond par une REDIRECTION vers
+// script.googleusercontent.com : fetch la suit tout seul, il ne faut surtout pas l'interdire.
+function ecrireAuRegistre(donnees) {
+  if (!SHEET) return Promise.resolve(false);
+  return fetch(SHEET.url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(donnees),
+    signal: AbortSignal.timeout(10000)
+  }).then(r => r.ok ? r.json().then(j => !!(j && j.ok), () => false) : false)
+    .then(ok => { if (!ok) console.error('📊 le registre a refusé la ligne'); return ok; })
+    .catch(e => { console.error('📊 écriture au registre impossible :', e.message); return false; });
+}
 // Envoi e-mail ATTENDU (promesse booléenne), contrairement à sendMailSafe qui est muet par
 // construction : ici la route doit savoir si l'e-mail est parti pour répondre honnêtement.
 function envoyerMailAttendu(to, subject, text, html, opts) {
@@ -3315,19 +3344,20 @@ app.post('/api/contact', async (req, res) => {
   const lignesMsg = String(message).split('\n').filter(l => l.trim());
   const lignesHtml = [qui].concat(lignesMsg.slice(0, 40));
   if (lignesMsg.length > 40) lignesHtml.push('[…] Message tronqué ici — le texte complet est dans la version texte de cet e-mail.');
-  const [slackOk, mailOk] = await Promise.all([
+  const [slackOk, mailOk, sheetOk] = await Promise.all([
     notifierSlack('📩 *Nouvelle demande de contact*\n' + slackEsc(qui) + '\n\n' + slackEsc(message)),
     envoyerMailAttendu(CONTACT_DEST, 'Nouvelle demande de contact — ' + prenom + ' ' + nom,
       qui + '\n\n' + message,
       mailHtml('Nouvelle demande de contact', lignesHtml, null, null),
-      { replyTo: email })
+      { replyTo: email }),
+    ecrireAuRegistre({ origine: 'Formulaire de contact', prenom, nom, email, tel, message })
   ]);
-  if (!slackOk && !mailOk) {
-    // rien n'est parti : on le DIT, et la demande entière va au journal — dernière trace possible
-    console.error('📩 DEMANDE DE CONTACT NON TRANSMISE (Slack et e-mail en échec) : ' + qui + ' — ' + message.slice(0, 300));
+  if (!slackOk && !mailOk && !sheetOk) {
+    // rien n'est parti NULLE PART : on le DIT, et la demande entière va au journal — dernière trace
+    console.error('📩 DEMANDE DE CONTACT NON TRANSMISE (aucun canal) : ' + qui + ' — ' + message.slice(0, 300));
     return res.status(502).json({ error: 'Votre demande n\'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.' });
   }
-  console.log('📩 demande de contact reçue de ' + email + (slackOk ? ' [Slack]' : '') + (mailOk ? ' [e-mail]' : ''));
+  console.log('📩 demande de contact reçue de ' + email + (slackOk ? ' [Slack]' : '') + (mailOk ? ' [e-mail]' : '') + (sheetOk ? ' [registre]' : ''));
   res.json({ ok: true });
 });
 
@@ -3358,18 +3388,21 @@ app.post('/api/test-niveau', async (req, res) => {
     'Langue qui l\'intéresse : ' + (langueVoulue || langueTestee || '?'),
     'A accepté d\'être recontacté(e).'
   ];
-  const parti = await notifierSlack('🧪 *Test de niveau terminé*\n' + lignes.map(slackEsc).join('\n'));
+  const [parti, sheetOk] = await Promise.all([
+    notifierSlack('🧪 *Test de niveau terminé*\n' + lignes.map(slackEsc).join('\n')),
+    ecrireAuRegistre({ origine: 'Test de niveau', prenom, nom, email, tel, langueTestee, langueVoulue, niveau, score, total })
+  ]);
   let mailOk = false;
   if (!parti) {
     mailOk = await envoyerMailAttendu(CONTACT_DEST, 'Test de niveau terminé — ' + prenom + ' ' + nom + ' (' + (niveau || '?') + ')',
       lignes.join('\n') + '\n\n(Envoyé par e-mail car Slack n\'a pas pu être joint.)',
       mailHtml('Test de niveau terminé', lignes, null, null));
   }
-  if (!parti && !mailOk) {
-    console.error('🧪 PROSPECT NON TRANSMIS (Slack et e-mail en échec) : ' + lignes.join(' | '));
+  if (!parti && !mailOk && !sheetOk) {
+    console.error('🧪 PROSPECT NON TRANSMIS (aucun canal) : ' + lignes.join(' | '));
     return res.status(502).json({ error: 'Vos coordonnées n\'ont pas pu être transmises.' });
   }
-  console.log('🧪 test de niveau : ' + email + ' → ' + (niveau || '?') + ' (' + score + '/' + total + ')' + (parti ? ' [Slack]' : ' [e-mail]'));
+  console.log('🧪 test de niveau : ' + email + ' → ' + (niveau || '?') + ' (' + score + '/' + total + ')' + (parti ? ' [Slack]' : '') + (mailOk ? ' [e-mail]' : '') + (sheetOk ? ' [registre]' : ''));
   res.json({ ok: true });
 });
 
