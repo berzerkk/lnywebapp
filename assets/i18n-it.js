@@ -303,12 +303,12 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Dernière étape": "Ultimo passo", "Votre résultat est prêt 🎉": "Il vostro risultato è pronto 🎉",
   
   "Langue qui vous intéresse": "Lingua che vi interessa",
-  "J'accepte d'être recontacté(e) par Languages & Success et que mes données soient traitées conformément à la": "Accetto di essere ricontattato/a da Languages & Success e che i miei dati siano trattati conformemente all'",
+  
   "politique de confidentialité": "informativa sulla privacy",
   "Voir mon résultat →": "Vedi il mio risultato →",
   "Votre niveau estimé": "Il vostro livello stimato",
-  "Ce que vous savez faire à ce niveau": "Cosa sapete fare a questo livello",
-  "Ce test est indicatif. Un test de positionnement complet est réalisé avant chaque formation pour ajuster votre parcours.": "Questo test è indicativo. Prima di ogni formazione viene effettuato un test di posizionamento completo per regolare il percorso.",
+  
+  
   "Vous posez les bases : énoncés simples et besoins concrets. Un parcours débutant vous fera décoller rapidement.": "State ponendo le basi: enunciati semplici e bisogni concreti. Un percorso per principianti vi farà decollare in fretta.",
   "Vous présenter et présenter quelqu'un": "Presentarvi e presentare qualcuno", "Comprendre et utiliser des expressions familières du quotidien": "Comprendere e usare espressioni familiari del quotidiano", "Poser et répondre à des questions simples (lieu, heure, besoins)": "Porre e rispondere a domande semplici (luogo, ora, bisogni)",
   "Vous communiquez dans des situations simples et habituelles. Objectif : gagner en autonomie au quotidien.": "Comunicate in situazioni semplici e abituali. Obiettivo: guadagnare autonomia nel quotidiano.",
@@ -555,5 +555,8 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Indiquez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée. Notre équipe vous recontacte pour en parler.": "Indicate i vostri recapiti per scoprire il vostro livello stimato e la vostra correzione dettagliata. Il nostro team vi ricontatterà per parlarne.",
   "Votre demande n'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.": "La vostra richiesta non è stata trasmessa. Scriveteci direttamente a contact@languagesandsuccess.com.",
   "Vos coordonnées n'ont pas pu être transmises.": "I vostri recapiti non sono stati trasmessi.",
-  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Scriveteci a contact@languagesandsuccess.com per essere ricontattati."
+  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Scriveteci a contact@languagesandsuccess.com per essere ricontattati.",
+  /* ---- test : titre des competences et note de confidentialite ---- */
+  "Ce que vous savez supposément faire à ce niveau": "Ciò che presumibilmente sapete fare a questo livello",
+  "Vos données sont traitées conformément à la": "I vostri dati sono trattati in conformità alla"
 });

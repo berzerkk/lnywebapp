@@ -303,12 +303,12 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Dernière étape": "Последний шаг", "Votre résultat est prêt 🎉": "Ваш результат готов 🎉",
   
   "Langue qui vous intéresse": "Интересующий язык",
-  "J'accepte d'être recontacté(e) par Languages & Success et que mes données soient traitées conformément à la": "Я согласен(на) на связь со мной от Languages & Success и на обработку моих данных в соответствии с",
+  
   "politique de confidentialité": "политикой конфиденциальности",
   "Voir mon résultat →": "Показать результат →",
   "Votre niveau estimé": "Ваш примерный уровень",
-  "Ce que vous savez faire à ce niveau": "Что вы умеете на этом уровне",
-  "Ce test est indicatif. Un test de positionnement complet est réalisé avant chaque formation pour ajuster votre parcours.": "Этот тест ориентировочный. Перед каждым курсом проводится полный тест уровня для настройки программы.",
+  
+  
   "Vous posez les bases : énoncés simples et besoins concrets. Un parcours débutant vous fera décoller rapidement.": "Вы закладываете основы: простые фразы и конкретные потребности. Курс для начинающих быстро поднимет ваш уровень.",
   "Vous présenter et présenter quelqu'un": "Представиться и представить другого", "Comprendre et utiliser des expressions familières du quotidien": "Понимать и использовать повседневные выражения", "Poser et répondre à des questions simples (lieu, heure, besoins)": "Задавать простые вопросы и отвечать на них (место, время, потребности)",
   "Vous communiquez dans des situations simples et habituelles. Objectif : gagner en autonomie au quotidien.": "Вы общаетесь в простых привычных ситуациях. Цель: больше самостоятельности в повседневной жизни.",
@@ -555,5 +555,8 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Indiquez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée. Notre équipe vous recontacte pour en parler.": "Укажите свои контактные данные, чтобы узнать ваш примерный уровень и подробный разбор ответов. Наша команда свяжется с вами, чтобы обсудить результат.",
   "Votre demande n'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.": "Ваш запрос не удалось передать. Напишите нам напрямую: contact@languagesandsuccess.com.",
   "Vos coordonnées n'ont pas pu être transmises.": "Ваши контактные данные не удалось отправить.",
-  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Напишите нам на contact@languagesandsuccess.com, чтобы мы могли с вами связаться."
+  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Напишите нам на contact@languagesandsuccess.com, чтобы мы могли с вами связаться.",
+  /* ---- test : titre des competences et note de confidentialite ---- */
+  "Ce que vous savez supposément faire à ce niveau": "Что вы предположительно умеете на этом уровне",
+  "Vos données sont traitées conformément à la": "Ваши данные обрабатываются в соответствии с"
 });

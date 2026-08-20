@@ -304,12 +304,12 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Dernière étape": "最后一步", "Votre résultat est prêt 🎉": "您的结果已生成 🎉",
   
   "Langue qui vous intéresse": "感兴趣的语言",
-  "J'accepte d'être recontacté(e) par Languages & Success et que mes données soient traitées conformément à la": "我同意 Languages & Success 与我联系，并同意依据以下政策处理我的数据：",
+  
   "politique de confidentialité": "隐私政策",
   "Voir mon résultat →": "查看我的结果 →",
   "Votre niveau estimé": "您的预估水平",
-  "Ce que vous savez faire à ce niveau": "此水平您能做什么",
-  "Ce test est indicatif. Un test de positionnement complet est réalisé avant chaque formation pour ajuster votre parcours.": "本测试仅供参考。每次培训前都会进行完整的定位测试，以调整您的课程。",
+  
+  
   "Vous posez les bases : énoncés simples et besoins concrets. Un parcours débutant vous fera décoller rapidement.": "您正在打基础：简单表达和具体需求。入门课程将让您快速起飞。",
   "Vous présenter et présenter quelqu'un": "自我介绍和介绍他人", "Comprendre et utiliser des expressions familières du quotidien": "理解并使用日常常用表达", "Poser et répondre à des questions simples (lieu, heure, besoins)": "提出并回答简单问题（地点、时间、需求）",
   "Vous communiquez dans des situations simples et habituelles. Objectif : gagner en autonomie au quotidien.": "您能在简单熟悉的情境中交流。目标：在日常生活中更加自主。",
@@ -556,5 +556,8 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Indiquez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée. Notre équipe vous recontacte pour en parler.": "填写您的联系方式，即可查看您的估计水平和详细订正。我们的团队会与您联系，进一步交流。",
   "Votre demande n'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.": "您的请求未能送达。请直接写信至 contact@languagesandsuccess.com。",
   "Vos coordonnées n'ont pas pu être transmises.": "您的联系方式未能发送。",
-  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "请写信至 contact@languagesandsuccess.com，以便我们与您联系。"
+  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "请写信至 contact@languagesandsuccess.com，以便我们与您联系。",
+  /* ---- test : titre des competences et note de confidentialite ---- */
+  "Ce que vous savez supposément faire à ce niveau": "您在该级别理论上应具备的能力",
+  "Vos données sont traitées conformément à la": "您的数据将依据以下政策处理："
 });

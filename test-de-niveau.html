@@ -193,7 +193,10 @@
           </div>
           <!-- pot de miel anti-robots : invisible pour un humain, le serveur ignore tout envoi où il est rempli -->
           <input id="g-web" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px" />
-          <label class="consent"><input type="checkbox" required /> <span>J'accepte d'être recontacté(e) par Languages &amp; Success et que mes données soient traitées conformément à la <a href="confidentialite.html" target="_blank" style="color:var(--accent)">politique de confidentialité</a>.</span></label>
+          <!-- Pas de case de consentement : le texte au-dessus annonce clairement le recontact,
+               et laisser ses coordonnées vaut accord (choix de l utilisateur, valide par son avocat,
+               21/08/2026). On garde le lien vers la politique de confidentialité, en information. -->
+          <p class="form-note" style="margin:0">Vos données sont traitées conformément à la <a href="confidentialite.html" target="_blank" style="color:var(--accent)">politique de confidentialité</a>.</p>
           <button class="btn btn-primary" type="submit" style="justify-self:center">Voir mon résultat →</button>
         </form>
       </div>
@@ -212,7 +215,6 @@
           <a href="contact.html" class="btn btn-primary">Nous contacter →</a>
           <a href="formations.html" class="btn btn-ghost">Voir les formations</a>
         </div>
-        <p class="form-note mt-m">Ce test est indicatif. Un test de positionnement complet est réalisé avant chaque formation pour ajuster votre parcours.</p>
       </div>
 
     </div>
@@ -335,7 +337,7 @@
       }, function () { noteEchec(''); });
     } catch (e) { noteEchec(''); }
     // compétences associées au niveau
-    $('res-skills').innerHTML = '<h3 class="res-h">Ce que vous savez faire à ce niveau</h3><ul class="skill-list">' +
+    $('res-skills').innerHTML = '<h3 class="res-h">Ce que vous savez supposément faire à ce niveau</h3><ul class="skill-list">' +
       (lvl.can||[]).map(function(c){ return '<li><span class="tick">↳</span><span>'+escx(c)+'</span></li>'; }).join('') + '</ul>';
     // correction détaillée, question par question
     $('res-correction').innerHTML = '<h3 class="res-h">Correction détaillée</h3>' +

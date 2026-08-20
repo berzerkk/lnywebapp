@@ -3404,8 +3404,7 @@ app.post('/api/test-niveau', async (req, res) => {
   const lignes = [
     prenom + ' ' + nom + ' — ' + email + (tel ? ' — ' + tel : ''),
     'Test passé : ' + (langueTestee || '?') + ' · Résultat : ' + (niveau || '?') + ' (' + score + '/' + total + ')',
-    'Langue qui l\'intéresse : ' + (langueVoulue || langueTestee || '?'),
-    'A accepté d\'être recontacté(e).'
+    'Langue qui l\'intéresse : ' + (langueVoulue || langueTestee || '?')
   ];
   const [parti, sheetOk] = await Promise.all([
     notifierSlack('🧪 *Test de niveau terminé*\n' + lignes.map(slackEsc).join('\n')),

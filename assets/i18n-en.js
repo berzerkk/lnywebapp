@@ -322,12 +322,12 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Dernière étape": "Last step", "Votre résultat est prêt 🎉": "Your result is ready 🎉",
   
   "Langue qui vous intéresse": "Language you are interested in",
-  "J'accepte d'être recontacté(e) par Languages & Success et que mes données soient traitées conformément à la": "I agree to be contacted by Languages & Success and to my data being processed in accordance with the",
+  
   "politique de confidentialité": "privacy policy",
   "Voir mon résultat →": "See my result →",
   "Votre niveau estimé": "Your estimated level",
-  "Ce que vous savez faire à ce niveau": "What you can do at this level",
-  "Ce test est indicatif. Un test de positionnement complet est réalisé avant chaque formation pour ajuster votre parcours.": "This test is indicative. A full placement test is carried out before each course to fine-tune your programme.",
+  
+  
   "Vous posez les bases : énoncés simples et besoins concrets. Un parcours débutant vous fera décoller rapidement.": "You are laying the foundations: simple statements and concrete needs. A beginner programme will get you off the ground fast.",
   "Vous présenter et présenter quelqu'un": "Introduce yourself and someone else", "Comprendre et utiliser des expressions familières du quotidien": "Understand and use familiar everyday expressions", "Poser et répondre à des questions simples (lieu, heure, besoins)": "Ask and answer simple questions (place, time, needs)",
   "Vous communiquez dans des situations simples et habituelles. Objectif : gagner en autonomie au quotidien.": "You communicate in simple, routine situations. Goal: become more independent day to day.",
@@ -577,5 +577,8 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Indiquez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée. Notre équipe vous recontacte pour en parler.": "Enter your contact details to see your estimated level and your detailed correction. Our team will get back to you to talk it through.",
   "Votre demande n'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.": "Your request could not be delivered. Write to us directly at contact@languagesandsuccess.com.",
   "Vos coordonnées n'ont pas pu être transmises.": "Your contact details could not be sent.",
-  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Write to us at contact@languagesandsuccess.com so we can get back to you."
+  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Write to us at contact@languagesandsuccess.com so we can get back to you.",
+  /* ---- test : titre des competences et note de confidentialite ---- */
+  "Ce que vous savez supposément faire à ce niveau": "What you can supposedly do at this level",
+  "Vos données sont traitées conformément à la": "Your data is processed in accordance with the"
 });

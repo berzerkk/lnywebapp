@@ -303,12 +303,12 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Dernière étape": "Último paso", "Votre résultat est prêt 🎉": "Su resultado está listo 🎉",
   
   "Langue qui vous intéresse": "Idioma que le interesa",
-  "J'accepte d'être recontacté(e) par Languages & Success et que mes données soient traitées conformément à la": "Acepto ser contactado/a por Languages & Success y que mis datos sean tratados de conformidad con la",
+  
   "politique de confidentialité": "política de privacidad",
   "Voir mon résultat →": "Ver mi resultado →",
   "Votre niveau estimé": "Su nivel estimado",
-  "Ce que vous savez faire à ce niveau": "Lo que sabe hacer en este nivel",
-  "Ce test est indicatif. Un test de positionnement complet est réalisé avant chaque formation pour ajuster votre parcours.": "Este test es orientativo. Antes de cada formación se realiza un test de posicionamiento completo para ajustar su itinerario.",
+  
+  
   "Vous posez les bases : énoncés simples et besoins concrets. Un parcours débutant vous fera décoller rapidement.": "Está sentando las bases: enunciados sencillos y necesidades concretas. Un itinerario para principiantes le hará despegar rápido.",
   "Vous présenter et présenter quelqu'un": "Presentarse y presentar a alguien", "Comprendre et utiliser des expressions familières du quotidien": "Comprender y usar expresiones cotidianas habituales", "Poser et répondre à des questions simples (lieu, heure, besoins)": "Hacer y responder preguntas sencillas (lugar, hora, necesidades)",
   "Vous communiquez dans des situations simples et habituelles. Objectif : gagner en autonomie au quotidien.": "Se comunica en situaciones sencillas y habituales. Objetivo: ganar autonomía en el día a día.",
@@ -555,5 +555,8 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Indiquez vos coordonnées pour découvrir votre niveau estimé et votre correction détaillée. Notre équipe vous recontacte pour en parler.": "Indique sus datos de contacto para descubrir su nivel estimado y su corrección detallada. Nuestro equipo le contactará para hablar de ello.",
   "Votre demande n'a pas pu être transmise. Écrivez-nous directement à contact@languagesandsuccess.com.": "Su solicitud no ha podido transmitirse. Escríbanos directamente a contact@languagesandsuccess.com.",
   "Vos coordonnées n'ont pas pu être transmises.": "Sus datos de contacto no han podido enviarse.",
-  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Escríbanos a contact@languagesandsuccess.com para que podamos contactarle."
+  "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Escríbanos a contact@languagesandsuccess.com para que podamos contactarle.",
+  /* ---- test : titre des competences et note de confidentialite ---- */
+  "Ce que vous savez supposément faire à ce niveau": "Lo que supuestamente sabe hacer en este nivel",
+  "Vos données sont traitées conformément à la": "Sus datos se tratan de conformidad con la"
 });
