@@ -558,5 +558,8 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Escríbanos a contact@languagesandsuccess.com para que podamos contactarle.",
   /* ---- test : titre des competences et note de confidentialite ---- */
   "Ce que vous savez supposément faire à ce niveau": "Lo que supuestamente sabe hacer en este nivel",
-  "Vos données sont traitées conformément à la": "Sus datos se tratan de conformidad con la"
+  "Vos données sont traitées conformément à la": "Sus datos se tratan de conformidad con la",
+  /* ---- contact : message obligatoire de 15 caracteres ---- */
+  "(15 caractères minimum)": "(mínimo 15 caracteres)",
+  "Votre message est trop court (15 caractères minimum).": "Su mensaje es demasiado corto (mínimo 15 caracteres)."
 });

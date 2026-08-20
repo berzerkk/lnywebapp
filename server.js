@@ -3354,7 +3354,17 @@ app.post('/api/contact', async (req, res) => {
   const prenom = champCourt(b.prenom, 80), nom = champCourt(b.nom, 80);
   const email = champCourt(b.email, 160).toLowerCase(), tel = champCourt(b.tel, 40);
   const message = sTrim(b.message).slice(0, 5000);
-  if (!prenom || !nom || !message) return res.status(400).json({ error: 'Champs manquants.' });
+  // les 5 champs sont TOUS obligatoires (téléphone compris, demande de l'utilisateur du
+  // 21/08/2026) et le message doit faire 15 caractères. Le navigateur exige déjà tout ça
+  // (required + minlength) mais sa validation se contourne en deux clics. ⚠️ trim() ne retire
+  // ni les largeurs nulles (U+200B…) ni les blancs INTÉRIEURS : la présence se juge sur les
+  // caractères réels, et les 15 se comptent après repli des suites de blancs — sans quoi un
+  // champ « rempli » d'invisible ou « a » + 13 espaces + « b » franchissait tout (défaut
+  // trouvé par la relecture adversariale). Les valeurs ENVOYÉES restent les originales.
+  const reel = (v) => String(v == null ? '' : v).replace(/[\s\u200B-\u200D\u2060\uFEFF]/g, '');
+  if (!reel(prenom) || !reel(nom) || !reel(tel) || !reel(message)) return res.status(400).json({ error: 'Champs manquants.' });
+  const compteMsg = sTrim(message.replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')).replace(/\s+/g, ' ');
+  if (compteMsg.length < 15) return res.status(400).json({ error: 'Votre message est trop court (15 caractères minimum).' });
   if (!EMAIL_VALIDE.test(email)) return res.status(400).json({ error: 'Vérifiez votre adresse e-mail.' });
   if (tropDeDemandes(clientIp(req), 'contact', 5)) return res.status(429).json({ error: 'Trop de demandes. Patientez quelques minutes puis réessayez.' });
   const qui = prenom + ' ' + nom + ' — ' + email + (tel ? ' — ' + tel : '');

@@ -559,5 +559,8 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "请写信至 contact@languagesandsuccess.com，以便我们与您联系。",
   /* ---- test : titre des competences et note de confidentialite ---- */
   "Ce que vous savez supposément faire à ce niveau": "您在该级别理论上应具备的能力",
-  "Vos données sont traitées conformément à la": "您的数据将依据以下政策处理："
+  "Vos données sont traitées conformément à la": "您的数据将依据以下政策处理：",
+  /* ---- contact : message obligatoire de 15 caracteres ---- */
+  "(15 caractères minimum)": "（至少 15 个字符）",
+  "Votre message est trop court (15 caractères minimum).": "您的留言太短（至少 15 个字符）。"
 });

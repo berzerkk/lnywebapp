@@ -558,5 +558,8 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Écrivez-nous à contact@languagesandsuccess.com pour être recontacté(e).": "Напишите нам на contact@languagesandsuccess.com, чтобы мы могли с вами связаться.",
   /* ---- test : titre des competences et note de confidentialite ---- */
   "Ce que vous savez supposément faire à ce niveau": "Что вы предположительно умеете на этом уровне",
-  "Vos données sont traitées conformément à la": "Ваши данные обрабатываются в соответствии с"
+  "Vos données sont traitées conformément à la": "Ваши данные обрабатываются в соответствии с",
+  /* ---- contact : message obligatoire de 15 caracteres ---- */
+  "(15 caractères minimum)": "(минимум 15 символов)",
+  "Votre message est trop court (15 caractères minimum).": "Ваше сообщение слишком короткое (минимум 15 символов)."
 });

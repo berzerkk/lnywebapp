@@ -151,9 +151,9 @@
         </div>
         <div class="row2">
           <div class="field"><label for="c-email">E-mail</label><input id="c-email" name="email" type="email" required /></div>
-          <div class="field"><label for="c-tel">Téléphone</label><input id="c-tel" name="tel" type="tel" /></div>
+          <div class="field"><label for="c-tel">Téléphone</label><input id="c-tel" name="tel" type="tel" required /></div>
         </div>
-        <div class="field"><label for="c-msg">Votre message</label><textarea id="c-msg" name="message" required placeholder="Dites-nous votre objectif, votre disponibilité, votre statut (salarié, entreprise, indépendant…)"></textarea></div>
+        <div class="field"><label for="c-msg">Votre message <span style="color:var(--ink-soft);font-weight:400">(15 caractères minimum)</span></label><textarea id="c-msg" name="message" required minlength="15" placeholder="Dites-nous votre objectif, votre disponibilité, votre statut (salarié, entreprise, indépendant…)"></textarea></div>
         <!-- pot de miel anti-robots : invisible pour un humain, le serveur ignore tout envoi où il est rempli -->
         <input id="c-web" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px" />
         <label class="consent"><input type="checkbox" required /> <span>J'accepte que mes données soient traitées pour répondre à ma demande, conformément à la <a href="confidentialite.html" style="color:var(--accent)">politique de confidentialité</a>.</span></label>
