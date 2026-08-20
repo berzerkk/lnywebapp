@@ -3230,18 +3230,25 @@ app.post('/api/admin/mail-test', auth, async (req, res) => {
 // Webhook entrant Slack du canal #contact. ⚠️ L'URL d'un webhook vaut un SECRET (quiconque la
 // connaît peut poster dans le canal) : config HORS Git — data/slack.json {webhook} en local,
 // variable SLACK_WEBHOOK en production (via l'ENV_FILE). Sans config → désactivé proprement.
+// Deux modes, au choix : un webhook entrant {webhook}, OU le jeton du robot de l'application
+// Slack créée par l'utilisateur {token, channel} (scope chat:write vérifié le 19/08/2026).
+// ⚠️ En mode jeton, le robot doit être MEMBRE du canal : « /invite @claude » dans #contact,
+// sinon Slack répond not_in_channel et le repli e-mail prend le relais.
 function slackConfig() {
   if (process.env.SLACK_WEBHOOK) return { webhook: process.env.SLACK_WEBHOOK };
+  if (process.env.SLACK_TOKEN) return { token: process.env.SLACK_TOKEN, channel: process.env.SLACK_CHANNEL || 'C0BRDPD17C4' };
   try {
     let t = fs.readFileSync(path.join(DATA_DIR, 'slack.json'), 'utf8');
     if (t.charCodeAt(0) === 0xfeff) t = t.slice(1);   // BOM des fichiers créés sous Windows
     const c = JSON.parse(t);
-    return (c && c.webhook) ? c : null;
+    if (c && c.webhook) return c;
+    if (c && c.token) return { token: c.token, channel: c.channel || 'C0BRDPD17C4' };
+    return null;
   } catch (e) { return null; }
 }
 const SLACK = slackConfig();
-console.log(SLACK ? '💬 notifications Slack activées (webhook #contact)'
-  : '💬 notifications Slack désactivées (poser data/slack.json {"webhook":…} ou SLACK_WEBHOOK)');
+console.log(SLACK ? ('💬 notifications Slack activées (' + (SLACK.webhook ? 'webhook' : 'jeton de robot, canal ' + SLACK.channel) + ')')
+  : '💬 notifications Slack désactivées (poser data/slack.json {"webhook":…} ou {"token":…,"channel":…})');
 // ⚠️ ÉCHAPPEMENT mrkdwn OBLIGATOIRE sur tout texte saisi par un visiteur : sans lui,
 // « <!channel> » dans un message pinge toute l'équipe, et « <https://hameçon|Cliquez ici> »
 // s'affiche dans #contact comme un lien légitime. Slack ne demande que ces trois caractères.
@@ -3250,12 +3257,24 @@ function slackEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').
 // Jamais de rejet : un Slack en panne ne doit pas faire planter la route.
 function notifierSlack(texte) {
   if (!SLACK) return Promise.resolve(false);
-  return fetch(SLACK.webhook, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: texte }),
+  if (SLACK.webhook) {
+    return fetch(SLACK.webhook, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: texte }),
+      signal: AbortSignal.timeout(8000)
+    }).then(r => {
+      if (!r.ok) { console.error('💬 Slack a refusé l\'envoi (' + r.status + ')'); return false; }
+      return true;
+    }).catch(e => { console.error('💬 envoi Slack impossible :', e.message); return false; });
+  }
+  // mode jeton de robot : l'API répond 200 même en échec, la vérité est dans le corps JSON
+  return fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + SLACK.token },
+    body: JSON.stringify({ channel: SLACK.channel, text: texte }),
     signal: AbortSignal.timeout(8000)
-  }).then(r => {
-    if (!r.ok) { console.error('💬 Slack a refusé l\'envoi (' + r.status + ')'); return false; }
+  }).then(r => r.json()).then(j => {
+    if (!j.ok) { console.error('💬 Slack a refusé l\'envoi : ' + j.error + (j.error === 'not_in_channel' ? ' (taper « /invite @claude » dans le canal)' : '')); return false; }
     return true;
   }).catch(e => { console.error('💬 envoi Slack impossible :', e.message); return false; });
 }

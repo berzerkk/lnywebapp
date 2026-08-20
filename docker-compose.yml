@@ -17,6 +17,9 @@ services:
       - SITE_URL=${SITE_URL:-https://languagesandsuccess.com}
       # Webhook Slack du canal #contact (formulaires du site). Vide = Slack désactivé proprement.
       - SLACK_WEBHOOK=${SLACK_WEBHOOK:-}
+      # OU le jeton du robot de l application Slack (scope chat:write) + le canal cible
+      - SLACK_TOKEN=${SLACK_TOKEN:-}
+      - SLACK_CHANNEL=${SLACK_CHANNEL:-}
       # URL de l application web Apps Script du registre des prospects (Google Sheet). Vide = registre désactivé proprement.
       - SHEET_WEBHOOK=${SHEET_WEBHOOK:-}
       # Sauvegarde offsite quotidienne (Backblaze B2) : valeurs injectées depuis
