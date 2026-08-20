@@ -205,6 +205,7 @@ Données : `db.json` = `{users, groups, docs, messages, notifs, secret}`.
 - (Phase 3 « Agenda + rappels » : **abandonnée pour l'instant** à la demande de l'utilisateur.)
 
 ## Pistes non faites
+- **ROTATION DU JETON DU TUNNEL CLOUDFLARE** (accepté par l'utilisateur le 20/08/2026) : le jeton actuel est **lisible dans l'historique Git public** (un `.env` commité puis supprimé au début du projet). Marche à suivre : tableau de bord Zero Trust → Networks → Tunnels → régénérer le jeton, le mettre dans l'ENV_FILE (fichier ENTIER), redéployer — l'ancien devient inutilisable. Purger l'historique ne suffit pas (GitHub garde les objets accessibles par SHA).
 Déploiement en ligne (Render/Railway) ; suppression doc/contact ; relecture native des questions du test. (Formulaires contact/test : branchés le 19/08/2026.)
 
 ### Conformité / pages légales (audit du 30/07/2026)
