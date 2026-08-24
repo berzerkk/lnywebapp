@@ -28,6 +28,28 @@ en `--ar 1.91:1`. Pour Instagram, recadrez en carré autour de la silhouette.
 
 ---
 
+## Recolorisation — ramener une image aux couleurs du site
+
+Si une image générée s'éloigne des couleurs du site (ça arrive surtout avec les palettes B et C),
+collez-la dans le mode **édition** de l'IA avec ce prompt. Il ne touche qu'aux couleurs, jamais à la
+composition :
+
+> Recolor this image only. Keep the exact same composition, subjects, shapes, details and lighting
+> direction — change nothing but the color grading. Apply this warm editorial palette: sky and
+> atmosphere in soft cream and pale gold (#F8F2E7, #FFFAF0, #F4D9A6), warm sand and beige for ground
+> and stone (#E6DCCB, #DDD3C4), all accents and focal glows in terracotta rose-gold (#BE6E54) with
+> soft blush highlights (#F3AD99), shadows in deep warm brown (#2A241D) — never pure black, never
+> grey. Remove or mute all cold colors: shift blues and teals toward warm cream, shift greens toward
+> olive-sand (#8A7F5A). The tiny figure's jacket stays terracotta #BE6E54. Overall mood: warm dawn
+> light, gentle golden haze, cohesive rose-gold harmony, soft film grain.
+
+Réglages : résultat trop monochrome → retirer la phrase sur les verts ; l'IA redessine malgré tout →
+ajouter en tête « This is a color grading task, not a redesign. ». Pour rester dans les clous dès la
+génération, préférez les palettes **A (Aube braise)** et **D (Méditerranée dorée)** : ce sont les deux
+qui portent les couleurs du site.
+
+---
+
 ## Financement (CPF, OPCO, budget)
 
 **1 · La clé du CPF** — palette D
