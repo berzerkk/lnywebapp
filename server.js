@@ -3796,7 +3796,7 @@ function artPage(a) {
     + '    <h1 style="font-size:clamp(30px,4.4vw,52px)">' + htmlEsc(a.titre) + '</h1>' + NL
     + '    <p class="lead">' + htmlEsc(a.chapo) + '</p>' + NL
     // le bouton d'appel à l'action du bandeau (agencement calqué sur la référence du 24/08/2026)
-    + '    <a class="btn btn-primary art-cta" href="/contact.html#rappel">Être rappelé →</a>' + NL
+    + '    <a class="btn btn-primary art-cta" href="/contact.html#rappel">Être recontacté →</a>' + NL
     + '  </div>' + NL + '</header>' + NL + NL
     + '<section class="sec" style="padding-top:14px">' + NL + '  <div class="wrap">' + NL
     + bandeau

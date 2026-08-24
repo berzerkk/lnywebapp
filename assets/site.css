@@ -1113,7 +1113,7 @@ footer a:hover{color:#fff8ef}
    utiles) une colonne plus haute que l'écran ne révèle JAMAIS son bas tant qu'elle colle —
    les dernières entrées du sommaire étaient inatteignables (défaut trouvé par la relecture) */
 .art-aside{position:sticky;top:96px;max-height:calc(100vh - 112px);overflow-y:auto;display:flex;flex-direction:column;gap:16px;min-width:0}
-/* l'ancre visée par le CTA « Être rappelé » des articles : sans cette marge, le formulaire
+/* l'ancre visée par le CTA « Être recontacté » des articles : sans cette marge, le formulaire
    de contact atterrit sous l'en-tête fixe (premier lien du site à viser #rappel) */
 #rappel{scroll-margin-top:96px}
 .art-carte{border:1px solid var(--line);border-radius:14px;padding:20px;background:var(--bg-card)}
