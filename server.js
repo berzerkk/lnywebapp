@@ -3655,6 +3655,53 @@ function artCarte(a) {
 }
 
 // page complète d'un article, balisage SEO compris
+// ---- page article : sommaire ancré + boutons « Résumer avec une IA » ----
+// Chaque <h2> du corps reçoit un id stable dérivé de son titre (unique, accents retirés) ;
+// la liste {id, titre} alimente la colonne « Sommaire » de la page.
+function artAncreId(txt, pris) {
+  const base = String(txt).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'section';
+  let id = base, n = 2;
+  while (pris.has(id)) id = base + '-' + (n++);
+  pris.add(id);
+  return id;
+}
+function artSommaire(corps, reserves) {
+  const pris = new Set(reserves || []), toc = [];
+  const html = String(corps || '').replace(/<h2(\s[^>]*)?>([\s\S]*?)<\/h2>/gi, (m, attrs, contenu) => {
+    // balises retirées PUIS entités décodées (&amp; en dernier, sinon &amp;lt; serait sur-décodé) :
+    // le titre redevient du texte brut — le sommaire le ré-échappe proprement, et l'ancre ne
+    // contient plus le « amp » d'un « &amp; » resté encodé
+    const titre = contenu.replace(/<[^>]+>/g, '')
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+      .replace(/&#0?39;|&apos;/g, "'").replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ').trim();
+    if (!titre) return m;
+    // un id posé à la main est gardé s'il est LIBRE ; déjà pris (ou en collision avec les ids
+    // réservés), il est REMPLACÉ — sans quoi deux ancres identiques cohabitent et la seconde
+    // est injoignable (défaut trouvé par la relecture). Détection insensible à la casse et aux
+    // guillemets simples : un id non reconnu se verrait sinon PRÉFIXER un second attribut id.
+    const deja = (attrs || '').match(/\sid\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    const manuel = deja ? (deja[2] !== undefined ? deja[2] : (deja[3] !== undefined ? deja[3] : deja[4])) : null;
+    if (manuel && !pris.has(manuel)) { pris.add(manuel); toc.push({ id: manuel, titre }); return m; }
+    const id = artAncreId(titre, pris);
+    toc.push({ id, titre });
+    const attrsSans = (attrs || '').replace(/\sid\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i, '');
+    return '<h2 id="' + id + '"' + attrsSans + '>' + contenu + '</h2>';
+  });
+  return { html, toc };
+}
+// Les 5 destinations « Résumer avec une IA » (mêmes adresses que les widgets du genre :
+// chacune ouvre l'IA avec le texte « Résume cet article : <url> » prérempli). Les glyphes
+// SVG sont des pictogrammes de marque simplifiés, dessinés en currentColor.
+const IA_CIBLES = [
+  { nom: 'ChatGPT', base: 'https://chatgpt.com/?q=', svg: '<path d="M22.28 9.82a5.99 5.99 0 0 0-.52-4.91 6.05 6.05 0 0 0-6.51-2.9A6.07 6.07 0 0 0 4.98 4.18a6 6 0 0 0-4 2.9 6.04 6.04 0 0 0 .74 7.1 5.98 5.98 0 0 0 .51 4.91 6.05 6.05 0 0 0 6.52 2.9A5.99 5.99 0 0 0 13.26 24a6.06 6.06 0 0 0 5.77-4.21 5.99 5.99 0 0 0 4-2.9 6.06 6.06 0 0 0-.75-7.07zM13.26 22.43a4.48 4.48 0 0 1-2.88-1.04l.14-.08 4.78-2.76a.8.8 0 0 0 .39-.68v-6.74l2.02 1.17a.07.07 0 0 1 .04.05v5.58a4.5 4.5 0 0 1-4.49 4.5zM3.6 18.3a4.47 4.47 0 0 1-.54-3.01l.14.08 4.78 2.76a.77.77 0 0 0 .78 0l5.84-3.37v2.33a.08.08 0 0 1-.03.06l-4.84 2.8A4.5 4.5 0 0 1 3.6 18.3zM2.34 7.9a4.49 4.49 0 0 1 2.37-1.97V11.6a.77.77 0 0 0 .39.68l5.82 3.35-2.02 1.17a.08.08 0 0 1-.07 0l-4.83-2.79A4.5 4.5 0 0 1 2.34 7.87v.03zm16.6 3.86l-5.83-3.39L15.12 7.2a.08.08 0 0 1 .07 0l4.83 2.79a4.49 4.49 0 0 1-.68 8.1v-5.68a.79.79 0 0 0-.4-.65zm2.01-3.02l-.14-.09-4.77-2.78a.78.78 0 0 0-.79 0L9.41 9.23V6.9a.07.07 0 0 1 .03-.06l4.83-2.79a4.5 4.5 0 0 1 6.68 4.66v.02zm-12.64 4.13l-2.02-1.16a.08.08 0 0 1-.04-.06V6.08a4.5 4.5 0 0 1 7.38-3.45l-.14.08-4.78 2.76a.8.8 0 0 0-.39.68l-.01 6.72zm1.1-2.37l2.6-1.5 2.61 1.5v3l-2.6 1.5-2.61-1.5v-3z" fill="currentColor"/>' },
+  { nom: 'Claude', base: 'https://claude.ai/new?q=', svg: '<path d="M12 2L7.14 10.57 2 8.46l3.39 5.54L2 19.54l5.14-2.11L12 22l4.86-4.57L22 19.54l-3.39-5.54L22 8.46l-5.14 2.11L12 2zm0 3.47l3.28 5.77-3.28 1.35-3.28-1.35L12 5.47z" fill="currentColor"/>' },
+  { nom: 'Perplexity', base: 'https://www.perplexity.ai/search?q=', svg: '<path d="M7 3v5.5l-3.5-3V17l3.5-3V21h3.25v-7h2.5v7H16v-7l3.5 3V5.5L16 8.5V3h-3.25v7h-2.5V3H7z" fill="currentColor"/>' },
+  { nom: 'Gemini', base: 'https://gemini.google.com/app?q=', svg: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 17.93A8.01 8.01 0 0 1 4 12c0-.62.07-1.21.21-1.79L9 15v1a2 2 0 0 0 2 2v1.93zm6.9-2.54A2.99 2.99 0 0 0 15 16h-1v-3a1 1 0 0 0-1-1H8v-2h2a1 1 0 0 0 1-1V7h2a2 2 0 0 0 2-2v-.41A8.01 8.01 0 0 1 20 12c0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/>' },
+  { nom: 'Grok', base: 'https://grok.com/?q=', svg: '<path d="M4 4l7.2 10.8L4 20h1.6l6.4-4.6L18.4 20H20l-7.2-10.8L20 4h-1.6L12 8.6 5.6 4H4z" fill="currentColor"/>' },
+];
+
 function artPage(a) {
   const url = SITE_URL_PUB + '/blog/' + a.slug;
   const img = a.image ? (a.image.startsWith('http') ? a.image : SITE_URL_PUB + '/' + a.image.replace(/^\//, '')) : SITE_URL_PUB + '/assets/og-cover.png';
@@ -3686,15 +3733,32 @@ function artPage(a) {
   });
 
   const faqHtml = faq.length
-    ? '      <h2>Questions fréquentes</h2>' + NL + '      <div class="faq">' + NL
+    ? '      <h2 id="questions-frequentes">Questions fréquentes</h2>' + NL + '      <div class="faq">' + NL
       + faq.map(q => '        <h3>' + htmlEsc(q.q) + '</h3>' + NL + '        <p>' + htmlEsc(q.r) + '</p>').join(NL) + NL
       + '      </div>' + NL
     : '';
   const srcHtml = (a.sources || []).length
-    ? '      <h2>Sources</h2>' + NL + '      <ul>' + NL
+    ? '      <h2 id="sources">Sources</h2>' + NL + '      <ul>' + NL
       + (a.sources || []).map(x => '        <li><a href="' + htmlEsc(x.url) + '" target="_blank" rel="noopener">' + htmlEsc(x.titre || x.url) + '</a></li>').join(NL) + NL
       + '      </ul>' + NL
     : '';
+
+  // sommaire : ancres posées sur les <h2> du corps (les ids des sections fixes sont réservés
+  // pour qu'un titre d'article identique ne les percute pas), + FAQ et Sources s'ils existent
+  const som = artSommaire(a.corps, ['questions-frequentes', 'sources']);
+  const toc = som.toc.slice();
+  if (faq.length) toc.push({ id: 'questions-frequentes', titre: 'Questions fréquentes' });
+  if ((a.sources || []).length) toc.push({ id: 'sources', titre: 'Sources' });
+  const somHtml = toc.length >= 2
+    ? '      <nav class="art-carte art-som" aria-label="Sommaire de l\'article">' + NL
+      + '        <div class="art-cote-titre">Sommaire</div>' + NL
+      + toc.map(x => '        <a href="#' + htmlEsc(x.id) + '">' + htmlEsc(x.titre) + '</a>').join(NL) + NL
+      + '      </nav>' + NL
+    : '';
+  const iaQ = encodeURIComponent('Résume cet article : ' + url);
+  const iaHtml = IA_CIBLES.map(x =>
+    '          <a href="' + x.base + iaQ + '" target="_blank" rel="noopener nofollow"><svg viewBox="0 0 24 24" aria-hidden="true">' + x.svg + '</svg>' + x.nom + '</a>'
+  ).join(NL);
   const bandeau = artEnLigne(a) ? '' :
     '    <div class="art-bandeau">' + (a.statut === 'programme'
       ? 'Article programmé pour le ' + htmlEsc(artDateLisible(a.datePublication)) + ' — visible de vous seul en attendant.'
@@ -3723,29 +3787,69 @@ function artPage(a) {
     + '<header class="page-hero" style="padding-bottom:20px">' + NL
     + '  <div class="wrap">' + NL
     + '    <div class="crumbs"><a href="/index.html">Accueil</a> · <a href="/blog.html">Blog</a> · ' + htmlEsc(a.categorie) + '</div>' + NL
-    + '    <span class="eyebrow">' + htmlEsc(a.categorie) + '</span>' + NL
+    + '    <div class="art-meta"><span class="eyebrow">' + htmlEsc(a.categorie) + '</span><span class="art-date">'
+    + (artEnLigne(a) ? 'Publié le ' + htmlEsc(artDateLisible(a.datePublication)) : 'Non publié') + '</span></div>' + NL
     + '    <h1 style="font-size:clamp(30px,4.4vw,52px)">' + htmlEsc(a.titre) + '</h1>' + NL
     + '    <p class="lead">' + htmlEsc(a.chapo) + '</p>' + NL
+    // le bouton d'appel à l'action du bandeau (agencement calqué sur la référence du 24/08/2026)
+    + '    <a class="btn btn-primary art-cta" href="/contact.html#rappel">Être rappelé →</a>' + NL
     + '  </div>' + NL + '</header>' + NL + NL
     + '<section class="sec" style="padding-top:14px">' + NL + '  <div class="wrap">' + NL
     + bandeau
     // point d'accroche des commandes d'administration (blog-admin.js n'y écrit que pour un admin)
     + '    <div id="ls-art-adm" data-art="' + a.id + '"></div>' + NL
+    + '    <div class="art-layout">' + NL
+    + '    <div class="art-main">' + NL
     + (a.image ? '    <img class="art-cover" src="' + htmlEsc(a.image) + '" alt="' + htmlEsc(a.titre) + '" width="1200" height="630" />' + NL : '')
-    + '    <div class="prose">' + NL
-    + '      <p class="updated">' + (artEnLigne(a) ? 'Publié le ' + htmlEsc(artDateLisible(a.datePublication)) : 'Non publié') + ' · par l\'équipe pédagogique Languages &amp; Success</p>' + NL + NL
-    + (a.corps || '') + NL + NL
+    + '    <div class="prose">' + NL + NL
+    + som.html + NL + NL
     + faqHtml + srcHtml
     // ancre du post LinkedIn : le SERVEUR n'y écrit rien, blog-admin.js la remplit à partir de
     // l'API — qui ne renvoie le post qu'à un compte admin. Un visiteur reçoit une div vide.
     + '      <div id="ls-art-linkedin"></div>' + NL
     + '      <p class="art-retour"><a href="/blog.html">← Tous les articles</a></p>' + NL
+    + '    </div>' + NL + '    </div>' + NL
+    // colonne latérale collante : auteur, « Résumer avec une IA », sommaire
+    + '    <aside class="art-aside">' + NL
+    + '      <div class="art-carte art-auteur">' + NL
+    + '        <img src="/assets/ls-logo.png" alt="" width="52" height="52" />' + NL
+    + '        <div><b>Languages <em class="art-amp">&amp;</em> Success</b><span>L\'équipe pédagogique · Organisme certifié Qualiopi</span></div>' + NL
+    + '      </div>' + NL
+    // la carte IA n'apparaît que sur un article EN LIGNE : sur un brouillon, l'URL publique
+    // du prompt tombe sur le soft-404 du site et l'IA résumerait la page d'accueil sans erreur
+    + (artEnLigne(a)
+      ? '      <div class="art-carte art-ia">' + NL
+      + '        <div class="art-cote-titre"><span class="art-etoile" aria-hidden="true">✦</span> Résumer avec une IA</div>' + NL
+      + '        <div class="art-ia-liste">' + NL + iaHtml + NL + '        </div>' + NL
+      + '      </div>' + NL
+      : '')
+    + somHtml
+    + '    </aside>' + NL
     + '    </div>' + NL + '  </div>' + NL + '</section>' + NL + NL
     + '<div id="ls-footer"></div>' + NL
     + '<script>window.LS_CONFIG={key:\'sub\'};</script>' + NL
     + '<script src="/assets/partials.js?v=' + ASSET_VER + '"></script>' + NL
     + '<script src="/assets/blog-admin.js?v=' + ASSET_VER + '"></script>' + NL
     + '<script src="/ls-engine.js"></script>' + NL
+    // surbrillance de la section en cours dans le sommaire (le défilement doux, lui, est le
+    // scroll-behavior:smooth global de site.css)
+    + '<script>' + NL
+    + '(function(){' + NL
+    + '  var liens = [].slice.call(document.querySelectorAll(".art-som a[href^=\'#\']"));' + NL
+    + '  if (!liens.length) return;' + NL
+    + '  var cibles = liens.map(function(l){ return document.getElementById(l.getAttribute("href").slice(1)); }).filter(Boolean);' + NL
+    // ⚠️ pas de requestAnimationFrame ici : il ne tourne pas dans un onglet en arrière-plan
+    // (piège documenté sur la visite guidée), et le travail est minuscule (quelques comparaisons)
+    + '  function maj(){' + NL
+    + '    var y = window.scrollY + 130, actif = null;' + NL
+    + '    cibles.forEach(function(h){ if (h.offsetTop <= y) actif = h; });' + NL
+    + '    liens.forEach(function(l){ l.classList.toggle("on", !!actif && l.getAttribute("href") === "#" + actif.id); });' + NL
+    + '  }' + NL
+    + '  addEventListener("scroll", maj, { passive: true });' + NL
+    + '  addEventListener("hashchange", maj);' + NL
+    + '  maj();' + NL
+    + '})();' + NL
+    + '</script>' + NL
     + '</body>' + NL + '</html>' + NL;
 }
 

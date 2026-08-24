@@ -1100,6 +1100,55 @@ footer a:hover{color:#fff8ef}
    avant le chargement et évitent le saut de mise en page). */
 .post img.thumb{width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;display:block;background:var(--bg)}
 
+/* ---- Page article : bandeau CTA + deux colonnes, carte latérale collante (24/08/2026) ----
+   Agencement calqué sur la référence fournie par l'utilisateur : CTA dans le bandeau,
+   colonne de droite collante avec carte auteur, boutons « Résumer avec une IA » et sommaire
+   des titres secondaires (section en cours surlignée par le petit script de la page). */
+.art-meta{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.art-date{font-size:13px;color:var(--ink-soft)}
+.page-hero .art-cta{display:inline-block;margin-top:26px}
+.art-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:52px;align-items:start}
+.art-main{min-width:0}
+/* ⚠️ max-height + overflow : sans eux, sur une fenêtre basse (portable 1366×768 ≈ 620 px
+   utiles) une colonne plus haute que l'écran ne révèle JAMAIS son bas tant qu'elle colle —
+   les dernières entrées du sommaire étaient inatteignables (défaut trouvé par la relecture) */
+.art-aside{position:sticky;top:96px;max-height:calc(100vh - 112px);overflow-y:auto;display:flex;flex-direction:column;gap:16px;min-width:0}
+.art-etoile{color:var(--accent)}
+/* l'ancre visée par le CTA « Être rappelé » des articles : sans cette marge, le formulaire
+   de contact atterrit sous l'en-tête fixe (premier lien du site à viser #rappel) */
+#rappel{scroll-margin-top:96px}
+.art-carte{border:1px solid var(--line);border-radius:14px;padding:20px;background:var(--bg-card)}
+.art-auteur{display:flex;align-items:center;gap:14px}
+.art-auteur img{width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:#fff;object-fit:contain;flex:none}
+.art-auteur b{display:block;font-size:16px;line-height:1.3}
+.art-auteur span{display:block;font-size:12.5px;color:var(--ink-soft);margin-top:3px;line-height:1.45}
+.art-amp{font-family:var(--ff-head);font-style:italic;color:var(--accent)}
+.art-cote-titre{font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:12px}
+.art-ia-liste{display:flex;flex-wrap:wrap;gap:8px}
+.art-ia-liste a{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border:1px solid var(--line);border-radius:999px;background:var(--bg);color:var(--ink);font-size:13.5px;font-weight:500;transition:border-color .2s,background .2s,transform .2s}
+.art-ia-liste a:hover{border-color:var(--accent);background:#fff;transform:translateY(-1px)}
+.art-ia-liste svg{width:15px;height:15px;color:var(--accent);flex:none}
+.art-som{display:flex;flex-direction:column}
+.art-som .art-cote-titre{margin-bottom:8px}
+.art-som a{display:block;padding:6px 10px;border-left:2px solid var(--line);color:var(--ink-soft);font-size:14px;line-height:1.45;transition:color .25s,border-color .25s,padding-left .25s,background .25s}
+.art-som a:hover{color:var(--ink)}
+.art-som a.on{color:var(--accent);border-left-color:var(--accent);background:color-mix(in oklab,var(--accent) 9%,transparent);padding-left:16px;border-radius:0 8px 8px 0}
+/* le défilement doux vient du scroll-behavior global ; cette marge évite que l'en-tête fixe
+   recouvre le titre visé à l'arrivée */
+.prose h2[id]{scroll-margin-top:96px}
+@media (max-width:980px){
+  .art-layout{grid-template-columns:minmax(0,1fr);gap:26px}
+  /* la colonne passe AU-DESSUS de l'article : le sommaire sert alors de plan d'accès rapide
+     (et la borne de hauteur du mode collant n'a plus lieu d'être : tout se lit dans le flux) */
+  .art-aside{position:static;order:-1;max-height:none;overflow-y:visible}
+}
+/* cibles tactiles : la règle mobile du site vise ~44 px de haut */
+@media (max-width:620px){
+  .art-ia-liste a{padding:11px 15px}
+  .art-som a{padding:11px 10px}
+  .art-som a.on{padding-left:16px}
+}
+
 /* ---- Blog : pilotage par l'administration ------------------------------------------------
    Les brouillons et les articles programmés n'apparaissent QUE pour un compte admin — le
    serveur ne les envoie même pas aux autres. Ces styles ne servent donc qu'à l'administration. */
