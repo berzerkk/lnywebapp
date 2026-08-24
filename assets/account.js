@@ -62,7 +62,7 @@
     if (!mount) return;
     if (!ME) {
       // déconnecté : un seul bouton « Espace documents » (pilule encre, comme « Faire le test de niveau »)
-      mount.innerHTML = '<a class="header-cta acct-espace" href="espace-documents.html">Espace documents</a>';
+      mount.innerHTML = '<a class="header-cta acct-espace" href="/espace-documents.html">Espace documents</a>';
       syncMobileMenu();
       return;
     }
@@ -71,7 +71,7 @@
       '<button class="acct-bell" id="acct-bell-btn" title="Notifications" aria-label="Notifications">' +
         '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>' +
         (n > 0 ? '<span class="acct-badge">' + (n > 9 ? '9+' : n) + '</span>' : '') +
-      '</button><a class="acct-link" href="espace-documents.html" title="Mon espace">' + esc(ME.prenom) + '</a>';
+      '</button><a class="acct-link" href="/espace-documents.html" title="Mon espace">' + esc(ME.prenom) + '</a>';
     var bell = mount.querySelector('#acct-bell-btn'); if (bell) bell.onclick = openNotifModal;
     syncMobileMenu();
   }
@@ -80,10 +80,10 @@
     var mm = document.querySelector('.mm-account'); if (!mm) return;
     if (!ME) {
       mm.innerHTML = '<span class="mm-title">Espace documents</span>' +
-        '<a href="espace-documents.html" class="header-cta header-cta-accent">Se connecter</a>';
+        '<a href="/espace-documents.html" class="header-cta header-cta-accent">Se connecter</a>';
     } else {
       mm.innerHTML = '<span class="mm-title">Espace documents</span>' +
-        '<a href="espace-documents.html" class="header-cta header-cta-accent">Mon espace · ' + esc(ME.prenom) + '</a>' +
+        '<a href="/espace-documents.html" class="header-cta header-cta-accent">Mon espace · ' + esc(ME.prenom) + '</a>' +
         '<button type="button" class="header-cta mm-logout">Se déconnecter</button>';
       var lo = mm.querySelector('.mm-logout'); if (lo) lo.onclick = function () { closeMobileMenu(); logout(); };
     }

@@ -85,7 +85,9 @@
       if (!document.getElementById('ls-dict-' + lang)) {
         var s = document.createElement('script');
         s.id = 'ls-dict-' + lang;
-        s.src = 'assets/i18n-' + lang + '.js?v=' + Date.now(); // même anti-cache qu'account.js
+        // chemin ABSOLU : en relatif, depuis un article (/blog/<slug>) le dictionnaire se
+        // résolvait en /blog/assets/… → soft-404 → la page d'accueil servie en guise de script
+        s.src = '/assets/i18n-' + lang + '.js?v=' + Date.now(); // même anti-cache qu'account.js
         document.body.appendChild(s);
       }
       return; // register() appliquera à l'arrivée du dictionnaire
