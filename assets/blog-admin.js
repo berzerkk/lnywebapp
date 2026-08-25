@@ -332,6 +332,43 @@
       var art = null;
       for (var k = 0; k < arts.length; k++) if (arts[k].id === id) art = arts[k];
       if (art) ANCRE.appendChild(barreArticle(art));
+      // encadré image du brouillon (rendu par le serveur) : copie du prompt + remplacement
+      var boxImg = document.getElementById('ls-art-imgadm');
+      if (boxImg) {
+        // ⚠️ le « dit » de boiteLinkedin est local à cette fonction-là : le nôtre l'est aussi
+        var dit = function (el, t) { el.textContent = t; setTimeout(function () { el.textContent = ''; }, 2500); };
+        var copier = boxImg.querySelector('.art-imgadm-copier');
+        var fichier = boxImg.querySelector('input[type=file]');
+        var etatImg = boxImg.querySelector('.art-imgadm-etat');
+        if (copier) copier.onclick = function () {
+          var txt = boxImg.querySelector('.art-imgadm-prompt').textContent;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(txt).then(function () { dit(etatImg, 'Prompt copié ✓'); },
+              function () { dit(etatImg, 'Copie impossible — sélectionnez le texte'); });
+          } else dit(etatImg, 'Copie impossible — sélectionnez le texte');
+        };
+        if (fichier) fichier.onchange = function () {
+          var f = fichier.files && fichier.files[0];
+          if (!f) return;
+          dit(etatImg, 'Envoi de l’image…');
+          var fd = new FormData();
+          fd.append('image', f);
+          fetch(API + '/' + boxImg.getAttribute('data-art') + '/image', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + (localStorage.getItem('lsx_token') || '') },
+            body: fd
+          }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }); })
+            .then(function (r) {
+              if (!r.ok) { dit(etatImg, (r.data && r.data.error) || 'Envoi impossible.'); return; }
+              dit(etatImg, 'Image remplacée ✓');
+              var cover = document.getElementById('ls-art-cover');
+              // l'image porte un ?v= neuf : la recharger suffit, pas besoin de recharger la page
+              if (cover) cover.src = r.data.article.image;
+              else location.reload(); // l'article n'avait pas d'image : la page doit se reconstruire
+            })
+            .catch(function () { dit(etatImg, 'Envoi impossible — réessayez.'); });
+        };
+      }
       // la fiche complète porte le post LinkedIn, absent de la liste
       var cible = document.getElementById('ls-art-linkedin');
       if (art && cible) api(API + '/' + id).then(function (rr) {

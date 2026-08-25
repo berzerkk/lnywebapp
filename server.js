@@ -3496,7 +3496,7 @@ app.get('/api/blog/articles/:id', (req, res) => {
   const plein = Object.assign({}, a, { enLigne: artEnLigne(a) });
   // ⚠️ le post LinkedIn est une note interne : il ne sort JAMAIS de l'administration, alors que
   // cette route sert l'article complet à tout le monde dès qu'il est publié.
-  if (!u || u.role !== 'admin') { delete plein.postLinkedin; delete plein.postsLi; }
+  if (!u || u.role !== 'admin') { delete plein.postLinkedin; delete plein.postsLi; delete plein.promptImage; }
   res.json({ article: plein });
 });
 app.post('/api/blog/articles', auth, (req, res) => {
@@ -3512,6 +3512,9 @@ app.post('/api/blog/articles', auth, (req, res) => {
     image: b.image || '',
     // notes internes : TROIS versions du post LinkedIn, à copier-coller. Jamais rendues sur le site.
     postsLi: Array.isArray(b.postsLi) ? b.postsLi : [],
+    // note interne aussi : le prompt qui décrirait l'image idéale de couverture (affiché dans
+    // l'encadré du brouillon, pour regénérer l'image si celle en place ne convient pas)
+    promptImage: b.promptImage || '',
     statut: 'brouillon', datePublication: null,
     dateCreation: now, dateMaj: now, auteur: senderDisplay(req.user)
   };
@@ -3523,7 +3526,7 @@ app.patch('/api/blog/articles/:id', auth, (req, res) => {
   const a = db.articles.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ error: 'Article introuvable.' });
   const b = req.body || {};
-  for (const k of ['titre', 'chapo', 'categorie', 'motCle', 'titreSeo', 'metaDescription', 'corps', 'image', 'postLinkedin']) {
+  for (const k of ['titre', 'chapo', 'categorie', 'motCle', 'titreSeo', 'metaDescription', 'corps', 'image', 'postLinkedin', 'promptImage']) {
     if (b[k] != null) a[k] = b[k];
   }
   if (Array.isArray(b.postsLi)) a.postsLi = b.postsLi;
@@ -3539,7 +3542,54 @@ app.delete('/api/blog/articles/:id', auth, (req, res) => {
   const i = db.articles.findIndex(x => x.id === req.params.id);
   if (i < 0) return res.status(404).json({ error: 'Article introuvable.' });
   const [a] = db.articles.splice(i, 1); save();
+  effacerImageBlog(a.id); // l'image téléversée part avec l'article
   res.json({ ok: true, titre: a.titre });
+});
+
+// ---- image de couverture téléversée (remplaçable depuis le site, 24/08/2026) --------------
+// L'image d'un article est une DONNÉE : elle vit dans le volume (data/uploads/blog/), pas dans
+// Git, et survit donc aux déploiements comme db.json. Servie par la route publique /blog-img/.
+const BLOG_IMG_DIR = path.join(UPLOADS_DIR, 'blog');
+const BLOG_IMG_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const uploadImgBlog = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+function effacerImageBlog(id) {
+  try {
+    for (const ext of ['jpg', 'png', 'webp']) {
+      const f = path.join(BLOG_IMG_DIR, id + '.' + ext);
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+  } catch (e) {}
+}
+app.post('/api/blog/articles/:id/image', auth, uploadImgBlog.single('image'), (req, res) => {
+  if (!adminSeul(req, res)) return;
+  const a = db.articles.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Article introuvable.' });
+  const f = req.file;
+  if (!f || !f.buffer || !f.buffer.length) return res.status(400).json({ error: 'Aucune image reçue.' });
+  const ext = BLOG_IMG_TYPES[f.mimetype];
+  if (!ext) return res.status(400).json({ error: 'Format accepté : JPEG, PNG ou WebP.' });
+  try {
+    fs.mkdirSync(BLOG_IMG_DIR, { recursive: true });
+    effacerImageBlog(a.id); // une seule image par article, quel que soit son format
+    fs.writeFileSync(path.join(BLOG_IMG_DIR, a.id + '.' + ext), f.buffer);
+  } catch (e) {
+    return res.status(500).json({ error: "L'image n'a pas pu être enregistrée." });
+  }
+  // le ?v= casse le cache navigateur au remplacement (la route sert l'image en cache long)
+  a.image = '/blog-img/' + a.id + '.' + ext + '?v=' + Date.now();
+  a.dateMaj = new Date().toISOString();
+  save();
+  res.json({ article: artPub(a) });
+});
+// service public de l'image (les visiteurs d'un article publié en ont besoin). Nom strictement
+// borné à « <uuid>.<extension d'image> » : rien d'autre ne sort de data/.
+app.get('/blog-img/:nom', (req, res, next) => {
+  const nom = String(req.params.nom || '');
+  if (!/^[a-f0-9-]{10,60}\.(jpg|png|webp)$/i.test(nom)) return next();
+  const f = path.join(BLOG_IMG_DIR, nom);
+  if (!fs.existsSync(f)) return next();
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.sendFile(f);
 });
 // publier tout de suite, ou programmer pour plus tard
 app.post('/api/blog/articles/:id/publier', auth, (req, res) => {
@@ -3804,7 +3854,21 @@ function artPage(a) {
     + '    <div id="ls-art-adm" data-art="' + a.id + '"></div>' + NL
     + '    <div class="art-layout">' + NL
     + '    <div class="art-main">' + NL
-    + (a.image ? '    <img class="art-cover" src="' + htmlEsc(a.image) + '" alt="' + htmlEsc(a.titre) + '" width="1200" height="630" />' + NL : '')
+    + (a.image ? '    <img class="art-cover" id="ls-art-cover" src="' + htmlEsc(a.image) + '" alt="' + htmlEsc(a.titre) + '" width="1200" height="630" />' + NL : '')
+    // encadré d'administration de l'image, UNIQUEMENT en brouillon (une page non publiée n'est
+    // servie qu'à l'administration) : le prompt de l'image idéale + le remplacement direct.
+    // Les boutons sont câblés par blog-admin.js (le jeton admin vit dans le navigateur).
+    + (!artEnLigne(a)
+      ? '    <div class="art-imgadm" id="ls-art-imgadm" data-art="' + a.id + '">' + NL
+      + '      <div class="art-imgadm-t">Image de couverture · brouillon</div>' + NL
+      + '      <p class="art-imgadm-prompt">' + (a.promptImage ? htmlEsc(a.promptImage) : 'Aucun prompt d\'image enregistré pour cet article.') + '</p>' + NL
+      + '      <div class="art-imgadm-acts">' + NL
+      + (a.promptImage ? '        <button type="button" class="art-imgadm-copier">Copier le prompt</button>' + NL : '')
+      + '        <label class="art-imgadm-remplacer">Remplacer l\'image<input type="file" accept="image/jpeg,image/png,image/webp" hidden /></label>' + NL
+      + '      </div>' + NL
+      + '      <p class="art-imgadm-etat" aria-live="polite"></p>' + NL
+      + '    </div>' + NL
+      : '')
     + '    <div class="prose">' + NL + NL
     + som.html + NL + NL
     + faqHtml + srcHtml

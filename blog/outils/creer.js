@@ -83,7 +83,9 @@ async function creer(def, base) {
       titre: def.titre, chapo: def.chapo, categorie: def.categorie, motCle: def.motCle,
       slug, titreSeo: def.titreSeo, metaDescription: def.metaDescription,
       image: '/blog/img/' + slug + '.png',
-      corps, faq: def.faq || [], sources: def.sources || [], postsLi: def.postsLi
+      corps, faq: def.faq || [], sources: def.sources || [], postsLi: def.postsLi,
+      // le prompt de l'image idéale de couverture (encadré du brouillon, note interne)
+      promptImage: def.promptImage || ''
     })
   });
 
