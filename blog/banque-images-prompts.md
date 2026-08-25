@@ -19,6 +19,9 @@ comme sur LinkedIn.
 **Formats** : générez en 21:9 (fidèle aux références, se recadre en 1200×500 pour les illustrations
 de section). Pour les couvertures 1200×630 et LinkedIn, recadrez au centre ou générez la même scène
 en `--ar 1.91:1`. Pour Instagram, recadrez en carré autour de la silhouette.
+**Pour une COUVERTURE d'article, préférez `--ar 16:9`** (25/08/2026) : c'est le paysage standard,
+compris par tous les générateurs, et le recadrage vers 1200×630 n'y rogne que ~7 % en hauteur
+(contre ~18 % sur les côtés depuis du 21:9). Les prompts d'image des articles en base sont en 16:9.
 
 **Les quatre palettes** (réparties ci-dessous, pour varier sans perdre l'unité) :
 - **A · Aube braise** (réf. 1) : ciel crème #EFE6D8, silhouettes charbon #2A241D, braises #BE6E54 et #E8926B, sol pâle #DDD3C4
