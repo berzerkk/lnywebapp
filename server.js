@@ -20,7 +20,7 @@ const crypto = require('crypto');
 const os = require('os');
 const zlib = require('zlib');
 const PDFDocument = require('pdfkit');
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType } = require('docx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType, Tab } = require('docx');
 const LOGO_PATH = path.join(__dirname, 'assets', 'ls-logo.png');
 const QUALIOPI_CERT = 'CERT_S0226_0162';   // numéro du certificat QUALIOPI (mis à jour le 27/07/2026)
 // tableau Word sans aucune bordure (mise en page en colonnes : pied de page, signatures…)
@@ -2167,7 +2167,10 @@ function buildContratDocx(d, user, ver) {
       // ⚠️ grille FIXE et marges nulles : sans elles, Word répartit les colonnes d'après leur
       // contenu et le bloc « Pour le Sous-traitant » ne tombe plus sur la marge droite.
       kids.push(new Table({ layout: TableLayoutType.FIXED, columnWidths: [4513, 4513], width: { size: 9026, type: WidthType.DXA }, borders: NO_BORDERS(), rows: [new TableRow({ children: [
-        col(b.sign.gauche, AlignmentType.LEFT, b.sign.tampon ? dxSignatureAntonin(CT_TAMPON_L, SIGN_ANTONIN_TAMPON) : []),
+        // ⚠️ `dxSignatureAntonin` compte en PIXELS (la bibliothèque docx travaille à 96 dpi) alors
+        // que le PDF compte en points : passer 190 tel quel donnait un tampon de 143 pt dans le
+        // Word contre 190 pt dans le PDF. La conversion aligne enfin les deux formats.
+        col(b.sign.gauche, AlignmentType.LEFT, b.sign.tampon ? dxSignatureAntonin(Math.round(CT_TAMPON_L * 96 / 72), SIGN_ANTONIN_TAMPON) : []),
         col(b.sign.droite, AlignmentType.RIGHT, imgST)
       ] })] }));
     }
@@ -2190,8 +2193,11 @@ function buildContratDocx(d, user, ver) {
     // ⚠️ VRAIES listes à retrait suspendu : la puce vit dans le retrait négatif (`hanging`), donc
     // le texte part plus loin ET ses lignes repliées restent alignées sous la première. Avant, la
     // puce était un simple caractère du texte et le repli revenait coller à la marge.
-    else if (b.li) kids.push(new Paragraph({ spacing: { after: 90, line: CT_INTERLIGNE }, indent: { left: CT_PUCE_RETRAIT, hanging: CT_PUCE_RETRAIT }, children: runs([{ t: '•\t' }].concat(ctSeg(b.li)), { size: 18 }) }));
-    else if (b.li2) kids.push(new Paragraph({ spacing: { after: 70, line: CT_INTERLIGNE }, indent: { left: CT_PUCE_RETRAIT * 2, hanging: CT_PUCE_RETRAIT }, children: runs([{ t: '–\t' }].concat(ctSeg(b.li2)), { size: 18 }) }));
+    // ⚠️ La tabulation doit être un vrai objet `Tab` : un caractère TAB glissé dans le texte est
+    // rendu comme une simple espace par Word, et le texte restait collé à la puce (défaut trouvé
+    // en relisant le XML du .docx produit). C'est `Tab` qui envoie le texte au taquet du retrait.
+    else if (b.li) kids.push(new Paragraph({ spacing: { after: 90, line: CT_INTERLIGNE }, indent: { left: CT_PUCE_RETRAIT, hanging: CT_PUCE_RETRAIT }, children: [new TextRun({ text: '•', color: INKC, size: 18 }), new TextRun({ children: [new Tab()], color: INKC, size: 18 })].concat(runs(ctSeg(b.li), { size: 18 })) }));
+    else if (b.li2) kids.push(new Paragraph({ spacing: { after: 70, line: CT_INTERLIGNE }, indent: { left: CT_PUCE_RETRAIT * 2, hanging: CT_PUCE_RETRAIT }, children: [new TextRun({ text: '–', color: INKC, size: 18 }), new TextRun({ children: [new Tab()], color: INKC, size: 18 })].concat(runs(ctSeg(b.li2), { size: 18 })) }));
     else kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: b.before ? 240 : 0, after: b.after ? 260 : CT_APRES_PARA, line: CT_INTERLIGNE }, children: runs(segs(b, b.p), { bold: b.bold, italics: b.italics }) }));
   });
   const hf = docxHeaderFooter(user, ver);
