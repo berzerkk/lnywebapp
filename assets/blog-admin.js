@@ -75,8 +75,13 @@
       });
     });
     w.querySelector('.a-programmer') && (w.querySelector('.a-programmer').onclick = function () {
+      // ⚠️ valeur par défaut composée en heure LOCALE : `toISOString()` donne l'heure UTC, que
+      // le champ datetime-local réinterprète ensuite comme locale — la proposition arrivait
+      // décalée d'une à deux heures selon la saison (défaut trouvé le 11/09/2026).
       var d = new Date(Date.now() + 864e5); d.setSeconds(0, 0);
-      var val = d.toISOString().slice(0, 16);
+      var deuxCh = function (n) { return (n < 10 ? '0' : '') + n; };
+      var val = d.getFullYear() + '-' + deuxCh(d.getMonth() + 1) + '-' + deuxCh(d.getDate())
+        + 'T' + deuxCh(d.getHours()) + ':' + deuxCh(d.getMinutes());
       dialogue({
         titre: 'Programmer la publication', confirmer: 'Programmer', annuler: 'Annuler',
         message: 'L’article partira tout seul à la date choisie — le serveur s’en charge, même si votre ordinateur est éteint.',
@@ -223,6 +228,25 @@
     var j = new Date(Date.UTC(+p.year, +p.month - 1, +p.day)).getUTCDay();
     return JOURS[j] + ' ' + (+p.day) + ' ' + MOIS[+p.month - 1] + ' ' + p.year;
   }
+  // ⚠️ `hourCycle:'h23'` et non `hour12:false` : ce dernier fait sortir minuit en « 24 » sur
+  // plusieurs moteurs, et un article programmé à minuit s'afficherait « 24h00 ».
+  function heureLisible(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d)) return '';
+    var p = {};
+    try {
+      new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+        .formatToParts(d).forEach(function (x) { if (x.type !== 'literal') p[x.type] = x.value; });
+    } catch (e) { return ''; }
+    return p.hour == null ? '' : (+p.hour) + 'h' + p.minute;
+  }
+  // « samedi 12 septembre 2026 à 9h30 » : réservé à ce qui est PROGRAMMÉ (même règle que le
+  // serveur, cf. artQuandLisible). La date d'un article déjà en ligne reste au jour seul.
+  function quandLisible(iso) {
+    var j = dateLisible(iso), h = heureLisible(iso);
+    return j && h ? j + ' à ' + h : j;
+  }
   function carte(a) {
     var art = document.createElement('article');
     art.className = 'post' + (a.enLigne ? '' : ' post-hors');
@@ -232,7 +256,7 @@
       : '<div class="thumb cat"><span>' + esc(a.categorie) + '</span></div>';
     var etat = a.enLigne ? '' :
       '<span class="art-etat ' + (a.statut === 'programme' ? 'prog' : 'brou') + '">' +
-      (a.statut === 'programme' ? 'Programmé · ' + esc(dateLisible(a.datePublication)) : 'Brouillon') + '</span>';
+      (a.statut === 'programme' ? 'Programmé · ' + esc(quandLisible(a.datePublication)) : 'Brouillon') + '</span>';
     art.innerHTML = '<a class="post-lien" href="/blog/' + esc(a.slug) + (a.enLigne ? '' : '?token=' + encodeURIComponent(token())) + '">' +
       vignette +
       '<div class="pad">' + etat + '<span class="tag">' + esc(a.categorie) + '</span><h3>' + esc(a.titre) + '</h3>' +
@@ -252,7 +276,7 @@
   }
   function barreArticle(art) {
     var etat = art.enLigne ? 'En ligne'
-      : art.statut === 'programme' ? 'Programmé pour le ' + dateLisible(art.datePublication)
+      : art.statut === 'programme' ? 'Programmé pour le ' + quandLisible(art.datePublication)
       : 'Brouillon';
     var b = document.createElement('div');
     b.className = 'blog-adm blog-adm-art';

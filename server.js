@@ -981,6 +981,34 @@ function pickMembers(ids, role, label) {
 // Les dossiers sont constitués par l'ADMINISTRATION UNIQUEMENT (30/07/2026). Avant, un formateur
 // pouvait s'ajouter un apprenant lui-même via {targetId} : c'est retiré, côté serveur comme côté
 // client, pour que la composition des dossiers reste une décision de l'administration.
+// ---- règlement intérieur déposé d'office dans tout NOUVEAU dossier (11/09/2026) ------------
+// Qualiopi demande que le règlement intérieur soit porté à la connaissance de l'apprenant : il
+// est donc copié dans le canal commun dès la création du dossier, comme un document ordinaire
+// (l'administration peut le supprimer, et la suppression du dossier l'emporte avec le reste).
+// ⚠️ COPIE et non référence partagée vers assets/ : un document de db.docs pointe un fichier de
+// data/uploads/ que `deleteGroupCascade` SUPPRIME — référencer le modèle le ferait disparaître
+// à la première suppression de dossier, pour tous les dossiers à la fois.
+// ⚠️ Ne vaut QUE pour les nouveaux dossiers (demande de l'utilisateur) : rien n'est ajouté
+// rétroactivement à ceux qui existent déjà.
+// ⚠️ Jamais bloquant : fichier absent ou disque en erreur, le dossier se crée quand même.
+const RI_SOURCE = path.join(ROOT, 'assets', 'reglement-interieur.pdf');
+const RI_NOM = 'Règlement intérieur - Languages & Success.pdf';
+function deposerReglementInterieur(g, par) {
+  try {
+    if (!fs.existsSync(RI_SOURCE)) { console.warn('📄 règlement intérieur absent de assets/ : non déposé'); return false; }
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    const stored = crypto.randomUUID() + '.pdf';
+    fs.copyFileSync(RI_SOURCE, path.join(UPLOADS_DIR, stored));
+    db.docs.push({
+      id: crypto.randomUUID(), group: g.id, channel: 'commun',
+      from: par.id, fromAdmin: true, name: RI_NOM,
+      size: fs.statSync(RI_SOURCE).size, type: 'application/pdf',
+      stored, date: Date.now()
+    });
+    return true;
+  } catch (e) { console.error('📄 règlement intérieur non déposé :', e.message); return false; }
+}
+
 app.post('/api/groups', auth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Les dossiers sont créés par l\'administration.' });
   const b = req.body || {};
@@ -993,6 +1021,10 @@ app.post('/api/groups', auth, (req, res) => {
   const profs = p.ids, eleve = e.id;
   const g = { id: crypto.randomUUID(), profs, eleve, date: Date.now() };
   db.groups.push(g);
+  // le règlement intérieur attend l'apprenant dans le dossier dès son ouverture. Pas de
+  // notification : la personne en reçoit déjà une pour son ajout au dossier, deux alertes
+  // pour le même événement seraient du bruit.
+  deposerReglementInterieur(g, req.user);
   const label = membersLabel(g);
   gMembers(g).forEach(id => notify(id, `Vous avez été ajouté dans un dossier : ${label}.`, g.id));
   db.users.filter(u => u.role === 'admin').forEach(a => notify(a.id, `Nouveau dossier : ${label}.`, g.id));
@@ -3685,6 +3717,25 @@ function artDateLisible(iso) {
   const jour = new Date(Date.UTC(+p.year, +p.month - 1, +p.day)).getUTCDay();
   return JOURS_FR[jour] + ' ' + (+p.day) + ' ' + MOIS_FR[+p.month - 1] + ' ' + p.year;
 }
+// Heure de Paris, « 9h30 ». ⚠️ `hourCycle:'h23'` et non `hour12:false` : ce dernier fait sortir
+// minuit en « 24 » sur plusieurs moteurs, et un article programmé à minuit s'afficherait « 24h00 ».
+function artHeureLisible(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const p = {};
+  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: TZ_FR, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d)) {
+    if (x.type !== 'literal') p[x.type] = x.value;
+  }
+  return p.hour == null ? '' : (+p.hour) + 'h' + p.minute;
+}
+// « samedi 12 septembre 2026 à 9h30 » : réservé à ce qui est PROGRAMMÉ. Sans l'heure, un article
+// programmé n'affichait que son jour et l'heure choisie restait invisible partout une fois la
+// modale fermée (signalé par l'utilisateur le 11/09/2026). La date de publication d'un article
+// déjà en ligne, elle, reste au jour seul : c'est du contenu public.
+const artQuandLisible = (iso) => {
+  const j = artDateLisible(iso), h = artHeureLisible(iso);
+  return j && h ? j + ' à ' + h : j;
+};
 const artIso = (iso) => { const p = iso ? partsParis(iso) : null; return p ? p.year + '-' + p.month + '-' + p.day : ''; };
 
 // carte d'un article dans la grille de blog.html
@@ -3694,7 +3745,7 @@ function artCarte(a) {
     : '<div class="thumb cat"><span>' + htmlEsc(a.categorie) + '</span></div>';
   const etat = artEnLigne(a) ? '' :
     '<span class="art-etat ' + (a.statut === 'programme' ? 'prog' : 'brou') + '">' +
-    (a.statut === 'programme' ? 'Programmé · ' + artDateLisible(a.datePublication) : 'Brouillon') + '</span>';
+    (a.statut === 'programme' ? 'Programmé · ' + artQuandLisible(a.datePublication) : 'Brouillon') + '</span>';
   return '      <article class="post' + (artEnLigne(a) ? '' : ' post-hors') + '" data-art="' + a.id + '" data-reveal>' + NL
     + '        <a class="post-lien" href="/blog/' + htmlEsc(a.slug) + '">' + NL
     + '          ' + vignette + NL
@@ -3815,7 +3866,7 @@ function artPage(a) {
   ).join(NL);
   const bandeau = artEnLigne(a) ? '' :
     '    <div class="art-bandeau">' + (a.statut === 'programme'
-      ? 'Article programmé pour le ' + htmlEsc(artDateLisible(a.datePublication)) + ' — visible de vous seul en attendant.'
+      ? 'Article programmé pour le ' + htmlEsc(artQuandLisible(a.datePublication)) + ' — visible de vous seul en attendant.'
       : 'Brouillon — visible de vous seul, il n\'apparaît pas sur le blog.') + '</div>' + NL;
 
   return '<!DOCTYPE html>' + NL + '<html lang="fr">' + NL + '<head>' + NL
