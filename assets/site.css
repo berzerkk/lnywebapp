@@ -113,6 +113,23 @@ body.menu-open{overflow:hidden}
   .site-header .header-actions{margin-left:auto}
   .nav-burger{display:flex;margin-left:16px}
   .site-header,.site-header.scrolled{padding-left:22px;padding-right:22px}
+  /* ⚠️ LE BURGER NE DOIT JAMAIS SORTIR DE L'ÉCRAN : c'est le seul accès au menu en mobile.
+     Une fois CONNECTÉ, account.js ajoute la cloche et le prénom dans .header-actions, qui
+     échappent au display:none ci-dessus (il ne vise que .header-cta) : à 375 px la ligne
+     valait logo 180 + actions 134 + burger 36 + marges 44 = 394, et le bouton sortait de
+     13 px (28 px à 360 px). Défaut trouvé à la vérification mobile du 11/09/2026, invisible
+     en visiteur puisque .header-actions y est vide.
+     Correction par la flexbox plutôt que par des largeurs devinées : le burger ne rétrécit
+     jamais, le prénom cède le premier (points de suspension), le logo ensuite. */
+  .site-header .logo,.site-header .header-actions{min-width:0}
+  .site-header .header-actions .acct-link{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nav-burger{flex:none}
+}
+/* petits téléphones (≤ 400 px) : on resserre les marges du bandeau plutôt que de rogner le
+   prénom, pour que la ligne tienne sans rien abréger */
+@media(max-width:400px){
+  .site-header,.site-header.scrolled{padding-left:14px;padding-right:14px}
+  .nav-burger{margin-left:10px}
   .mobile-menu{display:flex;flex-direction:column;gap:20px;position:fixed;top:0;right:0;bottom:0;z-index:210;width:min(82vw,340px);padding:62px 28px 36px;background:rgba(248,242,231,.82);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);box-shadow:-24px 0 60px rgba(42,33,24,.18);transform:translateX(100%);transition:transform .32s cubic-bezier(.2,.85,.25,1);overflow-y:auto}
   .mobile-menu.open{transform:none}
 
@@ -488,7 +505,12 @@ footer a:hover{color:#fff8ef}
 .qualiopi-block img{width:auto;height:68px;flex:none}
 .qualiopi-block p{font-size:11px;color:#3a3128;line-height:1.35}
 .cpf-block{display:flex;align-items:center;justify-content:center;background:#fff;border-radius:12px;padding:11px 20px;height:90px;box-sizing:border-box}
-.cpf-block img{height:68px;width:auto;display:block}
+/* ⚠️ `max-width:100%` : le logo le plus large (275 px) débordait du pied de page sur un écran
+   de 320 px (iPhone SE de 1re génération), seul cas trouvé à la vérification du 11/09/2026.
+   La hauteur reste maîtresse au-dessus de 340 px de large : l'apparence ne change nulle part
+   ailleurs, l'image se contente de ne plus dépasser l'écran quand il est très étroit. */
+.cpf-block img{height:68px;width:auto;max-width:100%;object-fit:contain;display:block}
+.cpf-block{max-width:100%}
 .cpf-block.is-badge{padding:3px 14px}
 .cpf-block.is-badge img{height:84px}
 .cpf-badge{display:flex;flex-direction:column;justify-content:center;gap:3px;background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.25);border-radius:12px;padding:14px 20px;min-width:150px}
@@ -803,6 +825,19 @@ footer a:hover{color:#fff8ef}
 .admin-users li .adm-del{margin-left:8px}
 .adm-edit,.adm-hist,.adm-grp-edit{flex:none;border:1px solid var(--line);background:var(--bg-card);font-size:14px;width:30px;height:30px;border-radius:9px;cursor:pointer;transition:.15s;line-height:1;padding:0}
 .adm-edit:hover,.adm-hist:hover,.adm-grp-edit:hover{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 10%,#fff)}
+/* ⚠️ ZONES TACTILES des petites commandes d'administration (🕐 ✏️ 🗑, 30 × 30 px, collées à
+   8 px les unes des autres) : au doigt, viser « modifier » et toucher « supprimer » était
+   possible, sur des boutons qui effacent un dossier ou un compte. Même technique que pour le
+   hamburger (::after transparent) : la surface cliquable grandit, AUCUN pixel visible ne
+   bouge. Débords calibrés sur les écarts mesurés le 11/09/2026 — 4 px de chaque côté (les
+   voisins sont à 8 px, donc ils ne se touchent jamais) et 7 px en haut et en bas (127 px
+   d'écart vertical) : la cible passe de 30 × 30 à 36 × 44.
+   ⚠️ 3 px et non 4 : à 4 px les zones de deux voisins distants de 8 px se touchaient bord à
+   bord, ce qui laisse un liseré ambigu. À 3 px il reste 2 px francs entre deux cibles. */
+@media(max-width:900px){
+  .adm-del,.adm-edit,.adm-hist,.adm-grp-edit,.adm-fold{position:relative}
+  .adm-del::after,.adm-edit::after,.adm-hist::after,.adm-grp-edit::after,.adm-fold::after{content:'';position:absolute;inset:-7px -3px;z-index:1}
+}
 .admin-users li .adm-edit{margin-left:8px}
 /* composition d'un dossier : liste à cocher des formateurs (autant que voulu) */
 .pick-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;max-height:280px;overflow:auto;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}

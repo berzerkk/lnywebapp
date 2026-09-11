@@ -4092,9 +4092,15 @@ app.get('/sitemap.xml', (req, res) => {
 app.get('/blog/:slug', (req, res, next) => {
   const slug = String(req.params.slug || '').replace(/\.html$/, '');
   const a = db.articles.find(x => x.slug === slug);
-  if (!a) return next();
+  // ⚠️ Article inconnu, supprimé, dépublié, ou brouillon demandé sans jeton : on REDIRIGE vers la
+  // liste des articles. Avant, on tombait dans le repli général qui sert index.html **sous
+  // l'adresse /blog/…** : les chemins relatifs de la page d'accueil (assets/site.css) se
+  // résolvaient alors en /blog/assets/… → 404 → page d'accueil SANS AUCUN STYLE (défaut trouvé
+  // à la vérification mobile du 11/09/2026). La réponse est identique dans tous les cas, elle ne
+  // révèle donc pas l'existence d'un brouillon.
+  if (!a) return res.redirect(302, '/blog.html');
   const u = userSiConnecte(req);
-  if (!artVisiblePar(a, u)) return next();
+  if (!artVisiblePar(a, u)) return res.redirect(302, '/blog.html');
   res.setHeader('Cache-Control', 'no-cache');
   res.type('html').send(artPage(a));
 });
@@ -4137,7 +4143,13 @@ app.get(/.*/, (req, res, next) => {
   let file;
   try { file = path.normalize(path.join(ROOT, decodeURIComponent(p))); } catch (e) { return next(); }
   if (!file.startsWith(ROOT)) return next();
-  fs.access(file, fs.constants.F_OK, (err) => sendHtml(res, err ? path.join(ROOT, 'index.html') : file, req));
+  fs.access(file, fs.constants.F_OK, (err) => {
+    // ⚠️ Même piège que pour /blog/<slug> : servir l'accueil SOUS une adresse en sous-dossier
+    // casse tous ses chemins relatifs (page sans style). On redirige donc vers la racine plutôt
+    // que de servir une page mal habillée à une adresse qui n'existe pas.
+    if (err && (req.path.match(/\//g) || []).length > 1) return res.redirect(302, '/');
+    sendHtml(res, err ? path.join(ROOT, 'index.html') : file, req);
+  });
 });
 // assets (css/js/images…) : no-cache sur js/css (ETag → 304 si inchangé)
 app.use(express.static(ROOT, {
