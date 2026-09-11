@@ -124,12 +124,6 @@ body.menu-open{overflow:hidden}
   .site-header .logo,.site-header .header-actions{min-width:0}
   .site-header .header-actions .acct-link{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .nav-burger{flex:none}
-}
-/* petits téléphones (≤ 400 px) : on resserre les marges du bandeau plutôt que de rogner le
-   prénom, pour que la ligne tienne sans rien abréger */
-@media(max-width:400px){
-  .site-header,.site-header.scrolled{padding-left:14px;padding-right:14px}
-  .nav-burger{margin-left:10px}
   .mobile-menu{display:flex;flex-direction:column;gap:20px;position:fixed;top:0;right:0;bottom:0;z-index:210;width:min(82vw,340px);padding:62px 28px 36px;background:rgba(248,242,231,.82);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);box-shadow:-24px 0 60px rgba(42,33,24,.18);transform:translateX(100%);transition:transform .32s cubic-bezier(.2,.85,.25,1);overflow-y:auto}
   .mobile-menu.open{transform:none}
 
@@ -155,6 +149,18 @@ body.menu-open{overflow:hidden}
      (5,5 + 5,5 = 11, les zones se touchent sans jamais se chevaucher). En largeur on consomme
      les 8 px d'écart horizontal, ce qui donne 87 px sans toucher à la largeur visible. */
   .mm-lang-grid button::after{inset:-5.5px -4px}
+}
+/* Petits téléphones : on resserre les marges du bandeau plutôt que de rogner le prénom, pour
+   que logo + cloche + prénom + burger tiennent sans rien abréger.
+   ⚠️ CE BLOC DOIT RESTER APRÈS LA FERMETURE DU BLOC ≤ 1080 px. Le 11/09/2026 il a été inséré
+   AU MILIEU de celui-ci : l'accolade ouvrante a coupé le bloc en deux et tout ce qui suivait
+   (le tiroir `.mobile-menu` lui-même, `.mobile-menu.open`, les zones tactiles) s'est retrouvé
+   enfermé sous « ≤ 400 px ». Résultat sur un téléphone plus large : le fond se floutait mais
+   le tiroir restait invisible, faute de styles. Toujours vérifier une nouvelle borne AU-DESSUS
+   d'elle (414, 430 px), pas seulement en dessous. */
+@media(max-width:400px){
+  .site-header,.site-header.scrolled{padding-left:14px;padding-right:14px}
+  .nav-burger{margin-left:10px}
 }
 
 /* ---------- Hero (accueil) ------------------------------------------ */
