@@ -1814,7 +1814,13 @@ function pdfPlacePourSignature(doc, hauteur) {
 function pdfSignatureAntonin(doc, x, y, largeur, variante, hMax) {
   const p = imgSiPresent(variante || SIGN_ANTONIN);
   if (!p) return 0;
-  const ratio = (variante === SIGN_ANTONIN_TAMPON ? 0.45 : RATIO_SIGN);
+  // ⚠️ Le rapport se lit DANS le fichier (même correction que côté Word, cf. dxSignatureAntonin) :
+  // le 0,45 codé en dur pour le tampon était faux (l'image fait 453 × 263, soit 0,58), et comme
+  // `fit` conserve les proportions, la hauteur calculée bridait la largeur réelle — une demande
+  // d'agrandissement restait donc sans effet visible. Repli sur les constantes si l'en-tête PNG
+  // est illisible.
+  let ratio = (variante === SIGN_ANTONIN_TAMPON ? 0.58 : RATIO_SIGN);
+  try { const dims = pngDims(fs.readFileSync(p)); if (dims && dims.w && dims.h) ratio = dims.h / dims.w; } catch (e) { }
   let w = largeur || 120;
   if (hMax && w * ratio > hMax) w = hMax / ratio;      // on rétrécit à proportions constantes
   const h = w * ratio;
@@ -2025,7 +2031,7 @@ function contratBlocks(d) {
     { sub: d.ref || 'Réf. n° 2023/L&S0701' },
     { p: 'ENTRE LES SOUSSIGNÉS :', bold: true },
     { p: `LANGUAGES & SUCCESS - L&S (enregistré sous le N° 93 060 886 106 auprès du Préfet de la région PACA - Certificat QUALIOPI ${QUALIOPI_CERT}) - 57, avenue Valéry Giscard d'Estaing - BP 1052 - 06201 NICE CÉDEX 3, représenté par ${rep}, Président, auquel il est conclu la convention suivante, en application des dispositions de la partie VI du Code du travail portant organisation de la formation professionnelle continue dans le cadre de la formation professionnelle tout au long de la vie.` },
-    { p: 'Ci-après dénommé « Languages and Success ».', bold: true, italics: true },
+    { p: "Ci-après dénommé « Languages and Success » ou « le Donneur d'ordre ».", bold: true, italics: true },
     { p: 'ET', bold: true, before: true },
     { p: `${d.stnom || ''}`, bold: true },
     { p: `Né(e) le ${d.stNaissance || '…'}, de nationalité ${d.stNationalite || '…'}.` },
@@ -2038,12 +2044,16 @@ function contratBlocks(d) {
     { p: "Le présent contrat est conclu dans le cadre d'une prestation de formation ponctuelle réalisée par le sous-traitant au bénéfice du donneur d'ordre." },
     // en gras : le nom de la formation, la langue, les volumes horaires et les dates
     { rp: [{ t: 'La formation est dénommée : ' }, { t: `« ${d.intitule || '…'} » en ${d.langue || '…'}`, b: 1 }, { t: '.' }] },
-    { p: "Type d'action de formation (art. L6313-1 du code du travail) : action d'acquisition, d'entretien ou de perfectionnement de la langue." },
-    { rp: [{ t: 'Stagiaire(s) : ' }, { t: d.stagiaire || '…', b: 1 }] },
-    { rp: [{ t: "Programme global de l'action de formation (pour information) : " }].concat(ctHeuresGras(d.programme || '…')) },
-    { rp: [{ t: 'Mission confiée au Sous-traitant : ' }].concat(ctHeuresGras(d.mission || "l'animation des seules heures de formation synchrones, selon la ou les modalités précisées ci-dessus (présentiel et/ou distanciel). Les autres composantes du programme global demeurent mises en œuvre par le Donneur d'ordre dans les conditions de l'article 2.")) },
-    { p: `Lieu de la formation : ${d.lieu || 'en distanciel (Visioconférence)'}` },
-    { rp: [{ t: 'Dates de formation : ' }, { t: `du ${d.dateDebut || '…'} au ${d.dateFin || '…'}`, b: 1 }] },
+    // ⚠️ Bloc descriptif en DEUX COLONNES (`def`) : le libellé à gauche, la valeur à droite sur
+    // un axe vertical commun, et un repli de la valeur qui reste dans sa colonne (demande de
+    // l'utilisateur du 11/09/2026, exemple à l'appui). Avant, tout était un paragraphe continu
+    // et les valeurs commençaient à une abscisse différente à chaque ligne.
+    { def: { label: "Type d'action de formation (art. L6313-1 du code du travail) :", segs: [{ t: "action d'acquisition, d'entretien ou de perfectionnement de la langue." }] } },
+    { def: { label: 'Stagiaire(s) :', segs: [{ t: d.stagiaire || '…', b: 1 }] } },
+    { def: { label: "Programme global de l'action de formation (pour information) :", segs: ctHeuresGras(d.programme || '…') } },
+    { def: { label: 'Mission confiée au Sous-traitant :', segs: ctHeuresGras(d.mission || "l'animation des seules heures de formation synchrones, selon la ou les modalités précisées ci-dessus (présentiel et/ou distanciel). Les autres composantes du programme global demeurent mises en œuvre par le Donneur d'ordre dans les conditions de l'article 2.") } },
+    { def: { label: 'Lieu de la formation :', segs: [{ t: d.lieu || 'en distanciel (Visioconférence)' }] } },
+    { def: { label: 'Dates de formation :', segs: [{ t: `du ${d.dateDebut || '…'} au ${d.dateFin || '…'}`, b: 1 }] } },
     { art: 'ARTICLE 2 – PÉRIMÈTRE DE LA MISSION CONFIÉE AU SOUS-TRAITANT' },
     { p: "La mission confiée au Sous-traitant porte exclusivement sur l'animation des heures de formation synchrones, en présentiel et/ou en distanciel, visées à l'article 1." },
     { p: "Le Donneur d'ordre conserve la mise en œuvre directe de l'ensemble des autres composantes de l'action de formation, et notamment, le cas échéant :" },
@@ -2122,6 +2132,20 @@ function contratBlocks(d) {
     { sign: { gauche: ["Pour le Donneur d'ordre, Languages and Success", rep, 'Président'], droite: ['Pour le Sous-traitant,', d.stnom || ''], tampon: true, sigDroite: d.sousTraitantSig || null } }
   ];
 }
+// ---- mise en page du contrat (aérée, 11/09/2026) -------------------------------------------
+// L'utilisateur trouvait le contrat trop serré. Les trois réglages tiennent ici, pour que PDF et
+// Word restent accordés : interligne, retrait des puces, largeur de la colonne des libellés.
+const CT_INTERLIGNE = 300;        // Word : 300/240 = 1,25 ligne (240 = interligne simple)
+const CT_APRES_PARA = 160;        // Word : espace après un paragraphe, en vingtièmes de point
+const CT_PUCE_RETRAIT = 360;      // Word : 360 twips = 0,63 cm entre la puce et le texte (≈ une tabulation)
+const CT_PDF_INTERLIGNE = 2.6;    // PDF : lineGap en points (l'interligne passe de 10,6 à 13,2 pt)
+const CT_PDF_RETRAIT = 18;        // PDF : 18 pt = les mêmes 0,63 cm
+const CT_LABEL_PART = 0.40;       // largeur de la colonne des libellés du bloc descriptif
+// Signatures : nettement plus grandes qu'avant (130 × 62 pt pour le tampon, 120 × 54 pour la
+// signature du sous-traitant), elles se voyaient à peine sur un contrat de dix articles.
+const CT_TAMPON_L = 190;          // largeur du tampon L&S, en points
+const CT_SIG_L = 170, CT_SIG_H = 120;   // boîte de la signature manuscrite du sous-traitant
+
 function buildContratDocx(d, user, ver) {
   const kids = [];
   // segments d'un bloc : les rp gardent leur gras explicite, le reste passe par ctSeg
@@ -2139,17 +2163,36 @@ function buildContratDocx(d, user, ver) {
       // la colonne droite ne décolle pas de la marge (c'est ce que prévient le commentaire ci-dessous).
       const col = (lignes, align, images) => new TableCell({ width: { size: 4513, type: WidthType.DXA }, borders: NO_BORDERS(), margins: { top: 0, bottom: 0, left: 0, right: 0 }, children: lignes.map(l => new Paragraph({ alignment: align, children: runs(ctSeg(l), { size: 19 }) })).concat(images || []) });
       const sigST = sigImg(b.sign.sigDroite);
-      const imgST = sigST ? [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new ImageRun({ type: sigST.type, data: sigST.buffer, transformation: sigBox(sigST, 120, 56) })] })] : [];
+      const imgST = sigST ? [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new ImageRun({ type: sigST.type, data: sigST.buffer, transformation: sigBox(sigST, CT_SIG_L, CT_SIG_H) })] })] : [];
       // ⚠️ grille FIXE et marges nulles : sans elles, Word répartit les colonnes d'après leur
       // contenu et le bloc « Pour le Sous-traitant » ne tombe plus sur la marge droite.
       kids.push(new Table({ layout: TableLayoutType.FIXED, columnWidths: [4513, 4513], width: { size: 9026, type: WidthType.DXA }, borders: NO_BORDERS(), rows: [new TableRow({ children: [
-        col(b.sign.gauche, AlignmentType.LEFT, b.sign.tampon ? dxSignatureAntonin(130, SIGN_ANTONIN_TAMPON) : []),
+        col(b.sign.gauche, AlignmentType.LEFT, b.sign.tampon ? dxSignatureAntonin(CT_TAMPON_L, SIGN_ANTONIN_TAMPON) : []),
         col(b.sign.droite, AlignmentType.RIGHT, imgST)
       ] })] }));
     }
-    else if (b.li) kids.push(new Paragraph({ spacing: { after: 50 }, children: runs([{ t: '• ' }].concat(ctSeg(b.li)), { size: 18 }) }));
-    else if (b.li2) kids.push(new Paragraph({ spacing: { after: 40 }, children: runs([{ t: '        –  ' }].concat(ctSeg(b.li2)), { size: 18 }) }));
-    else kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: b.before ? 200 : 0, after: b.after ? 200 : 90 }, children: runs(segs(b, b.p), { bold: b.bold, italics: b.italics }) }));
+    // bloc descriptif en deux colonnes : tableau SANS bordure, grille fixe, pour que les valeurs
+    // partent toutes du même axe et que leur repli y reste (cf. CT_LABEL_PART)
+    else if (b.def) {
+      const LG = Math.round(9026 * CT_LABEL_PART), DR = 9026 - LG;
+      const cellule = (enfants, largeur, droite) => new TableCell({
+        width: { size: largeur, type: WidthType.DXA }, borders: NO_BORDERS(),
+        margins: { top: 0, bottom: 90, left: 0, right: droite ? 0 : 160 }, children: enfants
+      });
+      kids.push(new Table({
+        layout: TableLayoutType.FIXED, columnWidths: [LG, DR], width: { size: 9026, type: WidthType.DXA }, borders: NO_BORDERS(),
+        rows: [new TableRow({ children: [
+          cellule([new Paragraph({ spacing: { line: CT_INTERLIGNE }, children: runs(ctSeg(b.def.label), { size: 19 }) })], LG, false),
+          cellule([new Paragraph({ spacing: { line: CT_INTERLIGNE }, children: runs(b.def.segs, { size: 19 }) })], DR, true)
+        ] })]
+      }));
+    }
+    // ⚠️ VRAIES listes à retrait suspendu : la puce vit dans le retrait négatif (`hanging`), donc
+    // le texte part plus loin ET ses lignes repliées restent alignées sous la première. Avant, la
+    // puce était un simple caractère du texte et le repli revenait coller à la marge.
+    else if (b.li) kids.push(new Paragraph({ spacing: { after: 90, line: CT_INTERLIGNE }, indent: { left: CT_PUCE_RETRAIT, hanging: CT_PUCE_RETRAIT }, children: runs([{ t: '•\t' }].concat(ctSeg(b.li)), { size: 18 }) }));
+    else if (b.li2) kids.push(new Paragraph({ spacing: { after: 70, line: CT_INTERLIGNE }, indent: { left: CT_PUCE_RETRAIT * 2, hanging: CT_PUCE_RETRAIT }, children: runs([{ t: '–\t' }].concat(ctSeg(b.li2)), { size: 18 }) }));
+    else kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: b.before ? 240 : 0, after: b.after ? 260 : CT_APRES_PARA, line: CT_INTERLIGNE }, children: runs(segs(b, b.p), { bold: b.bold, italics: b.italics }) }));
   });
   const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
@@ -2161,16 +2204,32 @@ function buildContratPdf(d, user, ver) {
     const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const p = (t, o) => { o = o || {}; doc.font(o.bold ? 'Helvetica-Bold' : (o.italics ? 'Helvetica-Oblique' : 'Helvetica')).fontSize(o.size || 9).fillColor(o.color || '#2a241d').text(String(t == null ? '' : t), left, doc.y, { width: totalW, align: o.align || 'left' }); doc.moveDown(o.after != null ? o.after : 0.35); };
     // paragraphe à segments : chaque segment peut être en gras (termes contractuels, montants…)
+    // ⚠️ `x` et `width` permettent d'écrire dans une COLONNE (bloc descriptif, texte d'une puce) :
+    // pdfkit retient l'abscisse du premier `text()` d'une chaîne `continued` et y replie les
+    // lignes suivantes, donc l'indentation tient sur tout le paragraphe.
     const rich = (segs, o) => {
       o = o || {};
       if (o.before) doc.moveDown(o.before);
+      const x0 = o.x != null ? o.x : left;
+      const w = o.width != null ? o.width : totalW;
+      const ecart = o.lineGap != null ? o.lineGap : CT_PDF_INTERLIGNE;
       const police = (s) => (s.b || o.bold) ? (o.italics ? 'Helvetica-BoldOblique' : 'Helvetica-Bold') : (o.italics ? 'Helvetica-Oblique' : 'Helvetica');
       segs.forEach((s, i) => {
         doc.font(police(s)).fontSize(o.size || 9.2).fillColor('#2a241d');
-        if (i === 0) doc.text(s.t, left, doc.y, { width: totalW, continued: segs.length > 1 });
-        else doc.text(s.t, { width: totalW, continued: i < segs.length - 1 });
+        if (i === 0) doc.text(s.t, x0, doc.y, { width: w, continued: segs.length > 1, lineGap: ecart });
+        else doc.text(s.t, { width: w, continued: i < segs.length - 1, lineGap: ecart });
       });
       doc.moveDown(o.after != null ? o.after : 0.45);
+    };
+    // une puce (ou un tiret) posée à part, puis le texte dans une colonne en retrait : c'est ce
+    // retrait qui remplace l'espace unique d'avant, et les lignes repliées s'y alignent.
+    const puce = (marque, segs, xMarque, xTexte, o) => {
+      o = o || {};
+      const y0 = doc.y;
+      doc.font('Helvetica').fontSize(o.size || 9).fillColor('#2a241d');
+      doc.text(marque, xMarque, y0, { lineBreak: false });
+      doc.y = y0;
+      rich(segs, Object.assign({}, o, { x: xTexte, width: left + totalW - xTexte }));
     };
     contratBlocks(d).forEach(b => {
       if (b.h1) p(b.h1, { bold: true, color: '#be6e54', size: 15, align: 'center', after: 0.25 });
@@ -2183,7 +2242,8 @@ function buildContratPdf(d, user, ver) {
         // ⚠️ Ce bloc dessine à des coordonnées ABSOLUES : pdfkit ne le pagine pas tout seul, et le
         // contrat fait dix articles, donc la position de fin varie. Sans cette réservation, le
         // tampon et la signature déborderaient sur le pied de page quand le texte finit bas.
-        pdfPlacePourSignature(doc, 130);
+        // réservation : trois lignes de texte + la plus haute des deux images agrandies
+        pdfPlacePourSignature(doc, 40 + Math.max(CT_TAMPON_L * 0.58, CT_SIG_H) + 20);
         const y0 = doc.y, colW = totalW / 2 - 10;
         doc.font('Helvetica').fontSize(9.2).fillColor('#2a241d');
         // ⚠️ On ne passe PLUS par { align, continued }. pdfkit aligne CHAQUE segment séparément
@@ -2213,14 +2273,38 @@ function buildContratPdf(d, user, ver) {
         const yG = bloc(b.sign.gauche, left, 'left');
         const yD = bloc(b.sign.droite, left + totalW / 2 + 10, 'right');
         // le tampon sous « Antonin HATTABE / Président », la signature du sous-traitant sous son nom
-        const hT = b.sign.tampon ? pdfSignatureAntonin(doc, left, yG + 6, 130, SIGN_ANTONIN_TAMPON, 62) : 0;
+        const hT = b.sign.tampon ? pdfSignatureAntonin(doc, left, yG + 8, CT_TAMPON_L, SIGN_ANTONIN_TAMPON) : 0;
         const sST = sigImg(b.sign.sigDroite);
         let hS = 0;
-        if (sST) { try { doc.image(sST.buffer, left + totalW - 120, yD + 6, { fit: [120, 54] }); hS = 58; } catch (e) { } }
+        if (sST) {
+          // la signature est calée sur la marge DROITE : on mesure la place qu'elle prendra
+          // réellement dans sa boîte (proportions conservées) pour l'y poser sans la déborder.
+          const dims = pngDims(sST.buffer);
+          const r = dims && dims.w && dims.h ? Math.min(CT_SIG_L / dims.w, CT_SIG_H / dims.h) : 0;
+          const wReel = r ? dims.w * r : CT_SIG_L, hReel = r ? dims.h * r : CT_SIG_H;
+          try { doc.image(sST.buffer, left + totalW - wReel, yD + 8, { fit: [CT_SIG_L, CT_SIG_H] }); hS = hReel + 8; } catch (e) { }
+        }
         doc.y = Math.max(yG + hT, yD + hS); doc.moveDown(0.5);
       }
-      else if (b.li || b.li2) rich((b.li ? [{ t: '•  ' }] : [{ t: '        –  ' }]).concat(ctSeg(b.li || b.li2)), { size: 9, after: b.li ? 0.2 : 0.18 });
-      else rich(b.rp || ctSeg(b.p), { size: 9.2, after: b.after ? 0.9 : 0.45, bold: b.bold, italics: b.italics, before: b.before ? 0.5 : 0 });
+      // bloc descriptif en deux colonnes : le libellé à gauche (il peut se replier), la valeur
+      // sur un axe vertical commun. On écrit le libellé, on revient à la hauteur de départ, on
+      // écrit la valeur, puis on repart du plus bas des deux.
+      else if (b.def) {
+        const labW = Math.round(totalW * CT_LABEL_PART), gouttiere = 12;
+        const xVal = left + labW + gouttiere, wVal = totalW - labW - gouttiere;
+        pdfPlacePourSignature(doc, 46);   // pas de libellé orphelin en bas de page
+        const y0 = doc.y;
+        doc.font('Helvetica').fontSize(9.2).fillColor('#2a241d')
+          .text(b.def.label, left, y0, { width: labW, lineGap: CT_PDF_INTERLIGNE });
+        const yLabel = doc.y;
+        doc.y = y0;
+        rich(b.def.segs, { size: 9.2, x: xVal, width: wVal, after: 0 });
+        doc.y = Math.max(yLabel, doc.y);
+        doc.moveDown(0.35);
+      }
+      else if (b.li) puce('•', ctSeg(b.li), left, left + CT_PDF_RETRAIT, { size: 9, after: 0.3 });
+      else if (b.li2) puce('–', ctSeg(b.li2), left + CT_PDF_RETRAIT, left + CT_PDF_RETRAIT * 2, { size: 9, after: 0.26 });
+      else rich(b.rp || ctSeg(b.p), { size: 9.2, after: b.after ? 1 : 0.6, bold: b.bold, italics: b.italics, before: b.before ? 0.6 : 0 });
     });
     pdfHeaderFooter(doc, user, ver); doc.end();
   });
