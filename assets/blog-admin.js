@@ -160,14 +160,17 @@
           zone('e-metadesc', 'Meta description', a.metaDescription, 2, '— entre 150 et 160 caractères') +
           champ('e-image', 'Image de couverture', a.image, '— chemin, ex. /blog/img/mon-article.png') +
           '</div>' +
-          // pas de section « Post LinkedIn » ici : les trois versions s'éditent dans la boîte
-          // sous l'article, pas dans cette modale. Le titre était resté seul, sans champ dessous.
           '<h4 class="gen-h">Corps de l’article</h4>' +
           zone('e-corps', 'HTML', a.corps, 16, '— &lt;h2&gt; pour les sections, &lt;h3&gt; pour les sous-parties, &lt;p&gt; et &lt;ul&gt;') +
           '<h4 class="gen-h">FAQ</h4>' +
           zone('e-faq', 'Une question par bloc', (a.faq || []).map(function (q) { return q.q + '\n' + q.r; }).join('\n\n'), 8, '— question sur une ligne, réponse en dessous, un blanc entre chaque') +
           '<h4 class="gen-h">Sources</h4>' +
           zone('e-src', 'Une par ligne', (a.sources || []).map(function (x) { return (x.titre || '') + ' | ' + x.url; }).join('\n'), 4, '— « Titre | https://… »') +
+          // les trois posts LinkedIn, modifiables ici comme dans la boîte sous l'article, avec la
+          // case « Post à publier » (demande de l'utilisateur, 14/09/2026)
+          '<h4 class="gen-h">Posts LinkedIn</h4>' +
+          '<div class="e-posts"><p class="li-astuce">Trois versions au choix, jamais affichées sur le site. Cochez celle que vous publierez. Sur LinkedIn, collez l’adresse de l’article en premier commentaire plutôt que dans le post.</p>' +
+          postsHTML(postsDe(a)) + '<span class="li-etat"></span></div>' +
         '</div>' +
         '<div class="gen-foot"><p class="fe-err auth-err" id="e-err" style="margin:0 12px 0 0"></p>' +
         '<button class="btn btn-primary e-save" type="button" style="padding:11px 22px">Enregistrer</button></div></div>';
@@ -176,6 +179,8 @@
       function fermer() { m.remove(); document.body.style.overflow = ''; }
       m.querySelector('.nm-close').onclick = fermer;
       m.querySelector('.nm-backdrop').onclick = fermer;
+      var blocPosts = m.querySelector('.e-posts');
+      var lirePosts = brancherPosts(blocPosts, postsDe(a), blocPosts.querySelector('.li-etat'));
 
       m.querySelector('.e-save').onclick = function () {
         var v = function (i) { var e = document.getElementById(i); return e ? e.value.trim() : ''; };
@@ -195,7 +200,8 @@
           titre: v('e-titre'), categorie: v('e-cat'), chapo: v('e-chapo'),
           motCle: v('e-motcle'), slug: v('e-slug'), titreSeo: v('e-titreseo'),
           metaDescription: v('e-metadesc'), image: v('e-image'),
-          corps: v('e-corps'), faq: faq, sources: sources
+          corps: v('e-corps'), faq: faq, sources: sources,
+          postsLi: lirePosts()
         };
         var b = m.querySelector('.e-save'); b.disabled = true; b.textContent = 'Enregistrement…';
         api(id ? API + '/' + id : API, id ? 'PATCH' : 'POST', corps).then(function (rr) {
@@ -291,48 +297,77 @@
   // déconnecté reçoit une ancre vide, même sur un article publié.
   // Trois versions, trois angles d'accroche : on choisit celle qui colle au moment de publier.
   var LI_ANGLES = ['La question', 'Le chiffre', 'Le terrain'];
-  function boiteLinkedin(art) {
+  // ⚠️ Les trois versions s'éditent à DEUX endroits : la modale « Modifier » et la boîte sous
+  // l'article. Les deux passent par ces trois fonctions — s'ils divergeaient, enregistrer depuis
+  // l'un effacerait en silence ce que l'autre sait écrire (la case « Post à publier » notamment).
+  function postsDe(art) {
     var posts = (art.postsLi && art.postsLi.length) ? art.postsLi.slice(0, 3)
       : (art.postLinkedin ? [{ angle: LI_ANGLES[0], texte: art.postLinkedin }] : []);
-    while (posts.length < 3) posts.push({ angle: LI_ANGLES[posts.length], texte: '' });
-
+    posts = posts.map(function (p) { return { angle: p.angle, texte: p.texte, choisi: !!p.choisi }; });
+    while (posts.length < 3) posts.push({ angle: LI_ANGLES[posts.length], texte: '', choisi: false });
+    return posts;
+  }
+  function postsHTML(posts) {
+    return posts.map(function (p, i) {
+      return '<div class="li-v' + (p.choisi ? ' choisi' : '') + '" data-i="' + i + '">' +
+        '<div class="li-vh"><span class="li-chip">Version ' + (i + 1) + ' · ' + esc(p.angle || LI_ANGLES[i]) + '</span>' +
+        '<span class="li-cpt"></span>' +
+        '<label class="li-choix"><input type="checkbox" class="li-pub"' + (p.choisi ? ' checked' : '') + ' /> Post à publier</label>' +
+        '<button type="button" class="btn-mini ghost li-copier">Copier</button></div>' +
+        '<textarea class="li-txt" rows="12" spellcheck="false"></textarea></div>';
+    }).join('');
+  }
+  // compteurs, copie et cases exclusives ; renvoie une fonction qui lit l'état à enregistrer
+  function brancherPosts(racine, posts, etat) {
+    var dit = function (t) { if (!etat) return; etat.textContent = t; setTimeout(function () { etat.textContent = ''; }, 2500); };
+    var zones = [].slice.call(racine.querySelectorAll('.li-v'));
+    zones.forEach(function (v, i) {
+      var ta = v.querySelector('.li-txt'), cpt = v.querySelector('.li-cpt'), cb = v.querySelector('.li-pub');
+      ta.value = posts[i].texte || '';
+      // LinkedIn replie le texte au-delà d'environ 210 caractères : l'accroche doit tenir avant.
+      var compte = function () { cpt.textContent = ta.value.length + ' caractères'; };
+      compte(); ta.addEventListener('input', compte);
+      // une seule case cochée à la fois ; la décocher laisse les trois versions sans choix
+      cb.onchange = function () {
+        zones.forEach(function (w) {
+          var autre = w.querySelector('.li-pub');
+          if (w !== v && cb.checked) autre.checked = false;
+          w.classList.toggle('choisi', autre.checked);
+        });
+      };
+      v.querySelector('.li-copier').onclick = function () {
+        ta.select(); ta.setSelectionRange(0, ta.value.length);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(ta.value).then(function () { dit('Version ' + (i + 1) + ' copiée ✓'); },
+            function () { dit('Copie impossible — sélectionnez le texte'); });
+        } else dit(document.execCommand && document.execCommand('copy') ? 'Version ' + (i + 1) + ' copiée ✓' : 'Copie impossible — sélectionnez le texte');
+      };
+    });
+    return function lire() {
+      return zones.map(function (v, i) {
+        var p = { angle: posts[i].angle || LI_ANGLES[i], texte: v.querySelector('.li-txt').value };
+        if (v.querySelector('.li-pub').checked) p.choisi = true;
+        return p;
+      });
+    };
+  }
+  function boiteLinkedin(art) {
+    var posts = postsDe(art);
     var b = document.createElement('div');
     b.className = 'li-box';
     b.innerHTML = '<div class="li-h"><h4>Posts LinkedIn</h4>' +
       '<span class="li-note">Trois versions au choix — notes internes, jamais affichées sur le site</span></div>' +
       '<p class="li-astuce">Sur LinkedIn, un lien dans le corps du post réduit sa portée : publiez le post seul, puis collez l’adresse de l’article en premier commentaire.</p>' +
-      posts.map(function (p, i) {
-        return '<div class="li-v" data-i="' + i + '">' +
-          '<div class="li-vh"><span class="li-chip">Version ' + (i + 1) + ' · ' + esc(p.angle || LI_ANGLES[i]) + '</span>' +
-          '<span class="li-cpt"></span>' +
-          '<button type="button" class="btn-mini ghost li-copier">Copier</button></div>' +
-          '<textarea class="li-txt" rows="12" spellcheck="false"></textarea></div>';
-      }).join('') +
+      postsHTML(posts) +
       '<div class="li-acts"><button type="button" class="btn-mini li-save">Enregistrer les trois</button><span class="li-etat"></span></div>';
-
     var etat = b.querySelector('.li-etat');
-    var dit = function (el, t) { el.textContent = t; setTimeout(function () { el.textContent = ''; }, 2500); };
-    var zones = [].slice.call(b.querySelectorAll('.li-v'));
-    zones.forEach(function (v, i) {
-      var ta = v.querySelector('.li-txt'), cpt = v.querySelector('.li-cpt');
-      ta.value = posts[i].texte || '';
-      // LinkedIn replie le texte au-delà d'environ 210 caractères : l'accroche doit tenir avant.
-      var compte = function () { cpt.textContent = ta.value.length + ' caractères'; };
-      compte(); ta.addEventListener('input', compte);
-      v.querySelector('.li-copier').onclick = function () {
-        ta.select(); ta.setSelectionRange(0, ta.value.length);
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(ta.value).then(function () { dit(etat, 'Version ' + (i + 1) + ' copiée ✓'); },
-            function () { dit(etat, 'Copie impossible — sélectionnez le texte'); });
-        } else dit(etat, document.execCommand && document.execCommand('copy') ? 'Version ' + (i + 1) + ' copiée ✓' : 'Copie impossible — sélectionnez le texte');
-      };
-    });
+    var lire = brancherPosts(b, posts, etat);
     b.querySelector('.li-save').onclick = function () {
       var bt = b.querySelector('.li-save'); bt.disabled = true; bt.textContent = 'Enregistrement…';
-      var corps = zones.map(function (v, i) { return { angle: posts[i].angle || LI_ANGLES[i], texte: v.querySelector('.li-txt').value }; });
-      api(API + '/' + art.id, 'PATCH', { postsLi: corps }).then(function (r) {
+      api(API + '/' + art.id, 'PATCH', { postsLi: lire() }).then(function (r) {
         bt.disabled = false; bt.textContent = 'Enregistrer les trois';
-        dit(etat, r.ok ? 'Enregistré ✓' : ((r.data && r.data.error) || 'Enregistrement impossible.'));
+        etat.textContent = r.ok ? 'Enregistré ✓' : ((r.data && r.data.error) || 'Enregistrement impossible.');
+        setTimeout(function () { etat.textContent = ''; }, 2500);
       });
     };
     return b;

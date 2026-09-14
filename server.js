@@ -3621,6 +3621,20 @@ app.get('/api/blog/articles/:id', (req, res) => {
   if (!u || u.role !== 'admin') { delete plein.postLinkedin; delete plein.postsLi; delete plein.promptImage; }
   res.json({ article: plein });
 });
+// Posts LinkedIn reçus du navigateur : on ne garde que les champs connus, et UN SEUL post peut
+// porter `choisi` (« c'est celui-là que je publie », case cochée dans la modale de modification
+// ou dans la boîte sous l'article, 14/09/2026). Deux cases cochées par un client bricolé : la
+// première gagne, les autres sont décochées.
+function artPostsLi(liste) {
+  let pris = false;
+  return (Array.isArray(liste) ? liste : []).map(p => {
+    const choisi = !!(p && p.choisi) && !pris;
+    if (choisi) pris = true;
+    const propre = { angle: String((p && p.angle) || ''), texte: String((p && p.texte) || '') };
+    if (choisi) propre.choisi = true;
+    return propre;
+  });
+}
 app.post('/api/blog/articles', auth, (req, res) => {
   if (!adminSeul(req, res)) return;
   const b = req.body || {};
@@ -3633,7 +3647,7 @@ app.post('/api/blog/articles', auth, (req, res) => {
     corps: b.corps || '', faq: Array.isArray(b.faq) ? b.faq : [], sources: Array.isArray(b.sources) ? b.sources : [],
     image: b.image || '',
     // notes internes : TROIS versions du post LinkedIn, à copier-coller. Jamais rendues sur le site.
-    postsLi: Array.isArray(b.postsLi) ? b.postsLi : [],
+    postsLi: artPostsLi(b.postsLi),
     // note interne aussi : le prompt qui décrirait l'image idéale de couverture (affiché dans
     // l'encadré du brouillon, pour regénérer l'image si celle en place ne convient pas)
     promptImage: b.promptImage || '',
@@ -3651,7 +3665,7 @@ app.patch('/api/blog/articles/:id', auth, (req, res) => {
   for (const k of ['titre', 'chapo', 'categorie', 'motCle', 'titreSeo', 'metaDescription', 'corps', 'image', 'postLinkedin', 'promptImage']) {
     if (b[k] != null) a[k] = b[k];
   }
-  if (Array.isArray(b.postsLi)) a.postsLi = b.postsLi;
+  if (Array.isArray(b.postsLi)) a.postsLi = artPostsLi(b.postsLi);
   if (Array.isArray(b.faq)) a.faq = b.faq;
   if (Array.isArray(b.sources)) a.sources = b.sources;
   if (b.slug) a.slug = artSlug(b.slug, a.id);
