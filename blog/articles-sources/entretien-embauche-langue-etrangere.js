@@ -2,6 +2,8 @@
 // d'image de couverture. Généré le 25/08/2026 (série de 15, rédaction par lot contrôlée :
 // règles maison vérifiées mécaniquement avant création). Pas d'illustrations {{ILLU}} :
 // la couverture est une photo téléversée, remplaçable depuis le brouillon sur le site.
+// 15/09/2026 : post « La question » remplacé par la version rédigée par l'utilisateur et coché « Post à publier ».
+// Cette version fait foi même quand elle sort des règles de posts-li.js (lien dans le corps, par exemple).
 module.exports = {
   "titre": "Entretien d’embauche en langue étrangère : s’y préparer sérieusement",
   "chapo": "Le recruteur qui vous reçoit en anglais n’attend pas une grammaire parfaite : il veut savoir si vous pouvez travailler dans la langue. Voici comment préparer vos réponses sans les réciter, aborder les questions pièges et vous entraîner en conditions réelles.",
@@ -50,7 +52,8 @@ module.exports = {
   "postsLi": [
     {
       "angle": "La question",
-      "texte": "Que regarde vraiment un recruteur pendant un entretien d’embauche en anglais : vos fautes de grammaire, ou votre capacité à faire passer vos idées ?\n\nSpoiler : la deuxième.\n\nUn recruteur qui mène un entretien en anglais ne compte pas les fautes. Il vérifie une chose : est-ce que cette personne peut travailler dans la langue ? Suivre une réunion, répondre à un client, demander une clarification sans paniquer.\n\nUne phrase imparfaite mais claire vaut mieux qu’un silence parfait.\n\nC’est aussi la logique du CECRL, la référence européenne : les niveaux décrivent ce que vous savez FAIRE avec la langue, pas la pureté de votre grammaire.\n\nTrois conséquences pratiques pour votre préparation :\n\n1. Préparez des idées, pas des textes. Une réponse récitée s’effondre à la première relance.\n2. Apprenez par cœur uniquement vos bouées : « Could you rephrase that? » vous sauvera plus souvent qu’une règle de grammaire.\n3. Entraînez-vous à voix haute, en conditions réelles, avec quelqu’un qui vous relance.\n\nNous avons détaillé toute la méthode dans un article : ce que le recruteur évalue, comment se présenter, les questions pièges et l’entraînement en simulation.\n\nLe lien est en commentaire.\n\n#EntretienDEmbauche #Anglais #FormationLangues"
+      "texte": "Votre niveau d’anglais peut-il vous coûter le poste ?\nPas forcément parce que votre anglais est « mauvais ».\nMais parce qu’au moment décisif, vous n’arrivez plus à faire valoir vos compétences, vos résultats ou votre expérience comme vous le feriez en français.\nUn entretien en anglais ne demande pas la perfection.\nIl demande de savoir :\n→ répondre clairement\n→ défendre ses idées\n→ réagir aux relances\n→ gérer une question inattendue\n→ demander une clarification sans perdre ses moyens.\nLe recruteur ne recrute pas votre anglais : il recrute votre capacité à réussir dans le poste.\nComment vous préparer efficacement sans apprendre vos réponses par cœur ?\nNous vous donnons les clés dans notre nouvel article.\n👉 Lire l’article sur notre site : https://languagesandsuccess.com/blog/entretien-embauche-langue-etrangere\n#EntretienAnglais #Recrutement #AnglaisProfessionnel #FormationProfessionnelle #International",
+      "choisi": true
     },
     {
       "angle": "Le chiffre",

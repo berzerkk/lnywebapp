@@ -2,6 +2,8 @@
 // d'image de couverture. Généré le 25/08/2026 (série de 15, rédaction par lot contrôlée :
 // règles maison vérifiées mécaniquement avant création). Pas d'illustrations {{ILLU}} :
 // la couverture est une photo téléversée, remplaçable depuis le brouillon sur le site.
+// 15/09/2026 : post « La question » remplacé par la version rédigée par l'utilisateur et coché « Post à publier ».
+// Cette version fait foi même quand elle sort des règles de posts-li.js (lien dans le corps, par exemple).
 module.exports = {
   "titre": "Intégrer un collaborateur non francophone : le FLE en entreprise",
   "chapo": "Recruté pour ses compétences, freiné par la langue : le cas est fréquent. Le français langue étrangère professionnel offre à l'employeur une réponse concrète, de l'autonomie au poste jusqu'au financement.",
@@ -50,7 +52,8 @@ module.exports = {
   "postsLi": [
     {
       "angle": "La question",
-      "texte": "Vous avez recruté la bonne personne. Et si c'était le français, pas la compétence, qui la freinait ?\n\nC'est une situation que beaucoup d'employeurs connaissent, et le français langue étrangère en entreprise y répond précisément.\n\nUn profil difficile à trouver, des compétences réelles. Et au quotidien : des consignes à reformuler, des réunions subies en silence, des écrits repoussés au lendemain.\n\nLe FLE professionnel ne ressemble pas à un cours de français général. Il part du poste :\n- le vocabulaire du métier\n- les écrits attendus (e-mails, comptes rendus)\n- l'oral des réunions et du téléphone\n- les consignes de sécurité\n- les codes culturels du travail en France\n\nRésultat : un collaborateur autonome, une équipe soulagée, des compétences qui s'expriment enfin.\n\nNotre article complet (autonomie, sécurité, responsabilité de l'employeur, financement) est en commentaire.\n\n#FLE #FormationProfessionnelle #RH #Integration"
+      "texte": "Vous avez recruté la bonne personne. Et si ce n'était pas sa compétence qui faisait défaut, mais la langue qui l'empêchait de l'exprimer pleinement ?\n\nUn ingénieur, un cadre, un responsable commercial ou un collaborateur international peut disposer de toutes les compétences recherchées. Mais lorsque le français devient un obstacle, son potentiel reste parfois en retrait.\n\nC'est une situation que beaucoup d'employeurs connaissent : un profil difficile à trouver, des compétences bien réelles, mais une contribution qui ne reflète pas encore le niveau attendu.\n\nC'est précisément là que le français langue étrangère en entreprise (FLE professionnel) prend tout son sens. Il s'agit de développer le français dont le collaborateur a réellement besoin pour exercer ses responsabilités :\n\n- Présenter un projet, défendre une idée, participer activement à une réunion\n- Rédiger des documents commerciaux ou techniques, des comptes rendus, des mails\n- Échanger avec des clients, partenaires, collègues ou équipes\n- Comprendre et utiliser le vocabulaire propre à son activité\n- Maîtriser les codes culturels et relationnels du travail en France\n\nL'objectif : permettre à chaque collaborateur de communiquer avec davantage d'aisance, de gagner en autonomie et d'exprimer pleinement ses compétences.\n\nPour l'entreprise, c'est aussi moins de malentendus, des échanges plus fluides et une intégration plus efficace de profils internationaux.\n\nFormer au français professionnel, ce n'est pas corriger une faiblesse. C'est donner à une compétence les moyens de s'exprimer.\n\nNotre article complet (autonomie, qualité des échanges, responsabilité de l'employeur et financement) est en commentaire.\n\n#FLE #FormationProfessionnelle #RH #Integration",
+      "choisi": true
     },
     {
       "angle": "Le chiffre",
