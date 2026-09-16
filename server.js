@@ -20,7 +20,7 @@ const crypto = require('crypto');
 const os = require('os');
 const zlib = require('zlib');
 const PDFDocument = require('pdfkit');
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType, Tab, TabStopType, LineRuleType } = require('docx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType, Tab, TabStopType } = require('docx');
 const { rendreDocxPortable } = require('./lib/docx-portable');
 // ⚠️ TOUT .docx sort par là : les réglages que Word applique d'office y sont écrits en toutes lettres,
 // pour qu'Apple Pages affiche le même interlignage (rendu Word inchangé, cf. lib/docx-portable.js)
@@ -601,19 +601,20 @@ function cleanProfile(role, p) {
 // fait avancer SA version de 0,1 ici (1.0 → 1.1 … 1.9 → 2.0), dans le même commit. Une modification
 // d'une partie COMMUNE (en-tête, pied de page, LEGAL_LINES, signature d'Antonin) les fait toutes
 // avancer. Une clé absente vaut 1.0 : ne pas compter sur ce repli, chaque modèle a sa ligne.
+// 1.1 pour tous le 16/09/2026 : pied de page Word refait (sans tableau, numéro de page en bas, comme le PDF)
 const VERSIONS_MODELES = {
-  interactive: '1.0',            // Interactive Worksheet
-  qs_mid: '1.0',                 // Questionnaire de satisfaction en cours de formation
-  qs_end: '1.0',                 // Questionnaire de fin de formation
-  attestation: '1.0',            // Attestation de fin de formation
-  test_mid: '1.0',               // Test de mi-parcours
-  test_end: '1.0',               // Test de fin de formation
-  contrat: '1.1',                // Contrat de sous-traitance (1.1 : « Languages & Success », 16/09/2026)
-  qs_formateur: '1.0',           // Fiche satisfaction formateur
-  leveltest: '1.0',              // Level Test
-  'presence-elearning': '1.0',   // Suivi assiduité e-learning
-  'presence-presentiel': '1.0',  // Feuille de présence présentiel / distanciel
-  'presence-test': '1.0',        // Feuille de présence Test (certification)
+  interactive: '1.1',            // Interactive Worksheet
+  qs_mid: '1.1',                 // Questionnaire de satisfaction en cours de formation
+  qs_end: '1.1',                 // Questionnaire de fin de formation
+  attestation: '1.1',            // Attestation de fin de formation
+  test_mid: '1.1',               // Test de mi-parcours
+  test_end: '1.1',               // Test de fin de formation
+  contrat: '1.2',                // Contrat de sous-traitance (1.1 : « Languages & Success » ; 1.2 : pied de page)
+  qs_formateur: '1.1',           // Fiche satisfaction formateur
+  leveltest: '1.1',              // Level Test
+  'presence-elearning': '1.1',   // Suivi assiduité e-learning
+  'presence-presentiel': '1.1',  // Feuille de présence présentiel / distanciel
+  'presence-test': '1.1',        // Feuille de présence Test (certification)
 };
 function versionModele(tpl) { return VERSIONS_MODELES[tpl] || '1.0'; }
 // pied de page : lignes méta (présentes sur TOUS les documents générés)
@@ -1606,7 +1607,7 @@ function buildWorksheetDocx(w, user, ver) {
     kids.push(dxTable(rows, dxCols([34, 66]))); kids.push(dxGap());
   });
   const hf = docxHeaderFooter(user, ver);
-  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ properties: hf.proprietes, headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 // --- Interactive Worksheet → PDF (tableaux) ---
 function buildWorksheetPdf(w, user, ver) {
@@ -1785,7 +1786,7 @@ function buildTestDocx(title, header, extra, user, ver) {
   const hf = docxHeaderFooter(user, ver);
   // deux colonnes strictement égales, comme le PDF (half = totalW / 2)
   const children = [dxTable(rows, dxCols([1, 1]))].concat(richToDocx(X.libre));
-  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ properties: hf.proprietes, headers: { default: hf.header }, footers: { default: hf.footer }, children }] }));
 }
 // --- Test mi-parcours / fin → PDF (tableau) ---
 function buildTestPdf(title, header, extra, user, ver) {
@@ -1963,7 +1964,7 @@ function buildAttestationDocx(d, user, ver) {
     sigCol([d.apprenant, "L'apprenant"], sigParaAtt(sigAatt))
   ] })] }));
   const hf = docxHeaderFooter(user, ver);
-  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ properties: hf.proprietes, headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 function buildAttestationPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
@@ -2288,7 +2289,7 @@ function buildContratDocx(d, user, ver) {
     else kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: b.before ? CT_AVANT_SAUT : 0, after: b.memeEspaceApres ? Math.max(CT_APRES_PARA, CT_AVANT_SAUT) : (b.after ? 260 : (b.serre ? 0 : CT_APRES_PARA)), line: CT_INTERLIGNE }, children: runs(segs(b, b.p), { bold: b.bold, italics: b.italics }) }));
   });
   const hf = docxHeaderFooter(user, ver);
-  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ properties: hf.proprietes, headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 function buildContratPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
@@ -2448,20 +2449,28 @@ function pdfHeaderFooter(doc, user, ver) {
     doc.font('Helvetica').fontSize(6.5).fillColor('#6f6253').text(legal, doc.page.width - 50 - 320, doc.page.height - 74, { width: 320, align: 'right' });
   }
 }
-// ---- pied de page Word SANS TABLEAU (16/09/2026) -------------------------------------------
+// ---- pied de page Word SANS TABLEAU, calqué sur le PDF (16/09/2026) -------------------------
 // ⚠️ Apple Pages ne prend PAS en charge les tableaux dans un pied de page (page de compatibilité
-// d'Apple) : l'ancien pied, un tableau 40/60, y sortait en vrac. Chaque ligne est désormais UN
-// paragraphe : la mention de gauche, puis une tabulation droite qui cale la ligne légale sur la
-// marge. Le rendu Word est celui de l'ancien tableau (comparé au pixel : corps identique, écarts
-// de moins de 0,25 pt dans le bloc de droite), grâce aux valeurs ci-dessous, relevées dans Word.
-const PIED_LARG_GAUCHE = 179.5;     // pt : largeur utile de l'ancienne colonne gauche (3610 − 2 × 10 twips)
-const PIED_LARG_DROITE = 269.8;     // pt : largeur utile de l'ancienne colonne droite (5416 − 2 × 10 twips)
-const PIED_TAB_DROITE = 9011;       // twips : tabulation droite (fin des lignes légales, calée au pixel sur l'ancien rendu)
+// d'Apple) : l'ancien pied, un tableau 40/60, y sortait en vrac. Chaque ligne est UN paragraphe :
+// la mention de gauche, puis une tabulation droite qui cale la ligne légale sur la marge.
+// ⚠️ Deuxième version, après une capture de Pages : la première gardait le numéro de page (8 pt)
+// sur la ligne de « Numéro RNA… » en forçant la hauteur de la ligne (interligne exact) et en
+// abaissant le numéro de 2 pt. Pages lit ces deux réglages autrement que Word : la barre du
+// « 2 / 5 » remontait au-dessus des chiffres et les lignes légales se tassaient. Désormais le pied
+// suit le PDF et n'emploie plus rien d'autre que des lignes ordinaires : toutes les lignes en 6 pt
+// (le bloc légal tient sur 5 lignes, comme dans le PDF), puis le numéro de page SEUL sur la
+// dernière ligne, en bas à gauche, comme dans le PDF. Ne réintroduire ni interligne exact ni
+// décalage vertical (`position`) dans ce pied.
+const PIED_TAB_DROITE = 9011;       // twips : tabulation droite (fin des lignes légales, calée au pixel sur l'ancien rendu Word)
 const PIED_RETRAIT_G = 10, PIED_RETRAIT_D = 15;   // twips : marges de l'ancienne cellule
-const PIED_LIGNE_6PT = 138;         // twips : hauteur d'une ligne d'Arial 6 pt dans Word (6,9 pt, mesurée)
-// Le tableau repliait lui-même les lignes trop longues (la 4e ligne légale y passe sur deux lignes).
-// Sans tableau, on replie nous-mêmes, à la même largeur : Arial et Helvetica ont les mêmes chasses,
-// donc les mesures de pdfkit valent celles de Word. Coupure après une espace ou un trait d'union.
+const PIED_LARG_UTILE = 450;        // pt : largeur de la ligne entre les deux retraits (9026 − 25 twips)
+const PIED_ECART_MIN = 12;          // pt : écart minimal entre la mention de gauche et la ligne légale
+const PIED_LARG_GAUCHE = 179.5;     // pt : largeur maximale d'une mention de gauche (celle de l'ancienne colonne)
+// hauteurs d'une ligne d'Arial dans Word, mesurées : 6 pt → 6,9 pt, 8 pt → 9,2 pt (en twips)
+const PIED_LIGNE_6PT = 138, PIED_LIGNE_8PT = 184;
+const PIED_DISTANCE = 708;          // twips : distance du pied au bas de la page (valeur par défaut de la bibliothèque)
+// Replier une ligne trop longue : Arial et Helvetica ont les mêmes chasses, les mesures de pdfkit
+// valent donc celles de Word. Coupure après une espace ou un trait d'union.
 let _mesurePied = null;
 function replierPied(texte, largeur, taille) {
   _mesurePied = _mesurePied || new PDFDocument({ autoFirstPage: false });
@@ -2474,39 +2483,46 @@ function replierPied(texte, largeur, taille) {
   if (cour.trim()) lignes.push(cour.trimEnd());
   return lignes.length ? lignes : [''];
 }
+const largeurPied = (s) => { _mesurePied = _mesurePied || new PDFDocument({ autoFirstPage: false }); return _mesurePied.font('Helvetica').fontSize(6).widthOfString(s); };
 function docxFooterFor(user, ver) {
   const couleur = '6F6253';
   const gauche = [].concat(...metaLines(user, ver).map(l => replierPied(l, PIED_LARG_GAUCHE, 6)));
-  const droite = [].concat(...LEGAL_LINES.map(l => replierPied(l, PIED_LARG_DROITE, 6)));
-  // ⚠️ comme dans le PDF, le numéro de page vient APRÈS les lignes de méta (tout en bas à gauche).
-  // Il est en 8 pt : sa ligne serait plus haute que ses voisines et décalerait les lignes légales qui
-  // suivent. Quand une ligne légale l'accompagne, la rangée est donc ramenée à la hauteur d'une ligne
-  // de 6 pt (interligne exact) et le numéro abaissé de 2 pt, exactement là où le tableau le posait.
-  const iNumero = gauche.length;
-  const serre = iNumero < droite.length;
-  const pos = serre ? -4 : undefined;   // demi-points (−2 pt) ; un nombre, pas « -2pt », que tous les logiciels ne lisent pas
-  const numero = [
-    new TextRun({ children: [PageNumber.CURRENT], size: 16, color: couleur, position: pos }),
-    new TextRun({ text: ' / ', size: 16, color: couleur, position: pos }),
-    new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: couleur, position: pos }),
-  ];
+  // les lignes légales prennent toute la place que laisse la plus longue mention de gauche : la
+  // ligne « Numéro RNA… » tient alors d'un seul tenant, comme dans le PDF (un nom de rédacteur très
+  // long la replie, sans jamais la faire chevaucher la mention)
+  const largDroite = PIED_LARG_UTILE - Math.max(0, ...gauche.map(largeurPied)) - PIED_ECART_MIN;
+  const droite = [].concat(...LEGAL_LINES.map(l => replierPied(l, largDroite, 6)));
   const rangees = [];
-  for (let i = 0; i < Math.max(iNumero + 1, droite.length); i++) {
-    const runs = i < iNumero ? [new TextRun({ text: gauche[i], size: 12, color: couleur })] : (i === iNumero ? numero : []);
+  const n = Math.max(gauche.length, droite.length);
+  const ligne = (runs) => new Paragraph({
+    tabStops: [{ type: TabStopType.RIGHT, position: PIED_TAB_DROITE }],
+    indent: { left: PIED_RETRAIT_G, right: PIED_RETRAIT_D },
+    children: runs,
+  });
+  for (let i = 0; i < n; i++) {
+    const runs = gauche[i] !== undefined ? [new TextRun({ text: gauche[i], size: 12, color: couleur })] : [];
     if (droite[i] !== undefined) runs.push(new TextRun({ children: [new Tab(), droite[i]], size: 12, color: couleur }));
-    rangees.push(new Paragraph({
-      tabStops: [{ type: TabStopType.RIGHT, position: PIED_TAB_DROITE }],
-      spacing: i === iNumero && serre ? { line: PIED_LIGNE_6PT, lineRule: LineRuleType.EXACT } : undefined,
-      indent: { left: PIED_RETRAIT_G, right: PIED_RETRAIT_D },
-      children: runs,
-    }));
+    rangees.push(ligne(runs));
   }
-  return new Footer({ children: rangees });
+  // numéro de page : seul, sur la dernière ligne, comme dans le PDF
+  rangees.push(ligne([new TextRun({ children: [PageNumber.CURRENT, ' / ', PageNumber.TOTAL_PAGES], size: 16, color: couleur })]));
+  // ⚠️ La zone de texte du document ne doit pas bouger. Word pousse le bas du texte au-dessus du
+  // pied quand celui-ci dépasse la marge : on garde donc le HAUT du pied là où l'ancien tableau le
+  // mettait (hauteur de sa plus haute colonne), en rapprochant le pied du bas de la page d'autant
+  // que sa hauteur a grandi.
+  const gaucheTableau = [].concat(...metaLines(user, ver).map(l => replierPied(l, PIED_LARG_GAUCHE, 6))).length * PIED_LIGNE_6PT + PIED_LIGNE_8PT;
+  const droiteTableau = [].concat(...LEGAL_LINES.map(l => replierPied(l, 269.8, 6))).length * PIED_LIGNE_6PT;
+  const hauteurTableau = Math.max(gaucheTableau, droiteTableau);
+  const hauteur = n * PIED_LIGNE_6PT + PIED_LIGNE_8PT;
+  const distance = Math.max(0, PIED_DISTANCE - (hauteur - hauteurTableau));
+  return { footer: new Footer({ children: rangees }), distance };
 }
 function docxHeaderFooter(user, ver) {
   let logoRun = null; try { logoRun = new ImageRun({ type: 'png', data: fs.readFileSync(LOGO_PATH), transformation: { width: 44, height: 44 } }); } catch (e) { }
   const header = new Header({ children: [new Paragraph({ children: logoRun ? [logoRun] : [] })] });
-  return { header, footer: docxFooterFor(user, ver) };
+  const pied = docxFooterFor(user, ver);
+  // `proprietes` : à passer à la section de chaque document (distance du pied, cf. ci-dessus)
+  return { header, footer: pied.footer, proprietes: { page: { margin: { footer: pied.distance } } } };
 }
 // regroupe les items : les questions radio consécutives partageant les mêmes options
 // forment une MATRICE (tableau critères × options), comme les Word d'origine.
@@ -2645,7 +2661,7 @@ function buildQsDocx(qs, tpl, user, ver) {
     }
   });
   const hf = docxHeaderFooter(user, ver);
-  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INK } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INK } } } }, sections: [{ properties: hf.proprietes, headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 async function generateQsDoc(qs, format, fromUser) {
   const tpl = QS_TEMPLATES[qs.type];
@@ -2865,7 +2881,7 @@ function buildLevelTestDocx(d, user, ver) {
     kids.push(dxTable(rows, COL_EVAL)); kids.push(dxSpacer());
   });
   const hf = docxHeaderFooter(user, ver);
-  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ properties: hf.proprietes, headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 function buildLevelTestPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
@@ -3051,7 +3067,7 @@ function buildPresenceDocx(type, d, user, ver) {
     kids.push(dxTable(rows, dxCols(PRESENCE_GRID_HEADER.map(c => c[2]))));
   }
   const hf = docxHeaderFooter(user, ver);
-  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ properties: hf.proprietes, headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 app.get('/api/presence', auth, (req, res) => res.json({ templates: PRESENCE_TEMPLATES }));
 app.post('/api/presence/generate', auth, async (req, res) => {
