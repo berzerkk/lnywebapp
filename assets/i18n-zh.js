@@ -542,6 +542,13 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.": "该链接已失效。发送提醒会生成一个新链接，有效期 14 天。",
   "✉️ Envoyer une relance": "✉️ 发送提醒",
   "Relance envoyée": "提醒已发送",
+  /* ---- suivi des envois d'invitation ---- */
+  "Envois de l'invitation": "邀请邮件发送记录",
+  "Création du compte": "创建账户",
+  "Relance": "提醒",
+  "Lien redemandé (mot de passe oublié)": "再次申请链接（忘记密码）",
+  "Aucun envoi enregistré. Le suivi existe depuis le 16/09/2026 : les envois plus anciens n'ont laissé aucune trace consultable.": "没有发送记录。发送跟踪自 16/09/2026 起启用：更早的发送没有留下可供查询的记录。",
+  "« Accepté » veut dire que notre serveur d'envoi a pris le message en charge. Sa remise dans la boîte de la personne dépend ensuite de sa messagerie : si rien n'arrive, elle doit regarder ses courriers indésirables, et en entreprise son service informatique peut retrouver le message en quarantaine.": "“已接受”表示我们的邮件服务器已接收并处理该邮件。之后能否送达对方的收件箱取决于其邮件服务：如果没有收到，请让对方查看垃圾邮件文件夹；在企业中，IT 部门可以在隔离区中找到该邮件。",
   "Connexions (saisies du mot de passe)": "登录记录（输入密码）",
   "Aucune activité enregistrée depuis la mise en service de ce suivi.": "自该记录功能启用以来，暂无活动。",
   "Compte jamais activé : la personne n'a pas encore choisi son mot de passe.": "账户从未激活：用户尚未设置密码。",

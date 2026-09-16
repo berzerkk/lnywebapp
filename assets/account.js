@@ -371,7 +371,8 @@
     // chacun voit d'abord « les autres » : l'apprenant voit ses formateurs, le formateur son apprenant
     if (ME.role === 'eleve') return nameList(P) || 'Dossier';
     var t = e ? fullName(e) : 'Dossier';
-    return ME.role === 'admin' ? (t + ' · ' + (nameList(P) || '—')) : t;
+    // l'administration lit ses dossiers par formateur : formateur(s) d'abord, puis l'apprenant (16/09/2026)
+    return ME.role === 'admin' ? ((nameList(P) || '—') + ' · ' + t) : t;
   }
   function membersChips(g) {
     // la bulle mise en couleur est celle du COMPTE CONNECTÉ (avant, c'était toujours
@@ -1275,11 +1276,27 @@
     var mo = Math.round(j / 30.4);
     return mo + ' mois';
   }
-  function depuis(ts) { return ts ? 'il y a ' + duree(Date.now() - ts) : ''; }
+  // moins d'une minute : « à l'instant » tout court (et non « il y a à l'instant »)
+  function depuis(ts) { if (!ts) return ''; var d = duree(Date.now() - ts); return /^à l/.test(d) ? d : 'il y a ' + d; }
 
   // ---- admin : compte en attente d'activation ------------------------------
   // Répond à une seule question : depuis quand cette personne n'a-t-elle pas choisi son mot de
   // passe, et comment la relancer.
+  // Sort RÉEL de chaque invitation, tel que le serveur d'envoi l'a répondu (suivi ajouté le 16/09/2026).
+  // « Accepté » = pris en charge par OVH, pas « arrivé dans la boîte » : la note le dit.
+  var TYPE_ENVOI = { creation: 'Création du compte', relance: 'Relance', oubli: 'Lien redemandé (mot de passe oublié)' };
+  var ETAT_ENVOI = { accepte: 'accepté par le serveur d’envoi', refuse: 'refusé par le serveur d’envoi', en_cours: 'envoi en cours', desactive: 'non envoyé : e-mails désactivés sur le serveur', ignore: 'non envoyé : adresse de démonstration' };
+  function envoisHTML(envois) {
+    var h = '<h4 class="gen-h pend-h">Envois de l’invitation</h4>';
+    if (!envois.length) return h + '<p class="chan-note" style="margin:0">Aucun envoi enregistré. Le suivi existe depuis le 16/09/2026 : les envois plus anciens n’ont laissé aucune trace consultable.</p>';
+    return h + '<ul class="pend-list">' + envois.slice().reverse().map(function (e) {
+      var ok = e.etat === 'accepte' || e.etat === 'en_cours';
+      var detail = e.etat === 'accepte' ? e.reponse : e.erreur;
+      return '<li><span>' + esc(TYPE_ENVOI[e.type] || 'Envoi') + '</span><b' + (ok ? '' : ' class="pend-alerte"') + '>' + esc(fmtDate(e.date) + ' — ' + (ETAT_ENVOI[e.etat] || e.etat)) +
+        (detail ? '<small class="pend-detail">' + esc(detail) + '</small>' : '') + '</b></li>';
+    }).join('') + '</ul>' +
+      '<p class="chan-note" style="margin:10px 0 0">« Accepté » veut dire que notre serveur d’envoi a pris le message en charge. Sa remise dans la boîte de la personne dépend ensuite de sa messagerie : si rien n’arrive, elle doit regarder ses courriers indésirables, et en entreprise son service informatique peut retrouver le message en quarantaine.</p>';
+  }
   function openPendingModal(u) {
     var expire = u.invitationExpire || 0;
     var perime = expire && expire < Date.now();
@@ -1293,7 +1310,8 @@
       ligne(perime ? 'Lien expiré' : 'Lien encore valable', expire ? (perime ? depuis(expire) : 'pendant ' + duree(expire - Date.now())) : 'durée inconnue', perime) +
       ligne('Relances envoyées', String(u.relances || 0) + (u.derniereRelance ? ' — dernière ' + depuis(u.derniereRelance) : '')) +
       '</ul>' +
-      (perime ? '<p class="chan-note" style="margin:14px 0 0">Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.</p>' : '');
+      (perime ? '<p class="chan-note" style="margin:14px 0 0">Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.</p>' : '') +
+      envoisHTML(u.envois || []);
     var m = buildFsModal('pend-modal', 'Compte en attente — ' + fullName(u), corps,
       '<p class="fe-err auth-err" id="pend-err" style="margin:0 12px 0 0"></p>' +
       '<button class="btn btn-primary pend-relance" type="button" style="padding:11px 22px">✉️ Envoyer une relance</button>');

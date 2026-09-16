@@ -541,6 +541,13 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.": "El enlace ya no funciona. Un recordatorio genera uno nuevo, válido durante 14 días.",
   "✉️ Envoyer une relance": "✉️ Enviar un recordatorio",
   "Relance envoyée": "Recordatorio enviado",
+  /* ---- suivi des envois d'invitation ---- */
+  "Envois de l'invitation": "Envíos de la invitación",
+  "Création du compte": "Creación de la cuenta",
+  "Relance": "Recordatorio",
+  "Lien redemandé (mot de passe oublié)": "Enlace solicitado de nuevo (contraseña olvidada)",
+  "Aucun envoi enregistré. Le suivi existe depuis le 16/09/2026 : les envois plus anciens n'ont laissé aucune trace consultable.": "No hay ningún envío registrado. El seguimiento existe desde el 16/09/2026: los envíos anteriores no dejaron ningún rastro consultable.",
+  "« Accepté » veut dire que notre serveur d'envoi a pris le message en charge. Sa remise dans la boîte de la personne dépend ensuite de sa messagerie : si rien n'arrive, elle doit regarder ses courriers indésirables, et en entreprise son service informatique peut retrouver le message en quarantaine.": "«Aceptado» significa que nuestro servidor de correo se ha hecho cargo del mensaje. Que llegue después al buzón de la persona depende de su servicio de correo: si no llega nada, debe revisar su carpeta de correo no deseado y, en una empresa, su departamento de informática puede encontrar el mensaje en cuarentena.",
   "Connexions (saisies du mot de passe)": "Conexiones (contraseña introducida)",
   "Aucune activité enregistrée depuis la mise en service de ce suivi.": "Ninguna actividad registrada desde la puesta en marcha de este seguimiento.",
   "Compte jamais activé : la personne n'a pas encore choisi son mot de passe.": "Cuenta nunca activada: la persona todavía no ha elegido su contraseña.",

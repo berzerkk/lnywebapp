@@ -541,6 +541,13 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.": "Ссылка больше не работает. Напоминание создаст новую, действительную 14 дней.",
   "✉️ Envoyer une relance": "✉️ Отправить напоминание",
   "Relance envoyée": "Напоминание отправлено",
+  /* ---- suivi des envois d'invitation ---- */
+  "Envois de l'invitation": "Отправка приглашения",
+  "Création du compte": "Создание аккаунта",
+  "Relance": "Напоминание",
+  "Lien redemandé (mot de passe oublié)": "Ссылка запрошена повторно (забытый пароль)",
+  "Aucun envoi enregistré. Le suivi existe depuis le 16/09/2026 : les envois plus anciens n'ont laissé aucune trace consultable.": "Отправки не зарегистрированы. Отслеживание ведётся с 16/09/2026: более ранние отправки не оставили следов, которые можно проверить.",
+  "« Accepté » veut dire que notre serveur d'envoi a pris le message en charge. Sa remise dans la boîte de la personne dépend ensuite de sa messagerie : si rien n'arrive, elle doit regarder ses courriers indésirables, et en entreprise son service informatique peut retrouver le message en quarantaine.": "«Принято» означает, что наш почтовый сервер взял сообщение в обработку. Дойдёт ли оно до ящика получателя, зависит от его почтовой службы: если письмо не пришло, нужно проверить папку «Спам», а в компании ИТ-отдел может найти сообщение в карантине.",
   "Connexions (saisies du mot de passe)": "Входы (с вводом пароля)",
   "Aucune activité enregistrée depuis la mise en service de ce suivi.": "С момента включения этого учёта активность не зафиксирована.",
   "Compte jamais activé : la personne n'a pas encore choisi son mot de passe.": "Аккаунт ни разу не активирован: человек ещё не выбрал пароль.",

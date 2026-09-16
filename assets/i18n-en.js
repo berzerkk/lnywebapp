@@ -563,6 +563,13 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.": "The link no longer works. A reminder generates a new one, valid for 14 days.",
   "✉️ Envoyer une relance": "✉️ Send a reminder",
   "Relance envoyée": "Reminder sent",
+  /* ---- suivi des envois d'invitation ---- */
+  "Envois de l'invitation": "Invitation e-mails",
+  "Création du compte": "Account creation",
+  "Relance": "Reminder",
+  "Lien redemandé (mot de passe oublié)": "Link requested again (forgotten password)",
+  "Aucun envoi enregistré. Le suivi existe depuis le 16/09/2026 : les envois plus anciens n'ont laissé aucune trace consultable.": "No sending recorded. Tracking has existed since 16/09/2026: older e-mails left no trace that can be checked.",
+  "« Accepté » veut dire que notre serveur d'envoi a pris le message en charge. Sa remise dans la boîte de la personne dépend ensuite de sa messagerie : si rien n'arrive, elle doit regarder ses courriers indésirables, et en entreprise son service informatique peut retrouver le message en quarantaine.": "“Accepted” means that our mail server has taken charge of the message. Whether it then reaches the person's inbox depends on their mail service: if nothing arrives, they should check their junk folder, and in a company their IT department can find the message in quarantine.",
   "Connexions (saisies du mot de passe)": "Sign-ins (password entered)",
   "Aucune activité enregistrée depuis la mise en service de ce suivi.": "No activity recorded since this tracking was introduced.",
   "Compte jamais activé : la personne n'a pas encore choisi son mot de passe.": "Account never activated: the person has not chosen their password yet.",

@@ -780,6 +780,9 @@ footer a:hover{color:#fff8ef}
 .pend-list span{color:var(--ink-soft);font-size:13.5px}
 .pend-list b{font-size:14px;text-align:right}
 .pend-alerte{color:#a8331f}
+/* sort réel de chaque invitation (fenêtre « En attente ») */
+.gen-h.pend-h{margin:20px 0 4px}
+.pend-detail{display:block;margin-top:3px;font-weight:400;font-size:11.5px;line-height:1.4;color:var(--ink-soft);overflow-wrap:anywhere}
 /* rappel de la dernière activité, en tête de l'historique des connexions */
 .lg-seen{margin:0 0 14px;padding:11px 13px;border-radius:11px;background:var(--bg);border:1px solid var(--line);font-size:13.5px;line-height:1.5}
 .lg-seen small{color:var(--ink-soft)}

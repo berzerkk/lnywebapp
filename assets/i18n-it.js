@@ -541,6 +541,13 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Le lien ne fonctionne plus. Une relance en génère un nouveau, valable 14 jours.": "Il link non funziona più. Un sollecito ne genera uno nuovo, valido 14 giorni.",
   "✉️ Envoyer une relance": "✉️ Invia un sollecito",
   "Relance envoyée": "Sollecito inviato",
+  /* ---- suivi des envois d'invitation ---- */
+  "Envois de l'invitation": "Invii dell'invito",
+  "Création du compte": "Creazione dell'account",
+  "Relance": "Sollecito",
+  "Lien redemandé (mot de passe oublié)": "Link richiesto di nuovo (password dimenticata)",
+  "Aucun envoi enregistré. Le suivi existe depuis le 16/09/2026 : les envois plus anciens n'ont laissé aucune trace consultable.": "Nessun invio registrato. Il monitoraggio esiste dal 16/09/2026: gli invii precedenti non hanno lasciato alcuna traccia consultabile.",
+  "« Accepté » veut dire que notre serveur d'envoi a pris le message en charge. Sa remise dans la boîte de la personne dépend ensuite de sa messagerie : si rien n'arrive, elle doit regarder ses courriers indésirables, et en entreprise son service informatique peut retrouver le message en quarantaine.": "«Accettato» significa che il nostro server di posta ha preso in carico il messaggio. Che arrivi poi nella casella della persona dipende dal suo servizio di posta: se non arriva nulla, deve controllare la cartella della posta indesiderata e, in azienda, il servizio informatico può ritrovare il messaggio in quarantena.",
   "Connexions (saisies du mot de passe)": "Accessi (password inserita)",
   "Aucune activité enregistrée depuis la mise en service de ce suivi.": "Nessuna attività registrata dall'attivazione di questo monitoraggio.",
   "Compte jamais activé : la personne n'a pas encore choisi son mot de passe.": "Account mai attivato: la persona non ha ancora scelto la sua password.",

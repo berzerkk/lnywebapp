@@ -266,14 +266,23 @@ function composerMail(to, subject, text, html, opts) {
 }
 // opts.replyTo (facultatif) : utilisé par le formulaire de contact pour qu'un simple « Répondre »
 // parte chez le visiteur, l'expéditeur nepasrepondre@ ne recevant rien.
+// opts.suivi (facultatif) : reçoit la RÉPONSE RÉELLE du serveur d'envoi ({etat, reponse|erreur}),
+// pour les envois dont l'administration doit pouvoir vérifier le sort (invitations).
 function sendMailSafe(to, subject, text, html, opts) {
-  if (!mailer || !to || !/@/.test(to)) return;
-  if (/@ls\.fr$/i.test(to)) return; // adresses fictives des comptes démo — jamais d'envoi réel
+  const suivi = (opts && typeof opts.suivi === 'function') ? opts.suivi : () => {};
+  if (!mailer) return suivi({ etat: 'desactive', erreur: 'e-mails désactivés sur le serveur (aucune configuration SMTP)' });
+  if (!to || !/@/.test(to)) return suivi({ etat: 'refuse', erreur: 'adresse invalide' });
+  if (/@ls\.fr$/i.test(to)) return suivi({ etat: 'ignore', erreur: 'adresse de démonstration, jamais d\'envoi réel' }); // comptes démo
   const msg = composerMail(to, subject, text, html, opts);
   if (opts && opts.replyTo && /@/.test(opts.replyTo)) msg.replyTo = opts.replyTo;
-  mailer.sendMail(msg, (err) => {
-    if (err) console.error('✉ échec envoi à ' + to + ' :', err.message);
-    else console.log('✉ mail envoyé à ' + to + ' — ' + subject);
+  mailer.sendMail(msg, (err, info) => {
+    if (err) { console.error('✉ échec envoi à ' + to + ' :', err.message); return suivi({ etat: 'refuse', erreur: String(err.message || err).slice(0, 300) }); }
+    console.log('✉ mail envoyé à ' + to + ' — ' + subject);
+    // le serveur peut accepter la connexion et refuser le destinataire : c'est un refus
+    const rejete = info && Array.isArray(info.rejected) && info.rejected.length;
+    suivi(rejete
+      ? { etat: 'refuse', erreur: 'destinataire refusé : ' + String(info.response || '').slice(0, 300) }
+      : { etat: 'accepte', reponse: String((info && info.response) || '').slice(0, 300) });
   });
 }
 // gabarit HTML : carte type « modal » (fond crème du site, case claire arrondie),
@@ -739,21 +748,36 @@ app.post('/api/admin/users', auth, async (req, res) => {
     dateCreation: Date.now(), relances: 0
   };
   db.users.push(user); save();
-  sendActivationMail(user, req.user);
+  sendActivationMail(user, req.user, 'creation');
   res.json({ ok: true, user: pubFull(user) });
 });
 // lien d'activation : jeton aléatoire, à usage unique, valable 14 jours
 function newActivation() { return { token: crypto.randomBytes(32).toString('hex'), envoyeLe: Date.now(), exp: Date.now() + 14 * 24 * 60 * 60 * 1000 }; }
-function sendActivationMail(user, byUser) {
+// ⚠️ HISTORIQUE DES ENVOIS D'INVITATION (16/09/2026) : des apprenants n'ont rien reçu à la création
+// de leur compte, et le site ne gardait AUCUNE trace de ce que le serveur d'envoi avait répondu
+// (tout partait dans le journal du conteneur). Chaque envoi est désormais noté sur le compte,
+// avec la réponse réelle d'OVH, et affiché dans la fenêtre « En attente ». ⚠️ « accepte » veut dire
+// « pris en charge par le serveur d'envoi », PAS « arrivé dans la boîte » : la messagerie du
+// destinataire peut encore le classer en indésirable ou le mettre en quarantaine.
+// Le champ vit au premier niveau du compte (et non dans `activation`, supprimé à l'activation).
+function noterEnvoi(user, type) {
+  const e = { date: Date.now(), type, etat: 'en_cours' };
+  user.envois = (user.envois || []).concat([e]).slice(-10);
+  return (res) => { Object.assign(e, res, { fin: Date.now() }); save(); };
+}
+// type : 'creation' | 'relance' | 'oubli' (lien d'activation redemandé par « Mot de passe oublié »)
+function sendActivationMail(user, byUser, type) {
   const url = SITE_URL + '/espace-documents.html#activation=' + user.activation.token;
   const par = byUser ? (' par ' + senderDisplay(byUser)) : '';
+  const suivi = noterEnvoi(user, type || 'relance');
   sendMailSafe(user.email,
     'Votre compte espace documents est prêt — Languages & Success',
     'Bonjour ' + user.prenom + ',\n\nUn compte vient d\'être créé pour vous' + par + ' sur l\'espace documents Languages & Success.\nIdentifiant : ' + user.email + '\n\nChoisissez votre mot de passe (lien valable 14 jours) :\n' + url + '\n\nCe lien est personnel : ne le transmettez à personne.\n\nLanguages & Success',
     mailHtml('Votre compte est prêt ✓',
       ['Bonjour ' + user.prenom + ',', 'Un compte vient d\'être créé pour vous' + par + ' sur l\'espace documents Languages & Success.',
        'Identifiant : ' + user.email, 'Il ne reste qu\'à choisir votre mot de passe. Ce lien est personnel et valable 14 jours.'],
-      'Choisir mon mot de passe', url));
+      'Choisir mon mot de passe', url),
+    { suivi });
 }
 const activationOf = (t) => db.users.find(u => u.activation && u.activation.token === t && u.activation.exp > Date.now());
 // vérifie le lien avant d'afficher le formulaire (nom affiché, pas de fuite d'information)
@@ -831,7 +855,7 @@ app.post('/api/password-reset/request', (req, res) => {
     // poser deux jetons de natures différentes. Son invitation n'est pas écrasée pour autant.
     if (u.mustActivate) {
       if (!u.activation || u.activation.exp < Date.now()) u.activation = newActivation();
-      sendActivationMail(u, null);
+      sendActivationMail(u, null, 'oubli');
     } else {
       u.reset = { token: crypto.randomBytes(32).toString('hex'), exp: Date.now() + RESET_DUREE };
       const url = SITE_URL + '/espace-documents.html#reinit=' + u.reset.token;
@@ -880,7 +904,7 @@ app.post('/api/admin/users/:id/reinvite', auth, (req, res) => {
   u.relances = (u.relances || 0) + 1;
   u.derniereRelance = Date.now();
   save();
-  sendActivationMail(u, req.user);
+  sendActivationMail(u, req.user, 'relance');
   res.json({ ok: true });
 });
 // IP réelle du visiteur (derrière le tunnel Cloudflare en prod, direct en local)
@@ -957,13 +981,48 @@ app.get('/api/users', auth, (req, res) => {
 
 // ---- dossiers --------------------------------------------------------------
 app.get('/api/groups', auth, (req, res) => {
-  res.json({ groups: groupsForUser(req.user).sort((a, b) => b.date - a.date).map(g => groupView(g, req.user)) });
+  const liste = groupsForUser(req.user);
+  // l'administration lit ses dossiers dans le même ordre que la vue globale (par formateur)
+  const tries = req.user.role === 'admin' ? ordreAdmin().trierGroupes(liste) : liste.sort((a, b) => b.date - a.date);
+  res.json({ groups: tries.map(g => groupView(g, req.user)) });
 });
 // libellé « Prénom Nom (Formateur) + … » utilisé dans les notifications et la vue admin
+// ⚠️ FORMATEUR(S) D'ABORD, puis l'apprenant (16/09/2026, demande de l'utilisateur : la vue globale
+// se lit par formateur ; avant, l'apprenant venait en premier).
 const membersLabel = (g) => [
-  ...(g && g.eleve ? [`${fullName(g.eleve)} (Apprenant)`] : []),
-  ...gProfs(g).map(id => `${fullName(id)} (Formateur)`)
+  ...gProfs(g).map(id => `${fullName(id)} (Formateur)`),
+  ...(g && g.eleve ? [`${fullName(g.eleve)} (Apprenant)`] : [])
 ].join(' + ') || '(dossier vide)';
+// ---- ordre de lecture de l'administration (16/09/2026) --------------------------------------
+// Les dossiers sont regroupés PAR FORMATEUR, dans l'ordre de création des comptes formateurs
+// (celui de la liste des comptes : le plus ancien d'abord), puis du plus récent au plus ancien
+// dans chaque groupe. Un dossier à plusieurs formateurs se range sous CELUI QUI OUVRE SON LIBELLÉ
+// (le premier de sa liste, triée par nom) : on le trouve là où son nom l'annonce. Les comptes suivent
+// le même fil : l'administration, puis chaque formateur suivi des apprenants de ses dossiers, puis
+// ce qui reste (apprenant sans dossier…).
+function ordreAdmin() {
+  const rang = new Map();
+  db.users.filter(u => u.role === 'prof').forEach((u, i) => rang.set(u.id, i));
+  const premierProf = (g) => gProfs(g).find(id => rang.has(id)) || null;
+  const rangDe = (g) => { const p = premierProf(g); return p === null ? Infinity : rang.get(p); };
+  const trierGroupes = (liste) => liste.slice().sort((a, b) => {
+    const ra = rangDe(a), rb = rangDe(b);
+    return ra !== rb ? (ra < rb ? -1 : 1) : (b.date - a.date);
+  });
+  const trierComptes = (liste) => {
+    const vus = new Set(), out = [];
+    const ajouter = (u) => { if (u && !vus.has(u.id)) { vus.add(u.id); out.push(u); } };
+    const groupes = trierGroupes(db.groups);
+    liste.filter(u => u.role === 'admin').forEach(ajouter);
+    liste.filter(u => u.role === 'prof').forEach(p => {
+      ajouter(p);
+      groupes.filter(g => premierProf(g) === p.id).forEach(g => ajouter(liste.find(u => u.id === g.eleve)));
+    });
+    liste.forEach(ajouter);
+    return out;
+  };
+  return { trierGroupes, trierComptes };
+}
 // Un dossier peut compter plusieurs formateurs : on désigne celui que le document concerne.
 // Par défaut, un formateur qui génère un document le fait EN SON NOM.
 function targetProf(g, id, user) {
@@ -1287,7 +1346,8 @@ app.post('/api/notifications/clear-group', auth, (req, res) => {
 // ---- vue admin globale (centralisée) ---------------------------------------
 app.get('/api/admin/overview', auth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
-  const groups = db.groups.slice().sort((a, b) => b.date - a.date).map(g => ({
+  const ordre = ordreAdmin();
+  const groups = ordre.trierGroupes(db.groups).map(g => ({
     id: g.id, label: membersLabel(g),
     profs: gProfs(g).map(id => ({ id, name: fullName(id) })),
     eleve: g.eleve ? { id: g.eleve, name: fullName(g.eleve) } : null,
@@ -1295,7 +1355,7 @@ app.get('/api/admin/overview', auth, (req, res) => {
   }));
   const docs = db.docs.slice().sort((a, b) => b.date - a.date).map(d => { const g = groupById(d.group); return Object.assign(docPub(d), { groupLabel: g ? membersLabel(g) : '—' }); });
   // `pending` = compte créé mais mot de passe pas encore choisi (jamais le jeton lui-même)
-  const users = db.users.map(u => Object.assign(pubFull(u), {
+  const users = ordre.trierComptes(db.users).map(u => Object.assign(pubFull(u), {
     pending: !!u.mustActivate,
     // ⚠️ JAMAIS le jeton lui-même : seulement des dates.
     dateCreation: u.dateCreation || (u.activation && u.activation.exp ? u.activation.exp - 14 * 24 * 60 * 60 * 1000 : null),
@@ -1303,6 +1363,8 @@ app.get('/api/admin/overview', auth, (req, res) => {
     invitationExpire: (u.activation && u.activation.exp) || null,
     relances: u.relances || 0,
     derniereRelance: u.derniereRelance || null,
+    // sort réel des invitations envoyées (réponse du serveur d'envoi), jamais le lien lui-même
+    envois: (u.envois || []).map(e => ({ date: e.date, type: e.type, etat: e.etat, reponse: e.reponse || null, erreur: e.erreur || null })),
     lastSeen: u.lastSeen || null
   }));
   res.json({ users, groups, docs });
