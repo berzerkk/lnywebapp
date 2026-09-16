@@ -21,6 +21,10 @@ const os = require('os');
 const zlib = require('zlib');
 const PDFDocument = require('pdfkit');
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType, Tab } = require('docx');
+const { rendreDocxPortable } = require('./lib/docx-portable');
+// ⚠️ TOUT .docx sort par là : les réglages que Word applique d'office y sont écrits en toutes lettres,
+// pour qu'Apple Pages affiche le même interlignage (rendu Word inchangé, cf. lib/docx-portable.js)
+const docxPortable = (doc) => Packer.toBuffer(doc).then(rendreDocxPortable);
 const LOGO_PATH = path.join(__dirname, 'assets', 'ls-logo.png');
 const QUALIOPI_CERT = 'CERT_S0226_0162';   // numéro du certificat QUALIOPI (mis à jour le 27/07/2026)
 // tableau Word sans aucune bordure (mise en page en colonnes : pied de page, signatures…)
@@ -674,6 +678,7 @@ app.use(express.json({ limit: '2mb' })); // marge pour les signatures (data URL 
 const PRIVE = [
   /^\/(data|node_modules)(\/|$)/,                                  // base, fichiers déposés, dépendances
   /^\/(server|process-logos)\.js$/,                                // code serveur et outils de build
+  /^\/lib(\/|$)/,                                                  // modules du serveur
   /^\/package(-lock)?\.json$/,
   /^\/blog\/(outils|articles-sources)(\/|$)/,                      // outillage : identifiants en clair
   /^\/blog\/(posts-linkedin\.js|sujets\.md)$/,                     // notes internes
@@ -1539,7 +1544,7 @@ function buildWorksheetDocx(w, user, ver) {
     kids.push(dxTable(rows, dxCols([34, 66]))); kids.push(dxGap());
   });
   const hf = docxHeaderFooter(user, ver);
-  return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 // --- Interactive Worksheet → PDF (tableaux) ---
 function buildWorksheetPdf(w, user, ver) {
@@ -1718,7 +1723,7 @@ function buildTestDocx(title, header, extra, user, ver) {
   const hf = docxHeaderFooter(user, ver);
   // deux colonnes strictement égales, comme le PDF (half = totalW / 2)
   const children = [dxTable(rows, dxCols([1, 1]))].concat(richToDocx(X.libre));
-  return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children }] }));
 }
 // --- Test mi-parcours / fin → PDF (tableau) ---
 function buildTestPdf(title, header, extra, user, ver) {
@@ -1896,7 +1901,7 @@ function buildAttestationDocx(d, user, ver) {
     sigCol([d.apprenant, "L'apprenant"], sigParaAtt(sigAatt))
   ] })] }));
   const hf = docxHeaderFooter(user, ver);
-  return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 function buildAttestationPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
@@ -2219,7 +2224,7 @@ function buildContratDocx(d, user, ver) {
     else kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: b.before ? CT_AVANT_SAUT : 0, after: b.memeEspaceApres ? Math.max(CT_APRES_PARA, CT_AVANT_SAUT) : (b.after ? 260 : (b.serre ? 0 : CT_APRES_PARA)), line: CT_INTERLIGNE }, children: runs(segs(b, b.p), { bold: b.bold, italics: b.italics }) }));
   });
   const hf = docxHeaderFooter(user, ver);
-  return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 function buildContratPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
@@ -2533,7 +2538,7 @@ function buildQsDocx(qs, tpl, user, ver) {
     }
   });
   const hf = docxHeaderFooter(user, ver);
-  return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INK } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 20, color: INK } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 async function generateQsDoc(qs, format, fromUser) {
   const tpl = QS_TEMPLATES[qs.type];
@@ -2753,7 +2758,7 @@ function buildLevelTestDocx(d, user, ver) {
     kids.push(dxTable(rows, COL_EVAL)); kids.push(dxSpacer());
   });
   const hf = docxHeaderFooter(user, ver);
-  return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 function buildLevelTestPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
@@ -2939,7 +2944,7 @@ function buildPresenceDocx(type, d, user, ver) {
     kids.push(dxTable(rows, dxCols(PRESENCE_GRID_HEADER.map(c => c[2]))));
   }
   const hf = docxHeaderFooter(user, ver);
-  return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
+  return docxPortable(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
 }
 app.get('/api/presence', auth, (req, res) => res.json({ templates: PRESENCE_TEMPLATES }));
 app.post('/api/presence/generate', auth, async (req, res) => {
