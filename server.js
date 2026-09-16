@@ -20,7 +20,7 @@ const crypto = require('crypto');
 const os = require('os');
 const zlib = require('zlib');
 const PDFDocument = require('pdfkit');
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType, Tab } = require('docx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType, Tab, TabStopType, LineRuleType } = require('docx');
 const { rendreDocxPortable } = require('./lib/docx-portable');
 // ⚠️ TOUT .docx sort par là : les réglages que Word applique d'office y sont écrits en toutes lettres,
 // pour qu'Apple Pages affiche le même interlignage (rendu Word inchangé, cf. lib/docx-portable.js)
@@ -2386,17 +2386,60 @@ function pdfHeaderFooter(doc, user, ver) {
     doc.font('Helvetica').fontSize(6.5).fillColor('#6f6253').text(legal, doc.page.width - 50 - 320, doc.page.height - 74, { width: 320, align: 'right' });
   }
 }
+// ---- pied de page Word SANS TABLEAU (16/09/2026) -------------------------------------------
+// ⚠️ Apple Pages ne prend PAS en charge les tableaux dans un pied de page (page de compatibilité
+// d'Apple) : l'ancien pied, un tableau 40/60, y sortait en vrac. Chaque ligne est désormais UN
+// paragraphe : la mention de gauche, puis une tabulation droite qui cale la ligne légale sur la
+// marge. Le rendu Word est celui de l'ancien tableau (comparé au pixel : corps identique, écarts
+// de moins de 0,25 pt dans le bloc de droite), grâce aux valeurs ci-dessous, relevées dans Word.
+const PIED_LARG_GAUCHE = 179.5;     // pt : largeur utile de l'ancienne colonne gauche (3610 − 2 × 10 twips)
+const PIED_LARG_DROITE = 269.8;     // pt : largeur utile de l'ancienne colonne droite (5416 − 2 × 10 twips)
+const PIED_TAB_DROITE = 9011;       // twips : tabulation droite (fin des lignes légales, calée au pixel sur l'ancien rendu)
+const PIED_RETRAIT_G = 10, PIED_RETRAIT_D = 15;   // twips : marges de l'ancienne cellule
+const PIED_LIGNE_6PT = 138;         // twips : hauteur d'une ligne d'Arial 6 pt dans Word (6,9 pt, mesurée)
+// Le tableau repliait lui-même les lignes trop longues (la 4e ligne légale y passe sur deux lignes).
+// Sans tableau, on replie nous-mêmes, à la même largeur : Arial et Helvetica ont les mêmes chasses,
+// donc les mesures de pdfkit valent celles de Word. Coupure après une espace ou un trait d'union.
+let _mesurePied = null;
+function replierPied(texte, largeur, taille) {
+  _mesurePied = _mesurePied || new PDFDocument({ autoFirstPage: false });
+  const larg = (s) => _mesurePied.font('Helvetica').fontSize(taille).widthOfString(s.trimEnd());
+  const lignes = []; let cour = '';
+  for (const mot of String(texte).match(/[^ -]*-+ *|[^ -]+ *| +/g) || []) {
+    if (cour && larg(cour + mot) > largeur) { lignes.push(cour.trimEnd()); cour = mot.trimStart(); }
+    else cour += mot;
+  }
+  if (cour.trim()) lignes.push(cour.trimEnd());
+  return lignes.length ? lignes : [''];
+}
 function docxFooterFor(user, ver) {
-  const NB = { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } };
-  // ⚠️ comme dans le PDF, le numéro de page vient APRÈS les lignes de méta (tout en bas à gauche)
-  const leftChildren = metaLines(user, ver).map(l => new Paragraph({ children: [new TextRun({ text: l, size: 12, color: '6F6253' })] }))
-    .concat([new Paragraph({ children: [new TextRun({ children: [PageNumber.CURRENT, ' / ', PageNumber.TOTAL_PAGES], size: 16, color: '6F6253' })] })]);
-  // ⚠️ grille FIXE : sans elle Word ignore le 40/60 et coupe le pied en deux moitiés égales,
-  // ce qui replie le bloc légal sur trois lignes de plus que dans le PDF.
-  return new Footer({ children: [new Table({ layout: TableLayoutType.FIXED, columnWidths: [3610, 5416], width: { size: 9026, type: WidthType.DXA }, borders: NB, rows: [new TableRow({ children: [
-    new TableCell({ width: { size: 3610, type: WidthType.DXA }, borders: NB, children: leftChildren }),
-    new TableCell({ width: { size: 5416, type: WidthType.DXA }, borders: NB, children: LEGAL_LINES.map(l => new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: l, size: 12, color: '6F6253' })] })) })
-  ] })] })] });
+  const couleur = '6F6253';
+  const gauche = [].concat(...metaLines(user, ver).map(l => replierPied(l, PIED_LARG_GAUCHE, 6)));
+  const droite = [].concat(...LEGAL_LINES.map(l => replierPied(l, PIED_LARG_DROITE, 6)));
+  // ⚠️ comme dans le PDF, le numéro de page vient APRÈS les lignes de méta (tout en bas à gauche).
+  // Il est en 8 pt : sa ligne serait plus haute que ses voisines et décalerait les lignes légales qui
+  // suivent. Quand une ligne légale l'accompagne, la rangée est donc ramenée à la hauteur d'une ligne
+  // de 6 pt (interligne exact) et le numéro abaissé de 2 pt, exactement là où le tableau le posait.
+  const iNumero = gauche.length;
+  const serre = iNumero < droite.length;
+  const pos = serre ? -4 : undefined;   // demi-points (−2 pt) ; un nombre, pas « -2pt », que tous les logiciels ne lisent pas
+  const numero = [
+    new TextRun({ children: [PageNumber.CURRENT], size: 16, color: couleur, position: pos }),
+    new TextRun({ text: ' / ', size: 16, color: couleur, position: pos }),
+    new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: couleur, position: pos }),
+  ];
+  const rangees = [];
+  for (let i = 0; i < Math.max(iNumero + 1, droite.length); i++) {
+    const runs = i < iNumero ? [new TextRun({ text: gauche[i], size: 12, color: couleur })] : (i === iNumero ? numero : []);
+    if (droite[i] !== undefined) runs.push(new TextRun({ children: [new Tab(), droite[i]], size: 12, color: couleur }));
+    rangees.push(new Paragraph({
+      tabStops: [{ type: TabStopType.RIGHT, position: PIED_TAB_DROITE }],
+      spacing: i === iNumero && serre ? { line: PIED_LIGNE_6PT, lineRule: LineRuleType.EXACT } : undefined,
+      indent: { left: PIED_RETRAIT_G, right: PIED_RETRAIT_D },
+      children: runs,
+    }));
+  }
+  return new Footer({ children: rangees });
 }
 function docxHeaderFooter(user, ver) {
   let logoRun = null; try { logoRun = new ImageRun({ type: 'png', data: fs.readFileSync(LOGO_PATH), transformation: { width: 44, height: 44 } }); } catch (e) { }
