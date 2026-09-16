@@ -123,8 +123,11 @@ if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
 // ⚠️ Toute NOUVELLE collection doit figurer ici : normalizeDB la crée alors toute seule sur les
 // bases déjà en service, production comprise. Oubliée, elle vaut undefined au premier accès.
-const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], attestations: [], contrats: [], contratRefs: [], logins: [], demoSeeded: false, docVersions: {}, articles: [], secret: crypto.randomBytes(32).toString('hex') });
-function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys(def)) { if (d[k] == null) d[k] = def[k]; } return migrateGroups(d); }
+const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], attestations: [], contrats: [], contratRefs: [], logins: [], demoSeeded: false, articles: [], secret: crypto.randomBytes(32).toString('hex') });
+// ⚠️ db.docVersions (compteur de versions PAR GÉNÉRATION) est abandonné depuis le 16/09/2026 : la
+// version d'un document est celle de son modèle (VERSIONS_MODELES). On retire le champ des bases
+// existantes pour qu'aucun code ne soit tenté de le relire.
+function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys(def)) { if (d[k] == null) d[k] = def[k]; } delete d.docVersions; return migrateGroups(d); }
 // MIGRATION (27/07/2026) : un dossier passe de { prof, eleve } (une seule personne de chaque côté)
 // à { profs: [...], eleves: [...] }. Les bases existantes (dont la prod) sont converties au chargement ;
 // les anciens champs sont retirés pour qu'aucun code ne puisse en dépendre par accident.
@@ -577,25 +580,29 @@ function cleanProfile(role, p) {
   if (role === 'prof') return { langue: sTrim(p.langue), siret: sTrim(p.siret), nda: sTrim(p.nda), adresse: sTrim(p.adresse), tel: sTrim(p.tel), dateNaissance: sTrim(p.dateNaissance), nationalite: sTrim(p.nationalite) };
   return {};
 }
-// Version d'un document : 1.0 à la première génération, puis +0,1 à chaque nouvelle génération
-// du MÊME document (même dossier, même modèle). Le compteur est persistant et INDÉPENDANT de
-// l'historique db.docgens, qui lui est purgé au-delà de 40 entrées par dossier.
-function bumpVersion(g, tpl) {
-  if (!g || !tpl) return '1.0';
-  db.docVersions = db.docVersions || {};
-  const cle = g.id + '|' + tpl;
-  const nb = (db.docVersions[cle] || 0) + 1;          // 1 = première génération
-  db.docVersions[cle] = nb;
-  save();
-  return (1 + (nb - 1) / 10).toFixed(1);              // 1.0, 1.1, 1.2 …
-}
-// version COURANTE, sans incrémenter : une pièce déjà produite qu'on régénère dans un autre
-// format n'est pas une nouvelle version du document, c'est le même document en .docx.
-function verOf(g, tpl) {
-  if (!g || !tpl) return '1.0';
-  const nb = (db.docVersions || {})[g.id + '|' + tpl] || 1;
-  return (1 + (nb - 1) / 10).toFixed(1);
-}
+// ---- VERSION D'UN MODÈLE DE DOCUMENT (16/09/2026, décision de l'utilisateur) ----------------
+// La version n'avance PLUS à chaque génération (c'était un compteur par dossier, db.docVersions,
+// supprimé) : elle suit les modifications du MODÈLE, faites par le développeur avec Claude.
+// Tous les modèles sont repartis de 1.0 le 16/09/2026.
+// ⚠️ RÈGLE : toute modification qui change ce qu'un document affiche (texte, champs, mise en page)
+// fait avancer SA version de 0,1 ici (1.0 → 1.1 … 1.9 → 2.0), dans le même commit. Une modification
+// d'une partie COMMUNE (en-tête, pied de page, LEGAL_LINES, signature d'Antonin) les fait toutes
+// avancer. Une clé absente vaut 1.0 : ne pas compter sur ce repli, chaque modèle a sa ligne.
+const VERSIONS_MODELES = {
+  interactive: '1.0',            // Interactive Worksheet
+  qs_mid: '1.0',                 // Questionnaire de satisfaction en cours de formation
+  qs_end: '1.0',                 // Questionnaire de fin de formation
+  attestation: '1.0',            // Attestation de fin de formation
+  test_mid: '1.0',               // Test de mi-parcours
+  test_end: '1.0',               // Test de fin de formation
+  contrat: '1.0',                // Contrat de sous-traitance
+  qs_formateur: '1.0',           // Fiche satisfaction formateur
+  leveltest: '1.0',              // Level Test
+  'presence-elearning': '1.0',   // Suivi assiduité e-learning
+  'presence-presentiel': '1.0',  // Feuille de présence présentiel / distanciel
+  'presence-test': '1.0',        // Feuille de présence Test (certification)
+};
+function versionModele(tpl) { return VERSIONS_MODELES[tpl] || '1.0'; }
 // pied de page : lignes méta (présentes sur TOUS les documents générés)
 function metaLines(user, ver) {
   const v = ver || '1.0';
@@ -1229,10 +1236,9 @@ app.get('/api/qs/:id/word', async (req, res) => {
   if (!canChannel(g, u, 'commun')) return res.status(403).json({ error: 'Accès refusé.' });
   if (qs.status !== 'done') return res.status(400).json({ error: 'Ce questionnaire n\'a pas encore été rempli.' });
   const tpl = QS_TEMPLATES[qs.type] || {};
-  const docPdf = db.docs.find(d => d.id === qs.docId);
   const auteur = realUser(qs.by) || u;
   try {
-    const buf = await buildQsDocx(qs, tpl, auteur, (docPdf && docPdf.ver) || verOf(g, qs.type));
+    const buf = await buildQsDocx(qs, tpl, auteur, versionModele(qs.type));
     envoyerWord(res, buf, (qs.type === 'qs_mid' ? '2' : '3') + ' - ' + (tpl.title || 'Questionnaire') + ' - ' + ((qs.header && qs.header.nomApprenant) || 'apprenant') + ' - ' + nameDate());
   } catch (e) { console.error('QS word:', e); res.status(500).json({ error: 'Erreur de génération du document.' }); }
 });
@@ -1244,11 +1250,10 @@ app.get('/api/presence/:id/word', async (req, res) => {
   if (!canChannel(g, u, 'commun')) return res.status(403).json({ error: 'Accès refusé.' });
   if (p.status !== 'done') return res.status(400).json({ error: 'Cette feuille n\'est pas encore signée.' });
   const tpl = PRESENCE_TEMPLATES[p.type] || {};
-  const docPdf = db.docs.find(d => d.id === p.docId);
   const auteur = realUser(p.by) || u;
   const d = Object.assign({}, p.fields, { formateurSig: p.formateurSig, apprenantSig: p.apprenantSig });
   try {
-    const buf = await buildPresenceDocx(p.type, d, auteur, (docPdf && docPdf.ver) || verOf(g, 'presence-' + p.type));
+    const buf = await buildPresenceDocx(p.type, d, auteur, versionModele('presence-' + p.type));
     envoyerWord(res, buf, (tpl.title || 'Feuille de présence') + ' - ' + ((p.fields && p.fields.apprenant) || 'apprenant') + ' - ' + nameDate() + ' - signee');
   } catch (e) { console.error('présence word:', e); res.status(500).json({ error: 'Erreur de génération du document.' }); }
 });
@@ -1594,7 +1599,7 @@ app.post('/api/worksheet/generate', auth, async (req, res) => {
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
   const w = wsFind(g.id) || wsBlank(g, req.user);
-  const ver = bumpVersion(g, 'interactive');
+  const ver = versionModele('interactive');
   let buf, ext, type;
   try {
     if (fmt === 'word') { buf = await buildWorksheetDocx(w, req.user, ver); ext = 'docx'; type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
@@ -1743,7 +1748,7 @@ app.post('/api/testdoc/generate', auth, async (req, res) => {
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de document inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  const ver = bumpVersion(g, type);
+  const ver = versionModele(type);
   let buf, ext, ctype;
   try {
     if (format === 'word' || format === 'docx') { buf = await buildTestDocx(tpl.title, header, extra, req.user, ver); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
@@ -1966,8 +1971,7 @@ app.get('/api/attestation/:id/apercu', async (req, res) => {
   const g = groupById(a.group);
   if (!isMember(g, u)) return res.status(403).json({ error: 'Accès refusé.' });
   try {
-    // verOf et non bumpVersion : relire ne doit pas faire avancer la version du document
-    const buf = await buildAttestationPdf(Object.assign({}, a.fields, { formateurSig: a.formateurSig, apprenantSig: a.apprenantSig }), u, verOf(g, 'attestation'));
+    const buf = await buildAttestationPdf(Object.assign({}, a.fields, { formateurSig: a.formateurSig, apprenantSig: a.apprenantSig }), u, versionModele('attestation'));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', "inline; filename*=UTF-8''" + encodeURIComponent(safeFile('Attestation de fin de formation') + '.pdf'));
     res.send(buf);
@@ -2032,11 +2036,19 @@ function contratBlocks(d) {
     { p: 'ENTRE LES SOUSSIGNÉS :', bold: true },
     { p: `LANGUAGES & SUCCESS - L&S (enregistré sous le N° 93 060 886 106 auprès du Préfet de la région PACA - Certificat QUALIOPI ${QUALIOPI_CERT}) - 57, avenue Valéry Giscard d'Estaing - BP 1052 - 06201 NICE CÉDEX 3, représenté par ${rep}, Président, auquel il est conclu la convention suivante, en application des dispositions de la partie VI du Code du travail portant organisation de la formation professionnelle continue dans le cadre de la formation professionnelle tout au long de la vie.` },
     { p: "Ci-après dénommé « Languages and Success » ou « le Donneur d'ordre ».", bold: true, italics: true },
-    { p: 'ET', bold: true, before: true },
-    { p: `${d.stnom || ''}`, bold: true },
-    { p: `Né(e) le ${d.stNaissance || '…'}, de nationalité ${d.stNationalite || '…'}.` },
-    { p: `Demeurant : ${d.stAdresse || '…'}` },
-    { p: `Inscrit au répertoire INSEE en qualité d'auto-entrepreneur sous le numéro : ${d.stSiret || '…'}` },
+    // ⚠️ `memeEspaceApres` : l'espace SOUS le « ET » égale celui du DESSUS (demande de l'utilisateur,
+    // 16/09/2026). Au-dessus, il s'ajoute l'espace après du paragraphe précédent et le saut `before` ;
+    // en dessous il n'y avait que l'espace après ordinaire, le « ET » paraissait collé au nom.
+    { p: 'ET', bold: true, before: true, memeEspaceApres: true },
+    // ⚠️ `serre` : les lignes d'identité du sous-traitant sont des paragraphes distincts (une
+    // information par ligne), mais elles doivent avoir l'INTERLIGNE du paragraphe de Languages &
+    // Success au-dessus du « ET », sans espace entre elles (demande de l'utilisateur, 16/09/2026 :
+    // « après le ET ce n'est pas le même espacement de ligne qu'avant »). La dernière (NDA) garde
+    // l'espace ordinaire avant « Ci-après dénommé… », comme côté Languages & Success.
+    { p: `${d.stnom || ''}`, bold: true, serre: true },
+    { p: `Né(e) le ${d.stNaissance || '…'}, de nationalité ${d.stNationalite || '…'}.`, serre: true },
+    { p: `Demeurant : ${d.stAdresse || '…'}`, serre: true },
+    { p: `Inscrit au répertoire INSEE en qualité d'auto-entrepreneur sous le numéro : ${d.stSiret || '…'}`, serre: true },
     { p: `Numéro d'activité (NDA) : ${d.stNda || '…'}` },
     { p: `Ci-après dénommé « ${d.stnom || 'le Sous-traitant'} » ou « le Sous-traitant ».`, bold: true, italics: true },
     { p: 'IL A ÉTÉ CONVENU CE QUI SUIT :', bold: true, before: true, after: true },
@@ -2137,6 +2149,12 @@ function contratBlocks(d) {
 // Word restent accordés : interligne, retrait des puces, largeur de la colonne des libellés.
 const CT_INTERLIGNE = 300;        // Word : 300/240 = 1,25 ligne (240 = interligne simple)
 const CT_APRES_PARA = 160;        // Word : espace après un paragraphe, en vingtièmes de point
+const CT_AVANT_SAUT = 240;        // Word : saut ajouté AVANT un paragraphe marqué `before`
+// ⚠️ Word n'ADDITIONNE PAS l'espace après d'un paragraphe et l'espace avant du suivant : il garde le
+// PLUS GRAND des deux (mesuré dans Word 16 le 16/09/2026 : 8 pt après + 30 pt avant = 30 pt). pdfkit,
+// lui, additionne ses moveDown. D'où les deux formules différentes de `memeEspaceApres`.
+const CT_PDF_APRES = 0.6;         // PDF : espace après un paragraphe, en lignes
+const CT_PDF_AVANT_SAUT = 0.6;    // PDF : saut ajouté avant un paragraphe marqué `before`, en lignes
 const CT_PUCE_RETRAIT = 360;      // Word : 360 twips = 0,63 cm entre la puce et le texte (≈ une tabulation)
 const CT_PDF_INTERLIGNE = 2.6;    // PDF : lineGap en points (l'interligne passe de 10,6 à 13,2 pt)
 const CT_PDF_RETRAIT = 18;        // PDF : 18 pt = les mêmes 0,63 cm
@@ -2198,7 +2216,7 @@ function buildContratDocx(d, user, ver) {
     // en relisant le XML du .docx produit). C'est `Tab` qui envoie le texte au taquet du retrait.
     else if (b.li) kids.push(new Paragraph({ spacing: { after: 90, line: CT_INTERLIGNE }, indent: { left: CT_PUCE_RETRAIT, hanging: CT_PUCE_RETRAIT }, children: [new TextRun({ text: '•', color: INKC, size: 18 }), new TextRun({ children: [new Tab()], color: INKC, size: 18 })].concat(runs(ctSeg(b.li), { size: 18 })) }));
     else if (b.li2) kids.push(new Paragraph({ spacing: { after: 70, line: CT_INTERLIGNE }, indent: { left: CT_PUCE_RETRAIT * 2, hanging: CT_PUCE_RETRAIT }, children: [new TextRun({ text: '–', color: INKC, size: 18 }), new TextRun({ children: [new Tab()], color: INKC, size: 18 })].concat(runs(ctSeg(b.li2), { size: 18 })) }));
-    else kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: b.before ? 240 : 0, after: b.after ? 260 : CT_APRES_PARA, line: CT_INTERLIGNE }, children: runs(segs(b, b.p), { bold: b.bold, italics: b.italics }) }));
+    else kids.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: b.before ? CT_AVANT_SAUT : 0, after: b.memeEspaceApres ? Math.max(CT_APRES_PARA, CT_AVANT_SAUT) : (b.after ? 260 : (b.serre ? 0 : CT_APRES_PARA)), line: CT_INTERLIGNE }, children: runs(segs(b, b.p), { bold: b.bold, italics: b.italics }) }));
   });
   const hf = docxHeaderFooter(user, ver);
   return Packer.toBuffer(new Document({ styles: { default: { document: { run: { font: 'Arial', size: 19, color: INKC } } } }, sections: [{ headers: { default: hf.header }, footers: { default: hf.footer }, children: kids }] }));
@@ -2310,7 +2328,7 @@ function buildContratPdf(d, user, ver) {
       }
       else if (b.li) puce('•', ctSeg(b.li), left, left + CT_PDF_RETRAIT, { size: 9, after: 0.3 });
       else if (b.li2) puce('–', ctSeg(b.li2), left + CT_PDF_RETRAIT, left + CT_PDF_RETRAIT * 2, { size: 9, after: 0.26 });
-      else rich(b.rp || ctSeg(b.p), { size: 9.2, after: b.after ? 1 : 0.6, bold: b.bold, italics: b.italics, before: b.before ? 0.6 : 0 });
+      else rich(b.rp || ctSeg(b.p), { size: 9.2, after: b.memeEspaceApres ? CT_PDF_APRES + CT_PDF_AVANT_SAUT : (b.after ? 1 : (b.serre ? 0 : CT_PDF_APRES)), bold: b.bold, italics: b.italics, before: b.before ? CT_PDF_AVANT_SAUT : 0 });
     });
     pdfHeaderFooter(doc, user, ver); doc.end();
   });
@@ -2334,7 +2352,7 @@ app.post('/api/contrat/generate', auth, async (req, res) => {
   const d = fields || {};
   d.ref = newContratRef(); // référence unique générée serveur (5 chiffres uniques)
   d.representant = 'Antonin HATTABE'; // représentant L&S fixe par défaut
-  const ver = bumpVersion(g, 'contrat');
+  const ver = versionModele('contrat');
   let buf, ext, ctype;
   try {
     if (format === 'word' || format === 'docx') { buf = await buildContratDocx(d, req.user, ver); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
@@ -2520,7 +2538,7 @@ function buildQsDocx(qs, tpl, user, ver) {
 async function generateQsDoc(qs, format, fromUser) {
   const tpl = QS_TEMPLATES[qs.type];
   let buf, ext, type;
-  const verQ = bumpVersion(groupById(qs.group), qs.type);
+  const verQ = versionModele(qs.type);
   if (format === 'word' || format === 'docx') { buf = await buildQsDocx(qs, tpl, fromUser, verQ); ext = 'docx'; type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
   else { buf = await buildQsPdf(qs, tpl, fromUser, verQ); ext = 'pdf'; type = 'application/pdf'; }
   const stored = crypto.randomUUID() + '.' + ext;
@@ -2528,7 +2546,7 @@ async function generateQsDoc(qs, format, fromUser) {
   const name = (qs.type === 'qs_mid' ? '2' : '3') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((qs.header && qs.header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
   // la version est retenue sur la pièce : la régénérer en Word ne doit pas la faire avancer,
   // c'est le même document dans un autre format
-  const doc = { id: crypto.randomUUID(), group: qs.group, channel: 'commun', from: fromUser.id, fromAdmin: fromUser.role === 'admin', name, size: buf.length, type, stored, date: Date.now(), ver: verQ };
+  const doc = { id: crypto.randomUUID(), group: qs.group, channel: 'commun', from: fromUser.id, fromAdmin: fromUser.role === 'admin', name, size: buf.length, type, stored, date: Date.now() };
   db.docs.push(doc);
   return doc;
 }
@@ -2624,7 +2642,7 @@ app.post('/api/form/generate', auth, async (req, res) => {
   if (!tpl) return res.status(400).json({ error: 'Type de document inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
   const qs = { header: header || {}, answers: answers || {} };
-  const ver = bumpVersion(g, type);
+  const ver = versionModele(type);
   let buf, ext, ctype;
   try {
     if (format === 'word' || format === 'docx') { buf = await buildQsDocx(qs, tpl, req.user, ver); ext = 'docx'; ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }
@@ -2769,7 +2787,7 @@ app.post('/api/leveltest/generate', auth, async (req, res) => {
   const { group, fields, format } = req.body || {};
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  const ver = bumpVersion(g, 'leveltest');
+  const ver = versionModele('leveltest');
   const d = fields || {};
   let buf, ext, ctype;
   try {
@@ -2930,7 +2948,7 @@ app.post('/api/presence/generate', auth, async (req, res) => {
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  const ver = bumpVersion(g, 'presence-' + type);
+  const ver = versionModele('presence-' + type);
   const d = fields || {};
   let buf, ext, ctype;
   try {
@@ -2948,7 +2966,7 @@ app.post('/api/presence/generate', auth, async (req, res) => {
 async function depositPresenceDoc(p, byUser) {
   const tpl = PRESENCE_TEMPLATES[p.type] || {};
   const d = Object.assign({}, p.fields, { formateurSig: p.formateurSig, apprenantSig: p.apprenantSig });
-  const ver = bumpVersion(groupById(p.group), 'presence-' + p.type);
+  const ver = versionModele('presence-' + p.type);
   const buf = await buildPresencePdf(p.type, d, byUser, ver);
   const stored = crypto.randomUUID() + '.pdf';
   fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
@@ -3098,7 +3116,7 @@ app.post('/api/presence/:id/cancel', auth, (req, res) => {
 // laisserait une attestation « signée » sans document et non re-signable.
 async function depositAttestationDoc(a, byUser) {
   const d = Object.assign({}, a.fields, { formateurSig: a.formateurSig, apprenantSig: a.apprenantSig });
-  const ver = bumpVersion(groupById(a.group), 'attestation');
+  const ver = versionModele('attestation');
   const buf = await buildAttestationPdf(d, byUser, ver);
   const stored = crypto.randomUUID() + '.pdf';
   fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
@@ -3203,7 +3221,7 @@ app.post('/api/attestation/:id/cancel', auth, (req, res) => {
 // régénérer à la signature donnerait deux références pour un même contrat.
 async function depositContratDoc(c, adminUser) {
   const d = Object.assign({}, c.fields, { sousTraitantSig: c.profSig });
-  const ver = bumpVersion(groupById(c.group), 'contrat');
+  const ver = versionModele('contrat');
   const buf = await buildContratPdf(d, adminUser, ver);
   const stored = crypto.randomUUID() + '.pdf';
   fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf);
@@ -3259,8 +3277,7 @@ app.get('/api/contrat/:id/apercu', async (req, res) => {
   if (!c) return res.status(404).json({ error: 'Contrat introuvable.' });
   if (!canChannel(groupById(c.group), u, 'prive')) return res.status(403).json({ error: 'Accès refusé.' });
   try {
-    // verOf et non bumpVersion : relire un contrat ne doit pas faire avancer sa version
-    const buf = await buildContratPdf(Object.assign({}, c.fields, { sousTraitantSig: c.profSig }), u, verOf(groupById(c.group), 'contrat'));
+    const buf = await buildContratPdf(Object.assign({}, c.fields, { sousTraitantSig: c.profSig }), u, versionModele('contrat'));
     const name = safeFile('Contrat de sous-traitance') + ' - ' + safeFile((c.fields && c.fields.stnom) || 'formateur') + '.pdf';
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', "inline; filename*=UTF-8''" + encodeURIComponent(name));
