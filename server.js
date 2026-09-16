@@ -599,7 +599,7 @@ const VERSIONS_MODELES = {
   attestation: '1.0',            // Attestation de fin de formation
   test_mid: '1.0',               // Test de mi-parcours
   test_end: '1.0',               // Test de fin de formation
-  contrat: '1.0',                // Contrat de sous-traitance
+  contrat: '1.1',                // Contrat de sous-traitance (1.1 : « Languages & Success », 16/09/2026)
   qs_formateur: '1.0',           // Fiche satisfaction formateur
   leveltest: '1.0',              // Level Test
   'presence-elearning': '1.0',   // Suivi assiduité e-learning
@@ -2040,7 +2040,9 @@ function contratBlocks(d) {
     { sub: d.ref || 'Réf. n° 2023/L&S0701' },
     { p: 'ENTRE LES SOUSSIGNÉS :', bold: true },
     { p: `LANGUAGES & SUCCESS - L&S (enregistré sous le N° 93 060 886 106 auprès du Préfet de la région PACA - Certificat QUALIOPI ${QUALIOPI_CERT}) - 57, avenue Valéry Giscard d'Estaing - BP 1052 - 06201 NICE CÉDEX 3, représenté par ${rep}, Président, auquel il est conclu la convention suivante, en application des dispositions de la partie VI du Code du travail portant organisation de la formation professionnelle continue dans le cadre de la formation professionnelle tout au long de la vie.` },
-    { p: "Ci-après dénommé « Languages and Success » ou « le Donneur d'ordre ».", bold: true, italics: true },
+    // « Languages & Success » avec l'esperluette (demande de l'utilisateur, 16/09/2026). Le gras vient
+    // du terme « LANGUAGES & SUCCESS » de CT_TERMES : la recherche y est insensible à la casse.
+    { p: "Ci-après dénommé « Languages & Success » ou « le Donneur d'ordre ».", bold: true, italics: true },
     // ⚠️ `memeEspaceApres` : l'espace SOUS le « ET » égale celui du DESSUS (demande de l'utilisateur,
     // 16/09/2026). Au-dessus, il s'ajoute l'espace après du paragraphe précédent et le saut `before` ;
     // en dessous il n'y avait que l'espace après ordinaire, le « ET » paraissait collé au nom.
@@ -2146,7 +2148,7 @@ function contratBlocks(d) {
     // ⚠️ Le tampon L&S se pose SOUS « Antonin HATTABE / Président » et la signature manuscrite du
     // sous-traitant sous son nom (demande de l'utilisateur, 05/08/2026). Les deux images sont
     // FACULTATIVES : sans elles le bloc reste exactement celui d'avant.
-    { sign: { gauche: ["Pour le Donneur d'ordre, Languages and Success", rep, 'Président'], droite: ['Pour le Sous-traitant,', d.stnom || ''], tampon: true, sigDroite: d.sousTraitantSig || null } }
+    { sign: { gauche: ["Pour le Donneur d'ordre, Languages & Success", rep, 'Président'], droite: ['Pour le Sous-traitant,', d.stnom || ''], tampon: true, sigDroite: d.sousTraitantSig || null } }
   ];
 }
 // ---- mise en page du contrat (aérée, 11/09/2026) -------------------------------------------
