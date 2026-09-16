@@ -1170,19 +1170,62 @@ app.patch('/api/users/:id', auth, (req, res) => {
   const u = realUser(req.params.id);
   if (!u) return res.status(404).json({ error: 'Compte introuvable.' });
   const { prenom, nom, email, profile } = req.body || {};
+  // l'adresse est vérifiée AVANT toute modification : un refus ne doit rien laisser à moitié changé
+  const mail = email != null ? String(email).trim().toLowerCase() : '';
+  if (mail && mail !== u.email && db.users.some(x => x.id !== u.id && x.email === mail)) return res.status(409).json({ error: 'Un compte existe déjà avec cet e-mail.' });
+  const avant = ficheReportable(u);
   if (prenom != null && sTrim(prenom)) u.prenom = sTrim(prenom);
   if (nom != null && sTrim(nom)) u.nom = sTrim(nom);
-  if (email != null) {
-    const mail = String(email).trim().toLowerCase();
-    if (mail && mail !== u.email) {
-      if (db.users.some(x => x.id !== u.id && x.email === mail)) return res.status(409).json({ error: 'Un compte existe déjà avec cet e-mail.' });
-      u.email = mail;
+  if (mail) u.email = mail;
+  if (profile != null) u.profile = cleanProfile(u.role, Object.assign({}, u.profile, profile));
+  const reportes = reporterFiche(u, avant);
+  save();
+  res.json({ ok: true, user: pubFull(u), reportes });
+});
+// ⚠️ REPORTER UNE FICHE CORRIGÉE (16/09/2026) : le brouillon d'Interactive Worksheet d'un dossier est
+// ENREGISTRÉ (une fois créé, il ne se relit plus depuis la fiche), et un document envoyé pour
+// signature ou pour remplissage garde les valeurs saisies à l'envoi. Renommer « Christiane » en
+// « Vanessa » laissait donc « Christiane ZOUGGARI » sur le worksheet de son dossier (cas réel).
+// On remplace l'ANCIENNE valeur par la nouvelle, UNIQUEMENT là où le champ contient encore exactement
+// l'ancienne valeur : une saisie personnalisée n'est jamais écrasée. Les documents déjà signés ou
+// remplis, eux, sont des pièces définitives : on n'y touche pas.
+function ficheReportable(u) {
+  const p = u.profile || {};
+  return { nom: `${u.prenom} ${u.nom}`, email: u.email, tel: p.tel, societe: p.societe, intitule: p.intitule,
+    naissance: p.dateNaissance, nationalite: p.nationalite, adresse: p.adresse, siret: p.siret, nda: p.nda };
+}
+function reporterFiche(u, avant) {
+  const apres = ficheReportable(u);
+  let n = 0;
+  const rempl = (obj, champ, cle) => {
+    const a = avant[cle], b = apres[cle];
+    if (obj && a && b != null && a !== b && obj[champ] === a) { obj[champ] = b; n++; }
+  };
+  const enAttente = (liste, g) => liste.filter(x => x.group === g.id && x.status !== 'done');
+  if (u.role === 'eleve') {
+    for (const g of db.groups.filter(x => x.eleve === u.id)) {
+      const w = wsFind(g.id);
+      if (w && w.header) [['nomApprenant', 'nom'], ['mailApprenant', 'email'], ['telApprenant', 'tel'], ['societe', 'societe'], ['intitule', 'intitule']].forEach(([c, k]) => rempl(w.header, c, k));
+      enAttente(db.qs, g).forEach(q => [['nomApprenant', 'nom'], ['societe', 'societe'], ['intitule', 'intitule']].forEach(([c, k]) => rempl(q.header, c, k)));
+      enAttente(db.presences, g).forEach(p => rempl(p.fields, 'apprenant', 'nom'));
+      enAttente(db.attestations, g).forEach(a => [['apprenant', 'nom'], ['societe', 'societe'], ['intitule', 'intitule']].forEach(([c, k]) => rempl(a.fields, c, k)));
+      enAttente(db.contrats, g).forEach(c => [['stagiaire', 'nom'], ['intitule', 'intitule']].forEach(([ch, k]) => rempl(c.fields, ch, k)));
+    }
+  } else if (u.role === 'prof') {
+    for (const g of db.groups.filter(x => gProfs(x).includes(u.id))) {
+      const w = wsFind(g.id);
+      if (w && w.header) {
+        [['nomFormateur', 'nom'], ['mailFormateur', 'email'], ['telFormateur', 'tel']].forEach(([c, k]) => rempl(w.header, c, k));
+        (w.sessions || []).forEach(s => rempl(s, 'formateur', 'nom'));
+      }
+      enAttente(db.qs, g).forEach(q => rempl(q.header, 'formateur', 'nom'));
+      enAttente(db.presences, g).forEach(p => rempl(p.fields, 'formateur', 'nom'));
+      enAttente(db.attestations, g).forEach(a => rempl(a.fields, 'formateur', 'nom'));
+      enAttente(db.contrats, g).filter(c => c.prof === u.id).forEach(c => [['stnom', 'nom'], ['stNaissance', 'naissance'], ['stNationalite', 'nationalite'], ['stAdresse', 'adresse'], ['stSiret', 'siret'], ['stNda', 'nda']].forEach(([ch, k]) => rempl(c.fields, ch, k)));
     }
   }
-  if (profile != null) u.profile = cleanProfile(u.role, Object.assign({}, u.profile, profile));
-  save();
-  res.json({ ok: true, user: pubFull(u) });
-});
+  return n;
+}
 
 // ---- messagerie (par dossier + canal) --------------------------------------
 app.get('/api/messages', auth, (req, res) => {
@@ -3358,6 +3401,15 @@ async function depositContratDoc(c, adminUser) {
   db.docs.push(doc);
   return doc;
 }
+// ⚠️ De quel contrat parle-t-on ? (16/09/2026, demande de l'utilisateur) : un formateur a plusieurs
+// apprenants, donc plusieurs contrats. Les e-mails et notifications nomment l'apprenant du dossier
+// (le compte, à jour même après un changement de nom), la référence et l'intitulé de la formation.
+function contratEnClair(g, c) {
+  const f = (c && c.fields) || {};
+  const apprenant = (g && g.eleve && realUser(g.eleve) ? fullName(g.eleve) : '') || f.stagiaire || '';
+  const details = [String(c.ref || f.ref || '').trim(), f.intitule ? 'Formation : ' + String(f.intitule).trim() : ''].filter(Boolean);
+  return { apprenant, details, pourQui: apprenant ? ' (apprenant : ' + apprenant + ')' : '' };
+}
 app.post('/api/contrat/send', auth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
   const { group, fields, prof } = req.body || {};
@@ -3372,16 +3424,17 @@ app.post('/api/contrat/send', auth, (req, res) => {
   c.ref = c.fields.ref;
   db.contrats.push(c);
   db.messages.push({ id: crypto.randomUUID(), group: g.id, channel: 'prive', from: req.user.id, fromAdmin: true, kind: 'contrat', contratId: c.id, text: 'Contrat de sous-traitance à signer', date: Date.now() });
-  notify(cibP.id, `${senderDisplay(req.user)} vous a envoyé un contrat de sous-traitance à signer.`, g.id);
-  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(x => notify(x.id, `${senderDisplay(req.user)} a envoyé un contrat de sous-traitance à ${fullName(cibP.id)}.`, g.id));
+  const ce = contratEnClair(g, c);
+  notify(cibP.id, `${senderDisplay(req.user)} vous a envoyé un contrat de sous-traitance à signer${ce.pourQui}.`, g.id);
+  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id).forEach(x => notify(x.id, `${senderDisplay(req.user)} a envoyé un contrat de sous-traitance à ${fullName(cibP.id)}${ce.pourQui}.`, g.id));
   const profU = realUser(cibP.id);
   if (profU) {
     const url = SITE_URL + '/espace-documents.html';
-    const ligne = "L'administration vous a envoyé un contrat de sous-traitance. Relisez-le sur votre espace documents : vous pourrez le signer directement en ligne.";
-    sendMailSafe(profU.email, 'Contrat de sous-traitance à signer — Languages & Success',
-      'Bonjour ' + profU.prenom + ',\n\n' + ligne + '\n\n' + url + '\n\nLanguages & Success',
+    const ligne = "L'administration vous a envoyé un contrat de sous-traitance" + (ce.apprenant ? ' pour la formation de ' + ce.apprenant : '') + '. Relisez-le sur votre espace documents : vous pourrez le signer directement en ligne.';
+    sendMailSafe(profU.email, 'Contrat de sous-traitance à signer' + ce.pourQui + ' — Languages & Success',
+      'Bonjour ' + profU.prenom + ',\n\n' + ligne + (ce.details.length ? '\n' + ce.details.join('\n') : '') + '\n\n' + url + '\n\nLanguages & Success',
       mailHtml('Un contrat à relire et à signer',
-        ['Bonjour ' + profU.prenom + ',', ligne],
+        ['Bonjour ' + profU.prenom + ',', ligne].concat(ce.details),
         'Ouvrir le contrat', url));
   }
   save();
@@ -3429,13 +3482,16 @@ app.post('/api/contrat/:id/sign', auth, async (req, res) => {
   c.profSig = sig; c.status = 'done'; c.signedAt = Date.now(); c.docId = doc.id;
   recordDocgen(g, adminU, { kind: 'contrat', tpl: 'contrat', title: 'Contrat de sous-traitance', format: 'pdf', apprenant: (c.fields && c.fields.stnom) || 'formateur' });
   // ⚠️ canal PRIVÉ : notifyChannel n'y prévient que les formateurs du dossier et les admins.
-  notifyChannel(g, 'prive', req.user, `${senderDisplay(req.user)} a signé le contrat de sous-traitance — document déposé dans le canal privé.`);
+  const ce = contratEnClair(g, c);
+  notifyChannel(g, 'prive', req.user, `${senderDisplay(req.user)} a signé le contrat de sous-traitance${ce.pourQui} — document déposé dans le canal privé.`);
   if (adminU && adminU.id !== req.user.id) {
     const urlS = SITE_URL + '/espace-documents.html';
-    sendMailSafe(adminU.email, 'Contrat signé par ' + senderDisplay(req.user) + ' — Languages & Success',
-      'Bonjour ' + adminU.prenom + ',\n\n' + senderDisplay(req.user) + ' a signé le contrat de sous-traitance.\nLe document final est déposé dans le canal privé du dossier.\n\n' + urlS + '\n\nLanguages & Success',
+    const phrase = senderDisplay(req.user) + ' a signé le contrat de sous-traitance' + (ce.apprenant ? ' pour la formation de ' + ce.apprenant : '') + '.';
+    const fin = 'Le document final est déposé dans le canal privé du dossier' + (ce.apprenant ? ' de ' + ce.apprenant : '') + '.';
+    sendMailSafe(adminU.email, 'Contrat signé par ' + senderDisplay(req.user) + ce.pourQui + ' — Languages & Success',
+      'Bonjour ' + adminU.prenom + ',\n\n' + phrase + (ce.details.length ? '\n' + ce.details.join('\n') : '') + '\n' + fin + '\n\n' + urlS + '\n\nLanguages & Success',
       mailHtml('Le contrat est signé ✓',
-        ['Bonjour ' + adminU.prenom + ',', senderDisplay(req.user) + ' a signé le contrat de sous-traitance.', 'Le document final est déposé dans le canal privé du dossier.'],
+        ['Bonjour ' + adminU.prenom + ',', phrase].concat(ce.details, [fin]),
         'Voir le document', urlS));
   }
   save();
