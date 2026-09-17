@@ -247,7 +247,15 @@
       var mail = val('ou-email');
       if (!mail || mail.indexOf('@') < 0) { document.getElementById('ou-err').textContent = 'Indiquez une adresse e-mail valide.'; return; }
       bt.disabled = true; bt.textContent = 'Envoi…';
-      apiJSON('/api/password-reset/request', 'POST', { email: mail }).then(function () {
+      apiJSON('/api/password-reset/request', 'POST', { email: mail }).then(function (r) {
+        // ⚠️ api() ne REJETTE jamais (voir plus haut) : sans ce test, un refus pour excès de
+        // demandes affichait quand même « un lien vient de partir » et on attendait un e-mail
+        // qui n'était jamais parti. Le refus reste dans la modale, l'adresse saisie est gardée.
+        if (!r.ok) {
+          bt.disabled = false; bt.textContent = 'Envoyer le lien →';
+          document.getElementById('ou-err').textContent = (r.data && r.data.error) || 'Envoi impossible pour le moment. Réessayez dans un instant.';
+          return;
+        }
         closeFsModal('oubli-modal');
         alertDialog("Si un compte existe avec cette adresse, un lien vient de partir. Regardez votre boîte de réception, et vos indésirables. Le lien est valable une heure.", 'Demande enregistrée');
       });

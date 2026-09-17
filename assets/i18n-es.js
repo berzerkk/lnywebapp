@@ -524,6 +524,7 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Indiquez l'adresse e-mail de votre compte. Si elle correspond à un compte, vous recevrez un lien pour choisir un nouveau mot de passe. Ce lien est valable une heure.": "Indique la dirección de correo electrónico de su cuenta. Si corresponde a una cuenta, recibirá un enlace para elegir una nueva contraseña. Este enlace es válido durante una hora.",
   "Votre adresse e-mail": "Su dirección de correo electrónico",
   "Indiquez une adresse e-mail valide.": "Indique una dirección de correo electrónico válida.",
+  "Envoi impossible pour le moment. Réessayez dans un instant.": "No es posible enviar por el momento. Inténtelo de nuevo en un momento.",
   "Envoyer le lien →": "Enviar el enlace →",
   "Demande enregistrée": "Solicitud registrada",
   "Si un compte existe avec cette adresse, un lien vient de partir. Regardez votre boîte de réception, et vos indésirables. Le lien est valable une heure.": "Si existe una cuenta con esta dirección, acaba de enviarse un enlace. Consulte su bandeja de entrada y su correo no deseado. El enlace es válido durante una hora.",

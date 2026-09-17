@@ -546,6 +546,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Indiquez l'adresse e-mail de votre compte. Si elle correspond à un compte, vous recevrez un lien pour choisir un nouveau mot de passe. Ce lien est valable une heure.": "Enter the e-mail address of your account. If it matches an account, you will receive a link to choose a new password. This link is valid for one hour.",
   "Votre adresse e-mail": "Your e-mail address",
   "Indiquez une adresse e-mail valide.": "Enter a valid e-mail address.",
+  "Envoi impossible pour le moment. Réessayez dans un instant.": "Sending is not possible right now. Try again in a moment.",
   "Envoyer le lien →": "Send the link →",
   "Demande enregistrée": "Request received",
   "Si un compte existe avec cette adresse, un lien vient de partir. Regardez votre boîte de réception, et vos indésirables. Le lien est valable une heure.": "If an account exists with this address, a link has just been sent. Check your inbox, and your spam folder. The link is valid for one hour.",

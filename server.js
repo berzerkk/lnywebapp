@@ -850,10 +850,31 @@ const resetOf = (t) => {
   const k = String(t || '').toLowerCase();
   return db.users.find(u => u.reset && u.reset.token === k && u.reset.exp > Date.now());
 };
+// ⚠️ ANTI-BOMBARDEMENT (17/09/2026, question de l'utilisateur : « il peut pas spam le bouton ? »).
+// Ce formulaire est PUBLIC et déclenche un envoi d'e-mail : sans garde-fou, n'importe qui pouvait
+// demander des liens en boucle et noyer la boîte de quelqu'un dont il connaît l'adresse — en brûlant
+// au passage notre quota d'envoi OVH et la réputation du domaine. Deux verrous, l'un sur l'IP,
+// l'autre sur l'ADRESSE (une IP changeante ne suffit donc pas à contourner) :
+const RESET_PAR_IP = 8;                          // demandes par IP et par 10 min (fenêtre de tropDeDemandes)
+const RESET_ATTENTE = 3 * 60 * 1000;             // délai minimal entre deux e-mails pour une même adresse
+const RESET_PAR_JOUR = 5;                        // e-mails par adresse et par 24 h
+// ⚠️ Quand l'adresse est bridée, la réponse reste **200 {ok:true}**, identique au cas normal et au cas
+// « adresse inconnue » : sinon ce formulaire dirait qui a un compte et qui vient d'en demander un.
+// Le compte porte les horodatages de ses 10 dernières demandes (`demandesLien`) : la bride SUIT donc
+// l'adresse, quelle que soit l'IP, et survit à un redémarrage du serveur.
+function lienTropDemande(u) {
+  const maintenant = Date.now();
+  const recentes = (u.demandesLien || []).filter(t => maintenant - t < 24 * 60 * 60 * 1000);
+  const trop = recentes.length >= RESET_PAR_JOUR || (recentes.length && maintenant - Math.max(...recentes) < RESET_ATTENTE);
+  u.demandesLien = recentes.slice(-9).concat(trop ? [] : [maintenant]);   // une demande bridée n'allonge pas la file
+  if (trop) console.log('✉ demande de lien bridée pour ' + u.email + ' (' + recentes.length + ' dans les 24 h)');
+  return trop;
+}
 app.post('/api/password-reset/request', (req, res) => {
   const mail = String((req.body || {}).email || '').trim().toLowerCase();
+  if (tropDeDemandes(clientIp(req), 'reset', RESET_PAR_IP)) return res.status(429).json({ error: 'Trop de demandes. Patientez quelques minutes puis réessayez.' });
   const u = mail ? db.users.find(x => x.email === mail) : null;
-  if (u) {
+  if (u && !lienTropDemande(u)) {
     // ⚠️ Un compte encore en attente d'activation reçoit son lien d'ACTIVATION, pas un lien de
     // réinitialisation : c'est le même besoin (choisir un mot de passe) et cela évite de lui
     // poser deux jetons de natures différentes. Son invitation n'est pas écrasée pour autant.
@@ -874,8 +895,8 @@ app.post('/api/password-reset/request', (req, res) => {
     }
     save();
   }
-  // ⚠️ RÉPONSE IDENTIQUE que l'adresse existe ou non : sinon ce formulaire, public et sans
-  // limitation de débit, devient un annuaire qui dit qui est client de l'organisme.
+  // ⚠️ RÉPONSE IDENTIQUE que l'adresse existe ou non, et qu'un e-mail soit parti ou non : sinon ce
+  // formulaire public devient un annuaire qui dit qui est client de l'organisme.
   res.json({ ok: true });
 });
 app.get('/api/password-reset/:token', (req, res) => {

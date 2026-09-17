@@ -525,6 +525,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Indiquez l'adresse e-mail de votre compte. Si elle correspond à un compte, vous recevrez un lien pour choisir un nouveau mot de passe. Ce lien est valable une heure.": "请输入您账户的电子邮箱地址。如果该地址对应某个账户，您将收到一个用于设置新密码的链接。该链接有效期为一小时。",
   "Votre adresse e-mail": "您的电子邮箱地址",
   "Indiquez une adresse e-mail valide.": "请输入有效的电子邮箱地址。",
+  "Envoi impossible pour le moment. Réessayez dans un instant.": "暂时无法发送。请稍后再试。",
   "Envoyer le lien →": "发送链接 →",
   "Demande enregistrée": "请求已记录",
   "Si un compte existe avec cette adresse, un lien vient de partir. Regardez votre boîte de réception, et vos indésirables. Le lien est valable une heure.": "如果该地址对应的账户存在，链接已经发出。请查看您的收件箱以及垃圾邮件箱。该链接有效期为一小时。",

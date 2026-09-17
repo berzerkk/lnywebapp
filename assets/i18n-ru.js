@@ -524,6 +524,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Indiquez l'adresse e-mail de votre compte. Si elle correspond à un compte, vous recevrez un lien pour choisir un nouveau mot de passe. Ce lien est valable une heure.": "Укажите адрес e-mail вашего аккаунта. Если он соответствует существующему аккаунту, вы получите ссылку для выбора нового пароля. Ссылка действительна один час.",
   "Votre adresse e-mail": "Ваш адрес e-mail",
   "Indiquez une adresse e-mail valide.": "Укажите действительный адрес e-mail.",
+  "Envoi impossible pour le moment. Réessayez dans un instant.": "Отправка сейчас невозможна. Повторите попытку через некоторое время.",
   "Envoyer le lien →": "Отправить ссылку →",
   "Demande enregistrée": "Запрос принят",
   "Si un compte existe avec cette adresse, un lien vient de partir. Regardez votre boîte de réception, et vos indésirables. Le lien est valable une heure.": "Если аккаунт с этим адресом существует, ссылка только что отправлена. Проверьте папку «Входящие», а также «Спам». Ссылка действительна один час.",

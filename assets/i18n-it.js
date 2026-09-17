@@ -524,6 +524,7 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Indiquez l'adresse e-mail de votre compte. Si elle correspond à un compte, vous recevrez un lien pour choisir un nouveau mot de passe. Ce lien est valable une heure.": "Indicate l'indirizzo e-mail del vostro account. Se corrisponde a un account, riceverete un link per scegliere una nuova password. Il link è valido un'ora.",
   "Votre adresse e-mail": "Il vostro indirizzo e-mail",
   "Indiquez une adresse e-mail valide.": "Indicate un indirizzo e-mail valido.",
+  "Envoi impossible pour le moment. Réessayez dans un instant.": "Invio non possibile al momento. Riprova tra un istante.",
   "Envoyer le lien →": "Invia il link →",
   "Demande enregistrée": "Richiesta registrata",
   "Si un compte existe avec cette adresse, un lien vient de partir. Regardez votre boîte de réception, et vos indésirables. Le lien est valable une heure.": "Se esiste un account con questo indirizzo, un link è appena partito. Controllate la vostra casella di posta, e la posta indesiderata. Il link è valido un'ora.",
