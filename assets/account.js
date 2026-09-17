@@ -188,7 +188,7 @@
       if (!r.ok) {
         wrap.innerHTML = '<div class="auth-tabs"><button class="auth-tab on" type="button">Lien expiré</button></div>' +
           '<p class="auth-err" style="display:block;text-align:center">' + esc((r.data && r.data.error) || 'Ce lien est invalide ou a expiré.') + '</p>' +
-          '<p class="chan-note" style="text-align:center">Écrivez à <a href="mailto:admin@languagesandsuccess.com">admin@languagesandsuccess.com</a> pour recevoir un nouveau lien.</p>' +
+          '<p class="chan-note" style="text-align:center">Demandez-en un nouveau depuis « Mot de passe oublié ? », ou écrivez à <a href="mailto:contact@languagesandsuccess.com">contact@languagesandsuccess.com</a>.</p>' +
           '<p style="text-align:center;margin-top:6px"><button class="btn btn-ghost act-back" type="button">Retour à la connexion</button></p>';
         wrap.querySelector('.act-back').onclick = function () { location.replace(location.pathname + location.search); };
         return;

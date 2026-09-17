@@ -784,14 +784,17 @@ const activationOf = (t) => db.users.find(u => u.activation && u.activation.toke
 // vérifie le lien avant d'afficher le formulaire (nom affiché, pas de fuite d'information)
 app.get('/api/activate/:token', (req, res) => {
   const u = activationOf(req.params.token);
-  if (!u) return res.status(404).json({ error: 'Ce lien est invalide ou a expiré. Demandez-en un nouveau à l\'administration.' });
+  // ⚠️ message COURT : l'écran « Lien expiré » ajoute la marche à suivre (« Mot de passe oublié ? »,
+  // qui renvoie un lien d'activation neuf à un compte jamais activé). Il disait « demandez-en un
+  // nouveau à l'administration », ce qui envoyait la personne écrire un e-mail pour rien.
+  if (!u) return res.status(404).json({ error: 'Ce lien est invalide ou a expiré.' });
   res.json({ ok: true, prenom: u.prenom, email: u.email });
 });
 // la personne choisit son mot de passe : le jeton est consommé et elle est connectée
 app.post('/api/activate', async (req, res) => {
   const { token, password } = req.body || {};
   const u = activationOf(token);
-  if (!u) return res.status(404).json({ error: 'Ce lien est invalide ou a expiré. Demandez-en un nouveau à l\'administration.' });
+  if (!u) return res.status(404).json({ error: 'Ce lien est invalide ou a expiré.' });
   if (String(password || '').length < 6) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 6 caractères.' });
   u.passwordHash = await bcrypt.hash(String(password), 10);
   delete u.activation;                       // usage unique
@@ -923,7 +926,7 @@ app.post('/api/login', async (req, res) => {
     return res.status(403).json({
       error: vivant
         ? 'Ce compte n\'est pas encore activé : utilisez le lien « Choisir mon mot de passe » reçu par e-mail.'
-        : 'Ce compte n\'est pas encore activé et votre lien a expiré. Écrivez à admin@languagesandsuccess.com pour en recevoir un nouveau.'
+        : 'Ce compte n\'est pas encore activé et votre lien a expiré. Cliquez sur « Mot de passe oublié ? » : un nouveau lien vous sera envoyé.'
     });
   }
   if (!user || !(await bcrypt.compare(password || '', user.passwordHash))) return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });

@@ -517,6 +517,9 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Il contratto sarà rimosso dal canale privato e il formatore non potrà più firmarlo. Potrete inviarne uno nuovo.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Password dimenticata?",
+  /* ---- compte jamais active : messages de connexion ---- */
+  "Ce compte n'est pas encore activé : utilisez le lien « Choisir mon mot de passe » reçu par e-mail.": "Questo account non è ancora attivato: usa il link ricevuto via e-mail per scegliere la tua password.",
+  "Ce compte n'est pas encore activé et votre lien a expiré. Cliquez sur « Mot de passe oublié ? » : un nouveau lien vous sera envoyé.": "Questo account non è ancora attivato e il tuo link è scaduto. Fai clic su «Password dimenticata?»: ti invieremo un nuovo link.",
   "Mot de passe oublié": "Password dimenticata",
   "Indiquez l'adresse e-mail de votre compte. Si elle correspond à un compte, vous recevrez un lien pour choisir un nouveau mot de passe. Ce lien est valable une heure.": "Indicate l'indirizzo e-mail del vostro account. Se corrisponde a un account, riceverete un link per scegliere una nuova password. Il link è valido un'ora.",
   "Votre adresse e-mail": "Il vostro indirizzo e-mail",
