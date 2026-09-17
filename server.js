@@ -287,19 +287,41 @@ function sendMailSafe(to, subject, text, html, opts) {
 }
 // gabarit HTML : carte type « modal » (fond crème du site, case claire arrondie),
 // logo en pièce inline (cid:lslogo, attaché par sendMailSafe), wordmark avec seul le & en accent
+const mailEsc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// **gras** dans un texte d'e-mail (même convention que les brouillons relus avec l'utilisateur)
+const mailRiche = s => mailEsc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+const MAIL_PARA = 'font-size:14px;line-height:1.6;margin:0 0 12px';
+const MAIL_BOUTON = 'background:#be6e54;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:bold;display:inline-block';
+// Le CADRE (fond crème, carte, logo, wordmark, mention « message automatique ») est partagé par
+// tous les e-mails : il n'existe qu'ici, sinon deux gabarits finiraient par diverger.
+const mailCadre = (titre, corps) => '<div style="background:#f8f2e7;padding:36px 16px">'
+  + '<div style="max-width:540px;margin:0 auto;background:#fffaf0;border:1px solid #e6dccb;border-radius:18px;padding:34px 30px;font-family:Arial,Helvetica,sans-serif;color:#2a241d">'
+  + '<div style="text-align:center;margin-bottom:14px"><img src="cid:lslogo" width="56" height="56" alt="Languages & Success" style="display:inline-block;border:0"/></div>'
+  + '<div style="text-align:center;font-size:13px;letter-spacing:.18em;text-transform:uppercase;font-weight:bold;color:#2a241d;margin-bottom:24px">Languages <span style="color:#be6e54;font-style:italic">&amp;</span> Success</div>'
+  + '<h2 style="font-size:20px;margin:0 0 14px">' + mailEsc(titre) + '</h2>'
+  + corps
+  + '<div style="margin-top:26px;padding:12px 14px;background:#f4ece0;border-radius:10px">'
+  + '<p style="font-size:12px;line-height:1.55;color:#6b6055;margin:0"><strong>Message automatique.</strong> Merci de ne pas répondre à cet e-mail : l\'adresse nepasrepondre@languagesandsuccess.com ne reçoit aucun courrier. Pour nous joindre, écrivez à contact@languagesandsuccess.com.</p>'
+  + '</div>'
+  + '</div></div>';
 function mailHtml(title, lines, ctaLabel, ctaUrl) {
-  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return '<div style="background:#f8f2e7;padding:36px 16px">'
-    + '<div style="max-width:540px;margin:0 auto;background:#fffaf0;border:1px solid #e6dccb;border-radius:18px;padding:34px 30px;font-family:Arial,Helvetica,sans-serif;color:#2a241d">'
-    + '<div style="text-align:center;margin-bottom:14px"><img src="cid:lslogo" width="56" height="56" alt="Languages & Success" style="display:inline-block;border:0"/></div>'
-    + '<div style="text-align:center;font-size:13px;letter-spacing:.18em;text-transform:uppercase;font-weight:bold;color:#2a241d;margin-bottom:24px">Languages <span style="color:#be6e54;font-style:italic">&amp;</span> Success</div>'
-    + '<h2 style="font-size:20px;margin:0 0 14px">' + esc(title) + '</h2>'
-    + lines.map(l => '<p style="font-size:14px;line-height:1.6;margin:0 0 12px">' + esc(l) + '</p>').join('')
-    + (ctaUrl ? '<p style="margin:24px 0 8px"><a href="' + ctaUrl + '" style="background:#be6e54;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:bold;display:inline-block">' + esc(ctaLabel) + '</a></p>' : '')
-    + '<div style="margin-top:26px;padding:12px 14px;background:#f4ece0;border-radius:10px">'
-    + '<p style="font-size:12px;line-height:1.55;color:#6b6055;margin:0"><strong>Message automatique.</strong> Merci de ne pas répondre à cet e-mail : l\'adresse nepasrepondre@languagesandsuccess.com ne reçoit aucun courrier. Pour nous joindre, écrivez à contact@languagesandsuccess.com.</p>'
-    + '</div>'
-    + '</div></div>';
+  return mailCadre(title,
+    lines.map(l => '<p style="' + MAIL_PARA + '">' + mailEsc(l) + '</p>').join('')
+    + (ctaUrl ? '<p style="margin:24px 0 8px"><a href="' + ctaUrl + '" style="' + MAIL_BOUTON + '">' + mailEsc(ctaLabel) + '</a></p>' : ''));
+}
+// Variante à INTERTITRES et à listes, pour le seul e-mail qui ait tout un espace de travail à
+// présenter : l'invitation à la première connexion. Même cadre, mêmes couleurs.
+function mailHtmlSections(titre, intro, sections, signature) {
+  const corps = intro.map(p => '<p style="' + MAIL_PARA + '">' + mailRiche(p) + '</p>').join('')
+    + sections.map(s => '<div style="margin:26px 0 0">'
+      + '<p style="margin:0 0 10px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:bold;color:#be6e54">' + mailEsc(s.titre) + '</p>'
+      + (s.paras || []).map(p => '<p style="' + MAIL_PARA + '">' + mailRiche(p) + '</p>').join('')
+      + (s.cta ? '<p style="margin:16px 0 14px"><a href="' + s.cta.url + '" style="' + MAIL_BOUTON + '">' + mailEsc(s.cta.libelle) + '</a></p>' : '')
+      + (s.apres || []).map(p => '<p style="font-size:13px;line-height:1.55;margin:0 0 10px;color:#6b6055">' + mailRiche(p) + '</p>').join('')
+      + (s.puces ? '<ul style="margin:0;padding:0 0 0 18px">' + s.puces.map(p => '<li style="font-size:14px;line-height:1.6;margin:0 0 10px">' + mailRiche(p) + '</li>').join('') + '</ul>' : '')
+      + '</div>').join('')
+    + '<p style="' + MAIL_PARA + ';margin-top:26px">' + signature.map(mailEsc).join('<br>') + '</p>';
+  return mailCadre(titre, corps);
 }
 
 // ---- sauvegarde OFFSITE quotidienne de data/ (Backblaze B2 ou disque local) -
@@ -767,18 +789,100 @@ function noterEnvoi(user, type) {
   return (res) => { Object.assign(e, res, { fin: Date.now() }); save(); };
 }
 // type : 'creation' | 'relance' | 'oubli' (lien d'activation redemandé par « Mot de passe oublié »)
+// ---- E-MAIL D'INVITATION (première connexion) -------------------------------
+// ⚠️ DEUX VERSIONS, UNE PAR RÔLE (mises en service le 18/09/2026, brouillons relus et validés
+// par l'utilisateur la veille) : ce qui attend un formateur — des dossiers, un canal privé, des
+// documents à générer, un contrat à signer — n'a rien à voir avec ce qui attend un apprenant.
+// ⚠️ CHAQUE AFFIRMATION A ÉTÉ VÉRIFIÉE DANS LE CODE avant d'être écrite (le bouton « Revoir la
+// visite guidée » existe et s'affiche à tout non-admin ; l'apprenant reçoit bien un e-mail pour
+// un questionnaire comme pour une feuille de présence ; le règlement intérieur est déposé
+// d'office). Un e-mail qui promet un bouton qui n'existe pas est pire que pas d'e-mail du tout :
+// toute retouche du texte se revérifie de la même façon.
+// ⚠️ LE TEXTE BRUT ET LE HTML SORTENT DU MÊME TABLEAU : écrits deux fois, l'un des deux finirait
+// par mentir. `**gras**` est rendu en HTML et simplement retiré en texte brut.
+const INVITATION = {
+  prof: {
+    objet: 'Votre espace formateur est prêt — Languages & Success',
+    titre: 'Bienvenue parmi nos formateurs',
+    ouverture: 'Votre compte sur l\'espace documents de Languages & Success vient d\'être créé. C\'est ici que se passe le suivi de vos formations : les documents, les échanges avec vos apprenants et avec l\'administration, les signatures.',
+    sections: [
+      { titre: '2. Ce qui vous attend dans votre espace', puces: [
+        '**Un dossier par apprenant.** L\'administration le crée et vous y ajoute : il apparaît alors dans « Mes dossiers », avec les documents et la messagerie de l\'apprenant.',
+        '**Deux canaux par dossier.** La « Discussion commune » est partagée avec l\'apprenant. Le canal « Privé » est réservé aux formateurs et à l\'administration : l\'apprenant n\'y voit rien. C\'est par là que vous nous transmettez vos documents, et que vous recevrez votre contrat de sous-traitance à signer en ligne.',
+        '**Des modèles prêts à l\'emploi.** Le bouton « Générer un document » propose worksheet, questionnaires, tests, attestation, Level Test et feuilles de présence, préremplis avec la fiche de l\'apprenant.',
+        '**Des signatures sans papier.** Questionnaires, feuilles de présence et attestation de fin de formation partent directement chez l\'apprenant, qui les remplit ou les signe en ligne. Le document finalisé revient tout seul dans le dossier, et un e-mail vous prévient.',
+        '**La cloche**, en haut de la page, signale chaque nouveau message et chaque nouveau document.',
+      ] },
+      { titre: '3. Laissez-vous guider', paras: [
+        'Une fois votre mot de passe choisi, vous arrivez directement dans votre espace, où une visite guidée de deux minutes vous présente chaque bouton. Vous pourrez la relancer à tout moment avec **« Revoir la visite guidée »**, en haut de la page.',
+        'Votre espace fonctionne sur ordinateur comme sur téléphone. Nous vous conseillons l\'**ordinateur** : les documents à générer et les formulaires à remplir y sont plus confortables.',
+      ] },
+    ],
+    signature: ['À très bientôt,', 'L\'équipe Languages & Success'],
+  },
+  eleve: {
+    objet: 'Votre espace de formation est prêt — Languages & Success',
+    titre: 'Bienvenue chez Languages & Success',
+    ouverture: 'Pour accompagner votre formation, nous vous avons ouvert un espace documents personnel. Vous y retrouverez au même endroit vos documents, vos échanges avec votre formateur et tout ce que vous aurez à remplir ou à signer.',
+    sections: [
+      { titre: '2. Ce qui vous attend dans votre espace', puces: [
+        '**Votre dossier de formation**, partagé avec votre formateur et l\'équipe Languages & Success.',
+        '**Vos documents**, à télécharger quand vous le souhaitez : ceux que votre formateur partage avec vous, et le règlement intérieur de l\'organisme, à lire dès votre arrivée. Vous pouvez aussi nous envoyer vos propres fichiers.',
+        '**Une messagerie** pour poser vos questions à votre formateur ou à notre équipe.',
+        '**Vos questionnaires et signatures en ligne.** Au fil de la formation, vous recevrez des questionnaires, des feuilles de présence et votre attestation de fin de formation. Un e-mail vous prévient, vous répondez ou signez en quelques clics (à la souris ou au doigt), puis le document est rangé dans votre dossier.',
+      ] },
+      { titre: '3. Laissez-vous guider', paras: [
+        'Une fois votre mot de passe choisi, vous arrivez directement dans votre espace, où une visite guidée de deux minutes vous le présente. Vous pourrez la relancer à tout moment avec **« Revoir la visite guidée »**, en haut de la page.',
+        'Votre espace fonctionne sur ordinateur comme sur téléphone. Nous vous conseillons l\'**ordinateur** : les documents et les questionnaires y sont plus confortables à lire et à remplir.',
+      ] },
+    ],
+    signature: ['Bonne formation,', 'L\'équipe Languages & Success'],
+  },
+};
+// ⚠️ Un lien RENVOYÉ (relance, ou « Mot de passe oublié ? » sur un compte jamais activé) ne peut
+// pas dire « votre compte vient d'être créé » : il part parfois deux semaines après.
+const INVITATION_RENVOI = 'Voici votre lien de première connexion à l\'espace documents de Languages & Success. Vous y retrouverez tout ce qui concerne votre formation.';
+function invitationBlocs(user, url, type) {
+  const m = INVITATION[user.role] || INVITATION.eleve;
+  const sections = [{
+    titre: '1. Choisissez votre mot de passe',
+    paras: ['Votre identifiant : **' + user.email + '**'],
+    cta: { libelle: 'Choisir mon mot de passe', url },
+    apres: ['Ce lien est personnel, valable 14 jours et utilisable une seule fois. S\'il a expiré, cliquez sur « Mot de passe oublié ? » sur la page de connexion : un nouveau lien vous sera envoyé.'],
+  }].concat(m.sections);
+  return { m, intro: ['Bonjour ' + user.prenom + ',', type === 'creation' ? m.ouverture : INVITATION_RENVOI], sections };
+}
+// Texte brut tiré des MÊMES blocs (les puces deviennent des tirets, le bouton devient l'adresse).
+function invitationTexte(b) {
+  const nu = s => String(s).replace(/\*\*/g, '');
+  const lignes = b.intro.map(nu);
+  for (const s of b.sections) {
+    lignes.push('', s.titre.toUpperCase());
+    (s.paras || []).forEach(p => lignes.push(nu(p)));
+    if (s.cta) lignes.push('', s.cta.libelle + ' : ' + s.cta.url);
+    (s.apres || []).forEach(p => lignes.push('', nu(p)));
+    (s.puces || []).forEach(p => lignes.push('- ' + nu(p)));
+  }
+  return lignes.concat(['', ...b.m.signature]).join('\n');
+}
 function sendActivationMail(user, byUser, type) {
   const url = SITE_URL + '/espace-documents.html#activation=' + user.activation.token;
-  const par = byUser ? (' par ' + senderDisplay(byUser)) : '';
   const suivi = noterEnvoi(user, type || 'relance');
-  sendMailSafe(user.email,
-    'Votre compte espace documents est prêt — Languages & Success',
-    'Bonjour ' + user.prenom + ',\n\nUn compte vient d\'être créé pour vous' + par + ' sur l\'espace documents Languages & Success.\nIdentifiant : ' + user.email + '\n\nChoisissez votre mot de passe (lien valable 14 jours) :\n' + url + '\n\nCe lien est personnel : ne le transmettez à personne.\n\nLanguages & Success',
-    mailHtml('Votre compte est prêt ✓',
-      ['Bonjour ' + user.prenom + ',', 'Un compte vient d\'être créé pour vous' + par + ' sur l\'espace documents Languages & Success.',
-       'Identifiant : ' + user.email, 'Il ne reste qu\'à choisir votre mot de passe. Ce lien est personnel et valable 14 jours.'],
-      'Choisir mon mot de passe', url),
-    { suivi });
+  // ⚠️ Un compte administrateur garde le message court : les deux versions décrivent un espace
+  // de formateur ou d'apprenant, qui n'est pas le sien. (Cas de bord : `reinvite` refuse déjà un
+  // compte admin, seul « Mot de passe oublié ? » sur un admin jamais activé passerait ici.)
+  if (user.role === 'admin') {
+    return sendMailSafe(user.email, 'Votre compte espace documents est prêt — Languages & Success',
+      'Bonjour ' + user.prenom + ',\n\nChoisissez votre mot de passe (lien valable 14 jours) :\n' + url + '\n\nCe lien est personnel : ne le transmettez à personne.\n\nLanguages & Success',
+      mailHtml('Votre compte est prêt ✓',
+        ['Bonjour ' + user.prenom + ',', 'Identifiant : ' + user.email,
+         'Il ne reste qu\'à choisir votre mot de passe. Ce lien est personnel et valable 14 jours.'],
+        'Choisir mon mot de passe', url),
+      { suivi });
+  }
+  const b = invitationBlocs(user, url, type || 'relance');
+  sendMailSafe(user.email, b.m.objet, invitationTexte(b),
+    mailHtmlSections(b.m.titre, b.intro, b.sections, b.m.signature), { suivi });
 }
 const activationOf = (t) => db.users.find(u => u.activation && u.activation.token === t && u.activation.exp > Date.now());
 // vérifie le lien avant d'afficher le formulaire (nom affiché, pas de fuite d'information)
