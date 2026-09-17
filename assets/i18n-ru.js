@@ -517,6 +517,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Договор будет удалён из приватного канала, и преподаватель больше не сможет его подписать. Вы сможете отправить новый.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Забыли пароль?",
+  "Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez ou cliquez sur « Mot de passe oublié ? ».": "Слишком много попыток входа. Подождите несколько минут, затем повторите попытку или нажмите «Забыли пароль?».",
   /* ---- compte jamais active : messages de connexion ---- */
   "Ce compte n'est pas encore activé : utilisez le lien « Choisir mon mot de passe » reçu par e-mail.": "Этот аккаунт ещё не активирован: воспользуйтесь ссылкой из письма, чтобы задать пароль.",
   "Ce compte n'est pas encore activé et votre lien a expiré. Cliquez sur « Mot de passe oublié ? » : un nouveau lien vous sera envoyé.": "Этот аккаунт ещё не активирован, а срок действия ссылки истёк. Нажмите «Забыли пароль?»: мы отправим вам новую ссылку.",

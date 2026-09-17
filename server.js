@@ -799,6 +799,7 @@ app.post('/api/activate', async (req, res) => {
   u.passwordHash = await bcrypt.hash(String(password), 10);
   delete u.activation;                       // usage unique
   delete u.mustActivate;
+  oublierEchecsConnexion(u.email, clientIp(req));   // elle vient de prouver que c'est bien elle
   u.lastSeen = Date.now();   // une connexion compte comme une activite
   db.logins.push({ id: crypto.randomUUID(), user: u.id, email: u.email, ip: clientIp(req), date: Date.now() });
   if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
@@ -832,6 +833,7 @@ app.post('/api/me/password', auth, async (req, res) => {
   // pourtant valide. Le jeton d'activation est consommé au passage.
   delete u.activation;
   delete u.mustActivate;
+  oublierEchecsConnexion(u.email, clientIp(req));   // le mot de passe a changé : l'ardoise n'a plus de sens
   save();
   // le jeton reste valable : la personne n'est pas déconnectée de l'onglet où elle travaille
   res.json({ ok: true });
@@ -912,6 +914,10 @@ app.post('/api/password-reset', async (req, res) => {
   u.passwordHash = await bcrypt.hash(String(password), 10);
   delete u.reset;                            // usage unique : sans ce delete, le lien reste rejouable une heure
   delete u.mustActivate;                     // par sécurité : un compte en attente ne doit pas rester bloqué
+  // ⚠️ Sans cet oubli, quelqu'un qui débloque son compte par « Mot de passe oublié ? » serait
+  // encore retenu par l'attente en cours à sa prochaine connexion : l'issue de secours que
+  // désigne le message « Trop de tentatives » ne mènerait nulle part.
+  oublierEchecsConnexion(u.email, clientIp(req));
   u.lastSeen = Date.now();   // une connexion compte comme une activite
   db.logins.push({ id: crypto.randomUUID(), user: u.id, email: u.email, ip: clientIp(req), date: Date.now() });
   if (db.logins.length > 1000) db.logins = db.logins.slice(-1000);
@@ -936,13 +942,116 @@ app.post('/api/admin/users/:id/reinvite', auth, (req, res) => {
 function clientIp(req) {
   return String(req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '').replace(/^::ffff:/, '');
 }
+// ---- ANTI-FORCE BRUTE SUR LA CONNEXION (17/09/2026, demande de l'utilisateur) ---------------
+// Rien ne comptait les essais : bcrypt ralentit chaque tentative (~100 ms) mais n'en refuse
+// aucune, et un mot de passe peut n'avoir que 6 caractères. Deux freins, comme pour le lien de
+// mot de passe oublié — mais pensés pour qu'on ne puisse JAMAIS prendre un compte en otage.
+const LOGIN_LIBRE = 5;                  // échecs tolérés sans la moindre attente : taper de travers ne gêne personne
+const LOGIN_ATTENTES = [60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3, 15 * 60e3];   // puis attente avant l'essai suivant
+// ⚠️ Garde-fou contre la RAFALE, seul frein qui vise une IP ENTIÈRE : il compte les essais qui
+// vont jusqu'à la vérification du mot de passe, à un niveau qu'aucun usage normal n'atteint
+// (60 en 10 min depuis une même adresse, quand un bureau de dix personnes en fait dix par jour).
+// Sans lui, mille requêtes lancées EN MÊME TEMPS franchissent tous les contrôles avant que le
+// moindre compteur ne bouge, chacune occupant le serveur ~100 ms de bcrypt.
+// ⚠️⚠️ IL N'Y A PLUS DE QUOTA D'ÉCHECS PAR IP (il a existé quelques heures le 17/09/2026, à 20
+// échecs / 10 min ; la relecture adversariale l'a démoli et il a été retiré avant d'être mis en
+// ligne). Deux défauts, tous deux reproduits : (1) il REFUSAIT DES IDENTIFIANTS CORRECTS — le
+// contrôle a lieu avant même de chercher le compte, donc la collègue et l'administrateur,
+// derrière le même NAT, recevaient « Trop de tentatives » avec le bon mot de passe ; (2) RIEN ne
+// le remettait à zéro (ni une connexion réussie, ni une réinitialisation : `oublierEchecsConnexion`
+// ne touche que `echecsConnexion`), et une seule personne le remplissait sans jamais rencontrer
+// d'attente, en essayant quatre orthographes de son adresse (chacune rouvre ses 5 essais libres).
+// Ce qu'il apportait contre l'essai d'un mot de passe sur tous les comptes est négligeable ici
+// (~15 comptes : le sondage tient largement sous n'importe quel quota), et l'attente par couple
+// reste la vraie barrière compte par compte.
+const LOGIN_RAFALE_IP = 60;
+// Refus « ce compte n'est pas encore activé » : seau SÉPARÉ, par IP et par 10 min. Ce chemin ne
+// vérifie aucun mot de passe et ne peut donc pas porter d'attente personnelle, mais sa réponse
+// dit qu'un compte existe : le seau borne l'énumération. ⚠️ SÉPARÉ, justement, pour qu'une
+// personne dont l'invitation dort en quarantaine (le cas réel d'allios.fr) ne ferme pas la
+// connexion à tout son bureau en cliquant vingt fois « Se connecter ».
+const LOGIN_NON_ACTIVE_IP = 20;
+const LOGIN_OUBLI = 30 * 60 * 1000;     // 30 min sans échec : le compteur repart de zéro
+// ⚠️⚠️ L'ATTENTE EST COMPTÉE PAR (IP + ADRESSE), JAMAIS PAR ADRESSE SEULE. Une bride par adresse
+// seule transformerait ce garde-fou en arme : il suffirait d'une requête toutes les 15 min sur
+// l'adresse de Jenny pour qu'elle ne puisse plus jamais se connecter, en pleine séance. Ici,
+// l'attaquant ne bloque que LUI-MÊME ; le titulaire, qui vient d'une autre IP, n'est pas touché.
+// Le frein contre l'essai d'un même mot de passe sur tous les comptes, lui, est le quota d'IP.
+// ⚠️ EN MÉMOIRE et non sur le compte : (1) écrire sur le compte appellerait save(), qui réécrit
+// TOUT db.json — une attaque de mots de passe deviendrait une attaque sur le disque ; (2) la
+// table porte aussi les adresses INCONNUES, qui n'ont aucun compte où écrire. Un redémarrage
+// remet les compteurs à zéro, ce qui est acceptable ici (personne d'autre que nous ne le
+// provoque), là où la bride du lien de mot de passe oublié se compte en jours et vit, elle, sur
+// le compte.
+const echecsConnexion = new Map();
+const cleEchec = (ip, mail) => ip + '|' + mail;
+function attenteConnexion(cle) {
+  const e = echecsConnexion.get(cle);
+  if (!e) return 0;
+  const maintenant = Date.now();
+  if (maintenant - e.dernier > LOGIN_OUBLI) { echecsConnexion.delete(cle); return 0; }
+  // ⚠️ « + 1 » : l'attente commence DÈS que les 5 essais libres sont consommés. Sans lui, le
+  // 6e essai passait encore et LOGIN_LIBRE valait 6 dans les faits (défaut attrapé au banc).
+  const rang = e.n - LOGIN_LIBRE + 1;
+  if (rang < 1) return 0;
+  return Math.max(0, e.dernier + LOGIN_ATTENTES[Math.min(rang, LOGIN_ATTENTES.length) - 1] - maintenant);
+}
+// ⚠️ Un essai REFUSÉ pour cause d'attente n'est PAS noté : sinon celui qui martèle rallongerait
+// sa punition sans fin, et l'attente ne retomberait jamais.
+function noterEchecConnexion(cle) {
+  const maintenant = Date.now();
+  const e = echecsConnexion.get(cle) || { n: 0, dernier: 0 };
+  echecsConnexion.set(cle, { n: (maintenant - e.dernier > LOGIN_OUBLI ? 0 : e.n) + 1, dernier: maintenant });
+  // la table ne doit pas grossir sans fin (mêmes précautions que les quotas de formulaire)
+  if (echecsConnexion.size > 5000) {
+    for (const [k, v] of echecsConnexion) { if (maintenant - v.dernier > LOGIN_OUBLI) echecsConnexion.delete(k); }
+  }
+}
+// Efface l'ardoise du POSTE d'où vient la personne, quand elle prouve qu'elle est bien elle
+// (connexion réussie, activation, réinitialisation, changement de mot de passe). Sans cela,
+// quelqu'un qui débloque son compte par « Mot de passe oublié ? » resterait retenu par l'attente
+// en cours à sa connexion suivante depuis ce même poste.
+// ⚠️⚠️ BORNÉ À L'IP DE LA REQUÊTE, jamais à toutes. Effacer partout faisait du 429 un MOUCHARD
+// (défaut trouvé et reproduit par la relecture adversariale du 17/09/2026) : quelqu'un met une
+// adresse en attente depuis chez lui, puis la sonde — un essai déjà refusé ne coûte rien, ne
+// laisse aucune trace et ne rallonge rien. Le jour où le 429 retombe en 401, il sait que
+// l'adresse a un compte chez nous ET que son titulaire vient d'ouvrir sa session, à la minute
+// près. C'est exactement l'énumération que les messages identiques et le hachage factice
+// cherchent à empêcher. Une attente n'appartient qu'au couple (IP + adresse) : la seule qui
+// puisse retenir la personne est celle de son poste, les autres ne la gênent pas.
+function oublierEchecsConnexion(mail, ip) {
+  echecsConnexion.delete(cleEchec(String(ip || ''), String(mail || '').trim().toLowerCase()));
+}
+// ⚠️ Hachage FACTICE, comparé quand l'adresse est inconnue : sans lui la réponse revient
+// immédiatement pour une adresse qui n'existe pas, et après ~100 ms de bcrypt pour une adresse
+// connue. Le TEMPS de réponse disait donc qui a un compte chez nous, et tout le soin pris à
+// rendre les messages identiques n'y changeait rien.
+const HASH_FACTICE = bcrypt.hashSync('adresse inconnue - egalise le temps de reponse', 10);
+const MSG_TROP_ESSAIS = 'Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez ou cliquez sur « Mot de passe oublié ? ».';
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body || {};
   const mail = String(email || '').trim().toLowerCase();
+  const ip = clientIp(req);
+  // ⚠️ AVANT toute autre réponse, et sans regarder si le compte existe : sinon ce sont les refus
+  // pour excès d'essais qui diraient qui a un compte, à la place des messages qu'on a pris soin
+  // de rendre identiques.
+  const attente = attenteConnexion(cleEchec(ip, mail));
+  if (attente > 0 || quotaAtteint(ip, 'rafale', LOGIN_RAFALE_IP)) {
+    res.set('Retry-After', String(Math.ceil((attente || QUOTA_FENETRE) / 1000)));
+    return res.status(429).json({ error: MSG_TROP_ESSAIS });
+  }
   const user = db.users.find(u => u.email === mail);
   // compte créé mais jamais activé : on l'explique au lieu du sec « mot de passe incorrect »
   // (un lien renvoyé à quelqu'un qui a DÉJÀ son mot de passe ne le bloque pas : mustActivate absent)
   if (user && user.mustActivate) {
+    // ⚠️ Seau à part (voir LOGIN_NON_ACTIVE_IP) : aucun mot de passe n'est essayé ici, donc pas
+    // d'attente personnelle, mais la réponse dit qu'un compte existe — au-delà de 20 par IP et
+    // par 10 min, on cesse de le dire. Ce refus ne ferme QUE ce chemin : les autres personnes du
+    // même bureau continuent de se connecter normalement.
+    if (tropDeDemandes(ip, 'attente', LOGIN_NON_ACTIVE_IP)) {
+      res.set('Retry-After', String(Math.ceil(QUOTA_FENETRE / 1000)));
+      return res.status(429).json({ error: MSG_TROP_ESSAIS });
+    }
     const vivant = user.activation && user.activation.exp > Date.now();
     return res.status(403).json({
       error: vivant
@@ -950,7 +1059,17 @@ app.post('/api/login', async (req, res) => {
         : 'Ce compte n\'est pas encore activé et votre lien a expiré. Cliquez sur « Mot de passe oublié ? » : un nouveau lien vous sera envoyé.'
     });
   }
-  if (!user || !(await bcrypt.compare(password || '', user.passwordHash))) return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });
+  // ⚠️ L'ESSAI EST NOTÉ AVANT LA COMPARAISON, et effacé plus bas s'il était bon. Le noter après
+  // laisserait une fenêtre de ~100 ms (le temps de bcrypt) pendant laquelle des requêtes
+  // simultanées passeraient TOUTES le contrôle : le frein ne freinerait que les impatients qui
+  // essaient l'un après l'autre.
+  noterEchecConnexion(cleEchec(ip, mail));
+  tropDeDemandes(ip, 'rafale', LOGIN_RAFALE_IP);   // enregistré ici, donc sans compter les refus d'emblée
+  // ⚠️ La comparaison a lieu MÊME si l'adresse est inconnue (hachage factice) : voir plus haut,
+  // c'est le temps de réponse qui trahissait l'existence d'un compte.
+  const bonMotDePasse = await bcrypt.compare(String(password || ''), user ? user.passwordHash : HASH_FACTICE);
+  if (!user || !bonMotDePasse) return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });
+  oublierEchecsConnexion(mail, ip);   // elle a prouvé que c'était bien elle : l'ardoise de son poste est effacée
   user.lastSeen = Date.now();   // une connexion compte comme une activite
   // historique de connexions (borné aux 1000 dernières entrées)
   db.logins.push({ id: crypto.randomUUID(), user: user.id, email: user.email, ip: clientIp(req), date: Date.now() });
@@ -3674,8 +3793,16 @@ function envoyerMailAttendu(to, subject, text, html, opts) {
 // ⚠️ Le quota du test est plus large que celui du contact : une classe ou une entreprise
 // entière peut passer le test derrière UNE seule IP (NAT).
 const quotasFormulaires = new Map();
+const QUOTA_FENETRE = 10 * 60 * 1000;
+// Même compteur, en LECTURE SEULE. Il faut pouvoir REGARDER le quota sans le consommer : la
+// connexion ne doit compter que les ÉCHECS, jamais une connexion réussie (sinon un bureau entier
+// derrière une seule IP finirait par se bloquer à force de travailler normalement).
+function quotaAtteint(ip, route, max) {
+  const maintenant = Date.now();
+  return (quotasFormulaires.get(route + '|' + ip) || []).filter(t => maintenant - t < QUOTA_FENETRE).length >= max;
+}
 function tropDeDemandes(ip, route, max) {
-  const FENETRE = 10 * 60 * 1000;
+  const FENETRE = QUOTA_FENETRE;
   const k = route + '|' + ip, maintenant = Date.now();
   const liste = (quotasFormulaires.get(k) || []).filter(t => maintenant - t < FENETRE);
   if (liste.length >= max) { quotasFormulaires.set(k, liste); return true; }

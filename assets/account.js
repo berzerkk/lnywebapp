@@ -171,7 +171,15 @@
     var lf = document.getElementById('login-form');
     if (lf) lf.onsubmit = function (e) {
       e.preventDefault();
+      // ⚠️ Le bouton est verrouillé pendant l'appel, comme le font déjà l'activation, « Mot de
+      // passe oublié ? » et la réinitialisation. Sans ça, garder la touche Entrée enfoncée envoie
+      // une requête par frappe : on remplissait en une seconde le quota d'essais de sa propre IP,
+      // et le serveur refusait ensuite tout le monde derrière cette adresse.
+      var bt = lf.querySelector('button[type="submit"], .btn-primary');
+      if (bt && bt.disabled) return;
+      if (bt) bt.disabled = true;
       apiJSON('/api/login', 'POST', { email: val('li-email'), password: val('li-pwd') }).then(function (r) {
+        if (bt) bt.disabled = false;
         if (!r.ok) { err('login-err', r.data.error || 'Connexion impossible.'); return; }
         setToken(r.data.token); ME = r.data.user; selected = null; afterAuth();
       });

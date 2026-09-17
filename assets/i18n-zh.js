@@ -518,6 +518,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "合同将从私密频道中撤回，培训师将无法再签署。您可以重新发送一份新合同。",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "忘记密码？",
+  "Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez ou cliquez sur « Mot de passe oublié ? ».": "登录尝试次数过多。请等待几分钟后重试，或点击「忘记密码？」。",
   /* ---- compte jamais active : messages de connexion ---- */
   "Ce compte n'est pas encore activé : utilisez le lien « Choisir mon mot de passe » reçu par e-mail.": "该账户尚未激活：请使用邮件中的链接设置密码。",
   "Ce compte n'est pas encore activé et votre lien a expiré. Cliquez sur « Mot de passe oublié ? » : un nouveau lien vous sera envoyé.": "该账户尚未激活，且链接已过期。请点击「忘记密码？」：我们会给您发送新的链接。",

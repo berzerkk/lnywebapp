@@ -539,6 +539,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "The agreement will be removed from the private channel and the trainer will no longer be able to sign it. You can send a new one.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Forgotten your password?",
+  "Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez ou cliquez sur « Mot de passe oublié ? ».": "Too many sign-in attempts. Wait a few minutes, then try again or click “Forgotten your password?”.",
   /* ---- compte jamais active : messages de connexion ---- */
   "Ce compte n'est pas encore activé : utilisez le lien « Choisir mon mot de passe » reçu par e-mail.": "This account is not activated yet: use the link you received by e-mail to choose your password.",
   "Ce compte n'est pas encore activé et votre lien a expiré. Cliquez sur « Mot de passe oublié ? » : un nouveau lien vous sera envoyé.": "This account is not activated yet and your link has expired. Click “Forgotten your password?”: a new link will be sent to you.",
