@@ -18,6 +18,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const os = require('os');
+const http = require('http');
+const { fork } = require('child_process');
 const zlib = require('zlib');
 const PDFDocument = require('pdfkit');
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType, Tab, TabStopType } = require('docx');
@@ -113,7 +115,15 @@ const FORM_TEMPLATES = {
 };
 
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, 'data');
+// ⚠️ MODE SIMULATION (21/09/2026) : ce drapeau est posé par le serveur principal quand il lance
+// le serveur de DÉMONSTRATION (bouton « Simulation » de l'administration). Ce processus-là a sa
+// propre base, dans un dossier temporaire, et n'a le droit à AUCUN effet extérieur : e-mails,
+// sauvegardes, Slack et registre Google y sont coupés par le code (voir mailConfig, backupCfg,
+// slackConfig, sheetConfig), en plus de ne recevoir aucune de leurs variables d'environnement.
+const SIMULATION = process.env.LS_SIMULATION === '1';
+// Le dossier de données n'est déplaçable QUE pour le serveur de démonstration : une variable
+// oubliée dans l'environnement de production ne doit jamais pouvoir faire changer de base au site.
+const DATA_DIR = (SIMULATION && process.env.LS_DATA_DIR) ? path.resolve(process.env.LS_DATA_DIR) : path.join(ROOT, 'data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const PORT = process.env.PORT || process.argv[2] || 3000;
@@ -229,6 +239,7 @@ const MAIL_FILE = path.join(DATA_DIR, 'smtp.json');
 const MAIL_EXPEDITEUR = '"Languages & Success" <nepasrepondre@languagesandsuccess.com>';
 const MAIL_NOREPLY = 'Ce message est automatique. Merci de ne pas y répondre : cette adresse ne reçoit aucun courrier.';
 function mailConfig() {
+  if (SIMULATION) return null;   // serveur de démonstration : aucun effet extérieur, jamais
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
     return { host: process.env.SMTP_HOST, port: +(process.env.SMTP_PORT || 465), secure: process.env.SMTP_SECURE !== 'false', user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: MAIL_EXPEDITEUR, siteUrl: process.env.SITE_URL || 'https://languagesandsuccess.com' };
   }
@@ -339,6 +350,7 @@ function mailHtmlSections(titre, intro, sections, signature) {
 // Un échec envoie une alerte e-mail à l'administration (au plus 1 par 24 h).
 const BACKUP_CFG_FILE = path.join(DATA_DIR, 'backup.json');
 function backupCfg() {
+  if (SIMULATION) return null;   // serveur de démonstration : aucun effet extérieur, jamais
   if (process.env.B2_KEY_ID && process.env.B2_APP_KEY) return { mode: 'b2', keyId: process.env.B2_KEY_ID, appKey: process.env.B2_APP_KEY, bucketId: process.env.B2_BUCKET_ID || '', bucket: process.env.B2_BUCKET || '' };
   try {
     const c = JSON.parse(fs.readFileSync(BACKUP_CFG_FILE, 'utf8').replace(/^﻿/, ''));
@@ -697,6 +709,181 @@ function notifyChannel(g, ch, sender, text) { channelRecipients(g, ch, sender.id
 
 // ---- app -------------------------------------------------------------------
 const app = express();
+
+// ---- MODE SIMULATION : un espace documents de démonstration, dans un AUTRE processus -------------
+// (21/09/2026, demande de l'utilisateur : présenter à ses formateurs leur interface, sans rien toucher)
+// ⚠️⚠️ POURQUOI UN AUTRE PROCESSUS, et non des comptes « démo » glissés dans la vraie base :
+// (1) n'importe quel compte connecté peut lister TOUS les utilisateurs (GET /api/users) — un
+// compte de démo y aurait vu les vrais apprenants ; (2) l'administration est membre de TOUS les
+// dossiers, chaque vue d'administration aurait dû filtrer la démo, et le moindre oubli l'aurait
+// mêlée aux vrais dossiers ; (3) remettre la démo à zéro aurait voulu dire SUPPRIMER des dossiers
+// dans la base de production. Ici la démo a sa propre base, dans un dossier temporaire : elle ne
+// peut ni voir ni toucher les vraies données, et le serveur de démo n'a aucun moyen d'envoyer quoi
+// que ce soit (voir SIMULATION en tête de fichier).
+// ⚠️ AIGUILLAGE PAR LE JETON : l'onglet en simulation envoie « sim.<jeton> » (en-tête ou ?token=),
+// et ces requêtes-là, elles seules, sont relayées au serveur de démo. Le navigateur n'a donc
+// AUCUNE adresse à changer : les soixante appels existants fonctionnent tels quels.
+// ⚠️ Le relais est posé AVANT express.json : il transmet le corps brut (JSON, fichiers envoyés,
+// signatures) tel qu'il arrive — une fois lu par express.json, il n'y aurait plus rien à relayer.
+const SIM_DIR = path.join(os.tmpdir(), 'ls-simulation-' + String(PORT).replace(/\D/g, ''));
+const SIM_INACTIF = 3 * 60 * 60 * 1000;   // arrêt au bout de 3 h sans requête : la fois suivante, la démo repart neuve
+const SIM_ADMIN = 'sim-admin';
+const simulation = { proc: null, port: null, secret: null, pret: false, demarrage: null, derniere: 0 };
+// Les personnes de la démo. ⚠️ Adresses en @example.com : domaine RÉSERVÉ par l'IANA, qui ne
+// reçoit jamais de courrier — une adresse « crédible » en .fr pourrait appartenir à quelqu'un.
+const jourIso = (decalage) => new Date(Date.now() + decalage * 86400000).toISOString().slice(0, 10);
+const SIM_PERSONNES = {
+  formatrice: { id: 'sim-formatrice', prenom: 'Sophie', nom: 'DUPONT', email: 'sophie.dupont@example.com', role: 'prof',
+    profile: { langue: 'Anglais, Espagnol', siret: '123 456 789 00012', nda: '93 06 12345 06', adresse: '12 rue de la République, 06000 Nice', tel: '06 12 34 56 78', dateNaissance: '1986-04-12', nationalite: 'Française' } },
+  lucas: { id: 'sim-lucas', prenom: 'Lucas', nom: 'MARTIN', email: 'lucas.martin@example.com', role: 'eleve',
+    profile: { tel: '06 98 76 54 32', societe: 'Riviera Tech', heuresTotal: '30', heuresDetail: '30 h de cours individuels', intitule: 'Anglais professionnel : réunions et négociation', langue: 'Anglais', dateDebut: jourIso(-14), dateFin: jourIso(60), lieu: 'distanciel', certification: 'oui', certificationText: 'TOEIC' } },
+  emma: { id: 'sim-emma', prenom: 'Emma', nom: 'BERNARD', email: 'emma.bernard@example.com', role: 'eleve',
+    profile: { tel: '07 11 22 33 44', societe: 'Hôtel Belvédère', heuresTotal: '20', heuresDetail: '20 h en petit groupe', intitule: 'Espagnol : accueil de la clientèle', langue: 'Espagnol', dateDebut: jourIso(-7), dateFin: jourIso(45), lieu: 'presentiel', lieuAdresse: '5 promenade des Anglais, 06000 Nice', certification: 'non' } },
+};
+// ⚠️ LISTE BLANCHE, jamais « tout sauf » : le serveur de démo ne reçoit que ce qu'il faut pour
+// tourner. Les identifiants SMTP, Backblaze (dont la rétention supprime des archives !), Slack
+// et Google Sheet de la production ne peuvent donc pas y arriver, même ajoutés un jour à l'ENV_FILE.
+const SIM_ENV_PERMIS = ['PATH', 'SystemRoot', 'TEMP', 'TMP', 'TMPDIR', 'HOME', 'USERPROFILE', 'NODE_PATH', 'LANG'];
+function envSimulation() {
+  const e = {};
+  for (const k of SIM_ENV_PERMIS) if (process.env[k] != null) e[k] = process.env[k];
+  // mot de passe administrateur aléatoire : aucun compte de la démo n'est joignable par mot de passe
+  return Object.assign(e, { LS_SIMULATION: '1', LS_DATA_DIR: SIM_DIR, ADMIN_PASSWORD: crypto.randomBytes(24).toString('hex') });
+}
+function arreterSimulation() {
+  const p = simulation.proc;
+  simulation.proc = null; simulation.pret = false; simulation.port = null;
+  if (!p || p.exitCode !== null) return Promise.resolve();
+  return new Promise(ok => { const t = setTimeout(ok, 3000); p.once('exit', () => { clearTimeout(t); ok(); }); p.kill(); });
+}
+// Le contenu de la démo passe par les VRAIES routes du serveur de démo (création de dossier, qui
+// y dépose le règlement intérieur ; messages ; contrat ; questionnaire) : ce que l'on montre aux
+// formateurs est exactement ce que le site produit, pas une maquette qui pourrait diverger.
+// ⚠️ Chaque étape est indépendante : si l'une échoue, la démo s'ouvre quand même avec le reste.
+async function remplirSimulation() {
+  const base = 'http://127.0.0.1:' + simulation.port;
+  const jeton = (id) => jwt.sign({ id }, simulation.secret, { expiresIn: '1h' });
+  const appel = async (id, chemin, corps) => {
+    const r = await fetch(base + chemin, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jeton(id) }, body: JSON.stringify(corps), signal: AbortSignal.timeout(15000) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(chemin + ' → ' + r.status + ' ' + (j.error || ''));
+    return j;
+  };
+  const etape = async (nom, f) => { try { return await f(); } catch (e) { console.error('🎭 simulation, étape « ' + nom + ' » :', e.message); return null; } };
+  const P = SIM_PERSONNES, F = P.formatrice.id;
+  const gLucas = await etape('dossier de Lucas', async () => (await appel(SIM_ADMIN, '/api/groups', { profIds: [F], eleveId: P.lucas.id })).group);
+  const gEmma = await etape('dossier d\'Emma', async () => (await appel(SIM_ADMIN, '/api/groups', { profIds: [F], eleveId: P.emma.id })).group);
+  const msg = (qui, g, ch, text) => etape('message', () => g && appel(qui, '/api/messages', { group: g, channel: ch, text }));
+  await msg(P.lucas.id, gLucas, 'commun', 'Bonjour Sophie, je vous envoie mes disponibilités pour la semaine prochaine : mardi et jeudi en fin de journée.');
+  await msg(F, gLucas, 'commun', 'Parfait Lucas, on garde mardi à 18h. Pensez à relire le vocabulaire de notre dernière séance sur les réunions.');
+  await msg(P.lucas.id, gLucas, 'commun', 'Très bien, merci ! À mardi.');
+  await msg(SIM_ADMIN, gLucas, 'prive', 'Bonjour Sophie, bienvenue dans l\'équipe ! Votre contrat de sous-traitance pour la formation de Lucas est prêt : vous pouvez le relire et le signer juste ici.');
+  if (gLucas) await etape('contrat', () => appel(SIM_ADMIN, '/api/contrat/send', { group: gLucas, prof: F, fields: {
+    stnom: 'Sophie DUPONT', stNaissance: '12/04/1986', stNationalite: 'Française', stAdresse: '12 rue de la République, 06000 Nice',
+    stSiret: '123 456 789 00012', stNda: '93 06 12345 06', intitule: P.lucas.profile.intitule, langue: 'Anglais', stagiaire: 'Lucas MARTIN',
+    programme: '30 h de formation : 24 h de cours synchrones et 6 h en e-learning.', mission: '24 h de cours synchrones en distanciel.',
+    heuresSync: '24', dateDebut: P.lucas.profile.dateDebut, dateFin: P.lucas.profile.dateFin, lieu: 'Distanciel',
+    tauxHoraire: '35', montantTotal: '840', lieuFait: 'Nice', dateFait: jourIso(0) } }));
+  await msg(P.emma.id, gEmma, 'commun', 'Bonjour, à quelle heure commence notre prochain cours ?');
+  if (gEmma) await etape('questionnaire', () => appel(F, '/api/qs/send', { group: gEmma, type: 'qs_mid', header: {
+    nomApprenant: 'Emma BERNARD', societe: P.emma.profile.societe, langue: 'Espagnol', intitule: P.emma.profile.intitule, formateur: 'Sophie DUPONT', date: jourIso(0) } }));
+}
+const simulationVivante = () => !!(simulation.pret && simulation.proc && simulation.proc.exitCode === null && simulation.port);
+function demarrerSimulation(recommencer) {
+  if (simulation.demarrage) return simulation.demarrage;   // deux clics simultanés : un seul démarrage
+  if (simulationVivante() && !recommencer) { simulation.derniere = Date.now(); return Promise.resolve(); }
+  simulation.demarrage = (async () => {
+    await arreterSimulation();
+    fs.rmSync(SIM_DIR, { recursive: true, force: true });
+    fs.mkdirSync(SIM_DIR, { recursive: true });
+    // ⚠️ le SECRET des jetons de la démo est posé ici, dans sa base neuve : le serveur principal peut
+    // donc vérifier un jeton « sim. » AVANT de le relayer (un jeton forgé ne va jamais plus loin),
+    // et en fabriquer sans qu'aucun mot de passe de la démo n'existe.
+    simulation.secret = crypto.randomBytes(32).toString('hex');
+    const inutilisable = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10);
+    const users = [{ id: SIM_ADMIN, prenom: 'Administration', nom: 'L&S', email: ADMIN_EMAIL, role: 'admin', passwordHash: inutilisable, profile: {} }]
+      .concat(Object.values(SIM_PERSONNES).map(p => Object.assign({ passwordHash: inutilisable, dateCreation: Date.now() }, p)));
+    // demoSeeded : pas de « Paul » ni de « Léa » dans la démo, seulement ses propres personnes
+    fs.writeFileSync(path.join(SIM_DIR, 'db.json'), JSON.stringify({ secret: simulation.secret, demoSeeded: true, users }));
+    const proc = fork(path.join(ROOT, 'server.js'), ['0'], { cwd: ROOT, env: envSimulation(), stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+    // ⚠️ les sorties du serveur de démo DOIVENT être lues : un tube jamais vidé finit par bloquer le
+    // processus qui écrit dedans (piège rencontré par la relecture adversariale du 17/09/2026).
+    // (un lancement raté — trop de fichiers ouverts — rend des flux NULS : on ne les lit que s'ils existent)
+    const relayer = (flux, vers) => flux && flux.on('data', d => String(d).split('\n').filter(Boolean).forEach(l => vers.write('🎭 ' + l + '\n')));
+    relayer(proc.stdout, process.stdout); relayer(proc.stderr, process.stderr);
+    proc.on('exit', () => { if (simulation.proc === proc) { simulation.proc = null; simulation.pret = false; simulation.port = null; } });
+    // ⚠️ SANS cet écouteur, un lancement raté (mémoire épuisée, exécutable introuvable) émet un
+    // « error » que personne n'écoute — et Node fait alors tomber le SITE ENTIER, pas la démo.
+    let erreurLancement = null;
+    // ⚠️ après une erreur de lancement, Node n'émet PAS « exit » : l'état est remis à zéro ici aussi
+    proc.on('error', e => {
+      erreurLancement = e; console.error('🎭 simulation : lancement impossible :', e.message);
+      if (simulation.proc === proc) { simulation.proc = null; simulation.pret = false; simulation.port = null; }
+    });
+    simulation.proc = proc;
+    try {
+      simulation.port = await new Promise((ok, ko) => {
+        const t = setTimeout(() => ko(new Error('le serveur de démonstration ne répond pas')), 20000);
+        proc.on('message', m => { if (m && m.simulationPrete) { clearTimeout(t); ok(m.simulationPrete); } });
+        proc.once('error', e => { clearTimeout(t); ko(e); });
+        proc.once('exit', c => { clearTimeout(t); ko(new Error('le serveur de démonstration s\'est arrêté (code ' + c + ')')); });
+      });
+      await remplirSimulation();
+      // ⚠️ mort PENDANT le remplissage : chaque étape a échoué sans bruit, et sans ce contrôle la démo
+      // se déclarait prête sans processus — plus aucune entrée ne fonctionnait pendant trois heures
+      if (erreurLancement || simulation.proc !== proc || proc.exitCode !== null) throw new Error('le serveur de démonstration s\'est arrêté pendant sa préparation');
+    } catch (e) { await arreterSimulation(); throw e; }
+    simulation.pret = true; simulation.derniere = Date.now();
+    console.log('🎭 simulation prête (port ' + simulation.port + ')');
+  })().finally(() => { simulation.demarrage = null; });
+  return simulation.demarrage;
+}
+// ⚠️ AUCUNE RÉPONSE DE L'API N'EST MISE EN CACHE PAR LE NAVIGATEUR. Depuis la simulation, deux
+// identités (l'administrateur et la formatrice fictive) interrogent les MÊMES adresses dans le même
+// navigateur (/api/me, /api/groups…) : une réponse gardée pour l'une pourrait être resservie à
+// l'autre. Chrome, en particulier, garde un 410 SANS LIMITE DE DURÉE quand rien ne l'interdit — le
+// premier jet du relais répondait 410 « simulation terminée », et cette réponse aurait pu revenir
+// au vrai /api/me de l'administrateur, qui ne pouvait alors plus se connecter depuis ce navigateur
+// (défaut trouvé par la relecture adversariale du 21/09/2026).
+app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+if (!SIMULATION) {
+  setInterval(() => { if (simulation.pret && Date.now() - simulation.derniere > SIM_INACTIF) { console.log('🎭 simulation arrêtée (inactive)'); arreterSimulation(); } }, 10 * 60 * 1000).unref();
+  process.on('exit', () => { if (simulation.proc) { try { simulation.proc.kill(); } catch (e) { } } });
+  const SAUT_ENTETES = new Set(['connection', 'keep-alive', 'proxy-connection', 'upgrade', 'te', 'trailer']);
+  const sansSaut = (h) => { const o = {}; for (const k in h) if (!SAUT_ENTETES.has(k.toLowerCase())) o[k] = h[k]; return o; };
+  app.use((req, res, next) => {
+    if (!req.path.startsWith('/api/')) return next();
+    const h = req.headers.authorization || '';
+    const parEntete = h.startsWith('Bearer sim.');
+    const m = parEntete ? null : /[?&]token=sim\.([^&#]*)/.exec(req.originalUrl);
+    if (!parEntete && !m) return next();
+    // ⚠️ À PARTIR D'ICI, JAMAIS next() : une requête de démonstration ne doit en aucun cas
+    // atteindre les vraies routes, même quand la démo est arrêtée ou que le jeton ne vaut rien.
+    let brut = parEntete ? h.slice(11) : m[1];
+    try { brut = decodeURIComponent(brut); } catch (e) { }
+    // 401 et non 410 : un 410 est « définitivement parti », et les navigateurs se croient autorisés
+    // à le garder en cache (voir plus haut).
+    const fin = () => res.status(401).json({ error: 'Cette simulation est terminée.', simulationFinie: true });
+    if (!simulationVivante()) return fin();
+    try { jwt.verify(brut, simulation.secret); } catch (e) { return fin(); }
+    simulation.derniere = Date.now();
+    const entetes = sansSaut(req.headers);
+    entetes.host = '127.0.0.1:' + simulation.port;
+    if (parEntete) entetes.authorization = 'Bearer ' + brut;
+    const chemin = parEntete ? req.originalUrl : req.originalUrl.replace(/([?&]token=)sim\./, '$1');
+    const relais = http.request({ host: '127.0.0.1', port: simulation.port, method: req.method, path: chemin, headers: entetes }, r => {
+      const h = sansSaut(r.headers); h['cache-control'] = 'no-store';
+      res.writeHead(r.statusCode, h);
+      r.pipe(res);
+    });
+    relais.on('error', () => { if (!res.headersSent) fin(); else res.end(); });
+    // le navigateur abandonne (onglet fermé, téléchargement annulé) : on lâche aussi la demande
+    // faite au serveur de démo, sinon la connexion restait ouverte jusqu'à son arrêt
+    res.on('close', () => { if (!res.writableFinished) relais.destroy(); });
+    req.pipe(relais);
+  });
+}
+
 app.use(express.json({ limit: '2mb' })); // marge pour les signatures (data URL PNG)
 // ⚠️ Le Dockerfile copie le dépôt ENTIER dans l'image, et express.static sert tout ce qui n'est
 // pas filtré ici. Le filtre d'origine ne couvrait que data/, node_modules, server.js et
@@ -1206,6 +1393,21 @@ app.get('/api/admin/logins', auth, (req, res) => {
   res.json({ logins: list });
 });
 app.get('/api/me', auth, (req, res) => res.json({ user: meFull(req.user) }));
+// Entrer en simulation (bouton « 🎭 Simulation », administration seulement) : démarre le serveur de
+// démonstration s'il ne tourne pas, puis rend un jeton « sim. » au nom de la formatrice fictive.
+// { recommencer: true } efface tout ce qui a été fait dans la démo et la reconstruit à neuf.
+// ⚠️ Le jeton de la démo ne vaut RIEN ici : il est signé avec le secret de la démo, pas celui du
+// site, et le relais l'intercepte avant qu'il n'atteigne une seule route réelle.
+if (!SIMULATION) app.post('/api/admin/simulation', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
+  try {
+    await demarrerSimulation(!!(req.body || {}).recommencer);
+    res.json({ token: 'sim.' + jwt.sign({ id: SIM_PERSONNES.formatrice.id }, simulation.secret, { expiresIn: '12h' }) });
+  } catch (e) {
+    console.error('🎭 simulation :', e.message);
+    res.status(500).json({ error: 'La simulation n\'a pas pu démarrer. Réessayez dans un instant.' });
+  }
+});
 
 // ---- visite guidée : « je l'ai vue » ---------------------------------------
 // Appelé une seule fois par visite, à la première sortie quelle qu'elle soit (Terminer, Passer,
@@ -1951,12 +2153,23 @@ function recordDocgen(g, user, info) {
   save();
 }
 
+// Une séance d'Interactive Worksheet compte si l'un de ses champs de CONTENU est saisi (le
+// formateur est prérempli d'office). Même liste que seanceRemplie() dans account.js.
+const SEANCE_CHAMPS = ['dateDuree', 'objectifs', 'mots', 'grammaire', 'pronunciation', 'erreurs', 'prochaine'];
+// ⚠️ les caractères INVISIBLES (espaces sans largeur, trait d'union conditionnel), souvent ramenés
+// par un copier-coller, ne font pas une séance : trim() ne les retire pas.
+const seanceRemplie = (s) => !!s && SEANCE_CHAMPS.some(k => String(s[k] || '').replace(/[​-‍⁠﻿­]/g, '').trim());
 app.post('/api/worksheet/generate', auth, async (req, res) => {
   const { group, format } = req.body || {};
   const fmt = (format === 'word' || format === 'docx') ? 'word' : 'pdf';
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
   const w = wsFind(g.id) || wsBlank(g, req.user);
+  // ⚠️ AU MOINS UNE SÉANCE REMPLIE (21/09/2026, demande de l'utilisateur) : sans séance, le
+  // document n'est qu'un en-tête. « Remplie » = un vrai champ saisi ; le nom du formateur, lui,
+  // est prérempli d'office dans chaque séance et ne compte pas. Le formulaire fait le même contrôle
+  // et explique quoi faire ; celui-ci garantit la règle quel que soit le client.
+  if (!(w.sessions || []).some(seanceRemplie)) return res.status(400).json({ error: 'Ajoutez au moins une séance avant de générer l\'Interactive Worksheet.' });
   const ver = versionModele('interactive');
   let buf, ext, type;
   try {
@@ -3805,6 +4018,7 @@ app.post('/api/admin/mail-test', auth, async (req, res) => {
 // ⚠️ En mode jeton, le robot doit être MEMBRE du canal : « /invite @claude » dans #contact,
 // sinon Slack répond not_in_channel et le repli e-mail prend le relais.
 function slackConfig() {
+  if (SIMULATION) return null;   // serveur de démonstration : aucun effet extérieur, jamais
   if (process.env.SLACK_WEBHOOK) return { webhook: process.env.SLACK_WEBHOOK };
   if (process.env.SLACK_TOKEN) return { token: process.env.SLACK_TOKEN, channel: process.env.SLACK_CHANNEL || 'C0BRDPD17C4' };
   try {
@@ -3854,6 +4068,7 @@ function notifierSlack(texte) {
 // proprement. ⚠️ C'est un REGISTRE, pas une alerte : il s'ajoute à Slack et à l'e-mail, il ne
 // remplace ni l'un ni l'autre — les trois tuyaux sont indépendants.
 function sheetConfig() {
+  if (SIMULATION) return null;   // serveur de démonstration : aucun effet extérieur, jamais
   if (process.env.SHEET_WEBHOOK) return { url: process.env.SHEET_WEBHOOK };
   try {
     let t = fs.readFileSync(path.join(DATA_DIR, 'sheet.json'), 'utf8');
@@ -4679,4 +4894,13 @@ async function ensureDemo() {
   if (changed) save();
 }
 
-ensureDemo().then(() => app.listen(PORT, () => console.log(`L&S server → http://localhost:${PORT}`)));
+ensureDemo().then(() => {
+  if (SIMULATION) {
+    // Serveur de démonstration : n'écoute que sur la machine elle-même (seul le serveur principal
+    // lui parle), annonce son port par le canal du parent, et s'arrête avec lui.
+    const srv = app.listen(PORT, '127.0.0.1', () => { if (process.send) process.send({ simulationPrete: srv.address().port }); });
+    process.on('disconnect', () => process.exit(0));
+    return;
+  }
+  app.listen(PORT, () => console.log(`L&S server → http://localhost:${PORT}`));
+});

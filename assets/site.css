@@ -1032,6 +1032,10 @@ footer a:hover{color:#fff8ef}
 .gen-del:hover{color:#c0392b}
 .gen-cancel{margin-left:10px}
 .gen-add{margin-top:10px;border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+/* Interactive Worksheet sans séance : le message dit quoi faire, le cadre d'ajout se signale */
+.gen-sess-err{font-weight:600;margin:0 0 10px;line-height:1.45}
+.gen-sess-err[hidden]{display:none}
+.gen-add.a-completer{border:2px solid #c0392b;background:rgba(192,57,43,.04)}
 .gen-add summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--accent)}
 .gen-add .gf-grid{margin-top:12px}
 .gen-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line)}
@@ -1318,6 +1322,20 @@ html.tuto-lock{overflow:hidden}
 /* les deux commandes du bandeau sont groupées : .ds-top est en justify-content:space-between,
    un second bouton posé directement dedans flotterait au milieu et déborderait à 375 px */
 .ds-top-acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+/* Mode simulation (21/09/2026) : bandeau permanent pendant la démo. Accent chaud sur fond clair,
+   lisible projeté sur un écran, sans crier : c'est une présentation, pas une alerte. */
+.sim-bandeau{display:flex;align-items:center;justify-content:space-between;gap:14px 18px;flex-wrap:wrap;
+  margin:0 0 20px;padding:12px 16px;border:1.5px solid var(--accent);border-radius:14px;
+  background:color-mix(in oklab,var(--accent) 9%,transparent)}
+.sim-msg{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1 1 280px}
+.sim-titre{font-size:14.5px;color:var(--accent)}
+.sim-txt{font-size:13.5px;line-height:1.45;color:var(--ink-soft)}
+.sim-acts{display:flex;gap:10px;flex-wrap:wrap}
+.sim-acts .btn{padding:9px 16px;font-size:13.5px}
+@media (max-width:620px){
+  .sim-acts{width:100%}
+  .sim-acts .btn{flex:1 1 0;min-height:44px;white-space:normal}
+}
 @media (max-width:620px){
   .tuto-card{left:12px;right:12px;width:auto;transform:none;padding:20px 18px 18px}
   .tuto-card.centre{transform:translateY(-50%)}

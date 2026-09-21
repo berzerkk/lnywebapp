@@ -8,7 +8,11 @@
 (function () {
   'use strict';
   var TKEY = 'lsx_token';
-  function token() { try { return localStorage.getItem(TKEY) || ''; } catch (e) { return ''; } }
+  // ⚠️ onglet en SIMULATION (bouton « 🎭 Simulation » de l'espace documents) : l'écran est peut-être
+  // projeté devant des formateurs, sous l'identité d'une formatrice fictive. L'administration RÉELLE
+  // du blog (brouillons, Publier, Supprimer) ne doit pas s'y afficher : on s'y comporte en visiteur.
+  function enSimulation() { try { return !!sessionStorage.getItem('lsx_sim'); } catch (e) { return false; } }
+  function token() { if (enSimulation()) return ''; try { return localStorage.getItem(TKEY) || ''; } catch (e) { return ''; } }
   if (!token()) return;                       // visiteur non connecté : rien à faire
 
   var API = '/api/blog/articles';
@@ -414,7 +418,7 @@
           fd.append('image', f);
           fetch(API + '/' + boxImg.getAttribute('data-art') + '/image', {
             method: 'POST',
-            headers: { Authorization: 'Bearer ' + (localStorage.getItem('lsx_token') || '') },
+            headers: { Authorization: 'Bearer ' + token() },
             body: fd
           }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }); })
             .then(function (r) {

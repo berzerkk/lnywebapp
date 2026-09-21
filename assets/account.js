@@ -8,14 +8,58 @@
   'use strict';
 
   var TKEY = 'lsx_token';
-  function token() { return localStorage.getItem(TKEY); }
-  function setToken(t) { if (t) localStorage.setItem(TKEY, t); else localStorage.removeItem(TKEY); }
+  // ⚠️ MODE SIMULATION (21/09/2026) : le jeton de la démo vit dans sessionStorage, donc dans CET
+  // onglet seulement. Le vrai jeton de l'administrateur, dans localStorage, n'est JAMAIS touché :
+  // quitter la simulation, fermer l'onglet ou ouvrir un autre onglet le retrouve intact. Le jeton
+  // de démo porte le préfixe « sim. », et c'est lui qui aiguille chaque requête vers le serveur de
+  // démonstration : aucune adresse n'a besoin de changer dans ce fichier.
+  var SKEY = 'lsx_sim';
+  function jetonSim() { try { return sessionStorage.getItem(SKEY); } catch (e) { return null; } }
+  function enSimulation() { return !!jetonSim(); }
+  function token() { return jetonSim() || localStorage.getItem(TKEY); }
+  // ⚠️⚠️ En simulation, setToken ne fait RIEN. On ne quitte la démo QUE par un geste explicite
+  // (« Quitter la simulation », « Se déconnecter », « Revenir à mon espace »). Le premier jet
+  // quittait la simulation dès qu'on appelait setToken(null) — or le démarrage de la page l'appelle
+  // quand /api/me échoue : le jeton de démo disparaissait, le setToken(null) suivant ne se savait
+  // plus en simulation, et effaçait le VRAI jeton de l'administrateur (relecture du 21/09/2026).
+  function setToken(t) {
+    if (enSimulation()) return;
+    if (t) localStorage.setItem(TKEY, t); else localStorage.removeItem(TKEY);
+  }
+  function quitterSimulation() { try { sessionStorage.removeItem(SKEY); } catch (e) { } location.reload(); }
+  // Pendant « Recommencer la démo », l'ancienne démo s'arrête avant que la nouvelle soit prête :
+  // les réponses « simulation terminée » de cet intervalle sont attendues, pas un signal de fin.
+  var simEnTransition = false, simFinAffichee = false;
+  // ⚠️ La démo s'est arrêtée toute seule (trois heures sans activité, mise à jour du site). On NE
+  // bascule PAS vers l'espace réel : l'écran est peut-être projeté devant des formateurs, et y faire
+  // apparaître d'un coup les vrais dossiers serait exactement ce que la simulation doit éviter.
+  function finDeSimulation() {
+    if (simFinAffichee) return; simFinAffichee = true;
+    if (notifTimer) { clearInterval(notifTimer); notifTimer = null; }
+    var d = document.createElement('div'); d.className = 'notif-modal confirm-modal open sim-fin';
+    d.innerHTML = '<div class="nm-backdrop"></div><div class="nm-card confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="sim-fin-t">' +
+      '<h3 id="sim-fin-t">La démonstration est terminée</h3>' +
+      '<p>Elle s\'arrête d\'elle-même après trois heures sans activité, ou lors d\'une mise à jour du site.</p><div class="confirm-actions">' +
+      '<button class="btn btn-ghost sim-fin-sortir" type="button">Revenir à mon espace</button>' +
+      '<button class="btn btn-primary sim-fin-relancer" type="button">Relancer la démo</button></div></div>';
+    document.body.appendChild(d);
+    d.querySelector('.sim-fin-sortir').onclick = function () { quitterSimulation(); };
+    var rb = d.querySelector('.sim-fin-relancer');
+    rb.onclick = function () { entrerSimulation(rb, true); };
+    rb.focus();
+  }
 
   function api(path, opts) {
     opts = opts || {}; opts.headers = opts.headers || {};
     var t = token(); if (t) opts.headers.Authorization = 'Bearer ' + t;
     return fetch(path, opts).then(function (r) {
-      return r.json().then(function (j) { return { ok: r.ok, status: r.status, data: j }; })
+      return r.json().then(function (j) {
+        // ⚠️ la démo s'est arrêtée : la promesse ne se résout JAMAIS, pour qu'aucun appelant ne
+        // traite ce refus comme une session expirée (démarrage de page → setToken(null) → écran
+        // de connexion). C'est l'écran « démonstration terminée » qui prend la main.
+        if (j && j.simulationFinie && enSimulation()) { if (!simEnTransition) finDeSimulation(); return new Promise(function () { }); }
+        return { ok: r.ok, status: r.status, data: j };
+      })
         .catch(function () { return { ok: r.ok, status: r.status, data: {} }; });
     // Coupure réseau (serveur en cours de redémarrage lors d'une mise à jour, wifi
     // perdu…) : on ne laisse JAMAIS la promesse échouer, sinon la suite du code ne
@@ -89,7 +133,10 @@
     }
   }
   function closeMobileMenu() { var m = document.getElementById('mobile-menu'), b = document.getElementById('nav-backdrop'); if (m) m.classList.remove('open'); if (b) b.classList.remove('open'); document.body.classList.remove('menu-open'); }
-  function logout() { setToken(null); ME = null; NOTIFS = []; selected = null; if (notifTimer) { clearInterval(notifTimer); notifTimer = null; } renderHeader(); if (app()) renderAuth(); }
+  function logout() {
+    // en simulation, « Se déconnecter » ramène à l'espace administrateur : la vraie session n'est pas fermée
+    if (enSimulation()) { quitterSimulation(); return; }
+    setToken(null); ME = null; NOTIFS = []; selected = null; if (notifTimer) { clearInterval(notifTimer); notifTimer = null; } renderHeader(); if (app()) renderAuth(); }
 
   // ---- modale notifications ----------------------------------------------
   function ensureNotifModal() {
@@ -129,6 +176,9 @@
 
   // ---- boot ---------------------------------------------------------------
   function boot() {
+    // ⚠️ un lien d'activation ou de réinitialisation vaut pour un VRAI compte : ouvert dans un onglet
+    // resté en simulation, il partait au serveur de démo, qui le déclarait expiré.
+    if (/[#&](activation|reinit)=/i.test(location.hash || '')) { try { sessionStorage.removeItem(SKEY); } catch (e) { } }
     // lien d'activation reçu par e-mail : la personne choisit elle-même son mot de passe
     var act = /[#&]activation=([a-f0-9]{16,})/i.exec(location.hash || '');
     if (act && app()) { ME = null; renderHeader(); renderActivate(act[1]); return; }
@@ -344,14 +394,51 @@
     });
   }
 
+  // ---- mode simulation (21/09/2026) ------------------------------------------
+  // Bandeau permanent pendant la démo : personne ne doit pouvoir confondre la démo et le vrai site.
+  function simBandeauHTML() {
+    return '<div class="sim-bandeau" role="status"><div class="sim-msg"><b class="sim-titre">🎭 Mode simulation</b>' +
+      '<span class="sim-txt">Données fictives : rien de ce que vous faites ici ne touche les vrais dossiers ni n\'envoie d\'e-mail.</span></div>' +
+      '<div class="sim-acts"><button type="button" class="btn btn-ghost sim-recommencer">Recommencer la démo</button>' +
+      '<button type="button" class="btn btn-primary sim-quitter">Quitter la simulation</button></div></div>';
+  }
+  // ⚠️ Toujours avec le jeton RÉEL de l'administrateur (localStorage) : en simulation, token()
+  // rendrait celui de la démo, et la demande partirait au serveur de démonstration.
+  function entrerSimulation(bt, recommencer) {
+    var vrai = null; try { vrai = localStorage.getItem(TKEY); } catch (e) { }
+    if (!vrai) { quitterSimulation(); return; }
+    var libelle = bt.textContent; bt.disabled = true; bt.textContent = 'Préparation de la démo…';
+    var echec = 'La simulation n\'a pas pu démarrer. Réessayez dans un instant.';
+    // ⚠️ depuis la démo (« Recommencer »), l'ancienne s'arrête avant que la nouvelle soit prête : la
+    // cloche, interrogée toutes les 20 s, recevrait « simulation terminée » dans l'intervalle. Le
+    // premier jet renvoyait alors l'onglet vers le VRAI espace administrateur, devant les formateurs.
+    if (enSimulation()) { simEnTransition = true; if (notifTimer) { clearInterval(notifTimer); notifTimer = null; } }
+    fetch('/api/admin/simulation', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + vrai }, body: JSON.stringify({ recommencer: !!recommencer }) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, data: j }; }); })
+      .then(function (r) {
+        if (!r.ok || !r.data.token) throw new Error(r.data.error || echec);
+        try { sessionStorage.setItem(SKEY, r.data.token); } catch (e) { throw new Error('Votre navigateur bloque le stockage de session : la simulation ne peut pas s\'ouvrir.'); }
+        location.reload();
+      })
+      .catch(function (e) {
+        bt.disabled = false; bt.textContent = libelle;
+        alertDialog(e instanceof TypeError ? echec : (e.message || echec));
+        // l'ancienne démo a été arrêtée : on propose de relancer ou de revenir, sans rien basculer
+        if (simEnTransition) { simEnTransition = false; finDeSimulation(); }
+      });
+  }
+
   // ---- briques communes ---------------------------------------------------
   function topHTML() {
     // ⚠️ les deux boutons sont groupés dans .ds-top-acts : .ds-top est en justify-content:space-between,
     // un second bouton posé directement dedans flotterait au milieu du bandeau sur ordinateur et
     // ferait déborder l'en-tête à 375 px (précédent .adm-grp-acts).
-    return '<div class="ds-top"><div class="ds-id"><span class="ds-hi">Bonjour ' + esc(ME.prenom) + ' ' + esc(ME.nom) + '</span>' +
+    return (enSimulation() ? simBandeauHTML() : '') +
+      '<div class="ds-top"><div class="ds-id"><span class="ds-hi">Bonjour ' + esc(ME.prenom) + ' ' + esc(ME.nom) + '</span>' +
       '<span class="role-chip role-' + ME.role + '">' + ROLES[ME.role] + '</span></div><div class="ds-top-acts">' +
       (ME.role === 'admin' ? '' : '<button type="button" class="btn btn-ghost tuto-replay">Revoir la visite guidée</button>') +
+      // bouton « Simulation » : administration seulement, à gauche de « Changer mon mot de passe »
+      (ME.role === 'admin' ? '<button type="button" class="btn btn-ghost ds-sim">🎭 Simulation</button>' : '') +
       '<button type="button" class="btn btn-ghost ds-pwd">Changer mon mot de passe</button>' +
       '<button class="btn btn-ghost ds-logout">Se déconnecter</button></div></div>';
   }
@@ -598,6 +685,12 @@
       '</aside><main class="ds-main">' + groupView(selG, messages, docs) + '</main></div>' + (overview ? adminPanel(overview) : '');
     el.querySelector('.ds-logout').onclick = function () { logout(); };
     var pb = el.querySelector('.ds-pwd'); if (pb) pb.onclick = function () { openPasswordModal(); };
+    var sb = el.querySelector('.ds-sim'); if (sb) sb.onclick = function () { entrerSimulation(sb, false); };
+    var sq = el.querySelector('.sim-quitter'); if (sq) sq.onclick = function () { quitterSimulation(); };
+    var sr = el.querySelector('.sim-recommencer'); if (sr) sr.onclick = function () {
+      confirmDialog({ title: 'Recommencer la démo ?', message: 'Tout ce qui a été fait pendant la simulation sera effacé, et la démo repartira de son état de départ.',
+        confirm: 'Recommencer', onConfirm: function () { entrerSimulation(sr, true); } });
+    };
     // le bouton est détruit et recréé à chaque rendu, et n'existe pas pour un admin
     var tb = el.querySelector('.tuto-replay'); if (tb) tb.onclick = function () { ouvrirTuto(); };
     var sa = el.querySelector('.ds-seeall'); if (sa) sa.onclick = openNotifModal;
@@ -675,6 +768,11 @@
     m.querySelector('.nm-backdrop').onclick = closeGenModal;
     m.querySelector('.gen-generate').onclick = function () {
       syncGen();
+      // ⚠️ au moins une séance remplie (même règle côté serveur) : sans elle on MONTRE où est le
+      // manque au lieu de générer un document qui ne serait qu'un en-tête
+      // ⚠️ le brouillon est ENREGISTRÉ quand même : ce bouton était le seul qui sauvait l'en-tête et
+      // les notes, et le premier jet les perdait à la fermeture de la fenêtre (relecture du 21/09/2026)
+      if (!genState.sessions.some(seanceRemplie)) { saveGen(); montrerSeanceManquante(); return; }
       var btn = m.querySelector('.gen-generate'); btn.disabled = true; btn.textContent = 'Génération…';
       saveGen(function () {
         var fmt = document.getElementById('gen-format').value;
@@ -694,6 +792,34 @@
     };
   }
   function closeGenModal() { var m = document.getElementById('gen-modal'); if (m) { m.classList.remove('open'); document.body.style.overflow = ''; } }
+  // Une séance compte si l'un de ses champs de CONTENU est saisi : le nom du formateur est prérempli
+  // d'office, il ne suffit pas. ⚠️ Même liste que SEANCE_CHAMPS côté serveur.
+  var SEANCE_CHAMPS = ['dateDuree', 'objectifs', 'mots', 'grammaire', 'pronunciation', 'erreurs', 'prochaine'];
+  // (caractères invisibles d'un copier-coller retirés : trim() ne les enlève pas)
+  function reelTexte(v) { return String(v || '').replace(/[​-‍⁠﻿­]/g, '').trim(); }
+  function seanceRemplie(s) { return !!s && SEANCE_CHAMPS.some(function (k) { return reelTexte(s[k]); }); }
+  // Trois situations, trois consignes : le message dit exactement quoi faire.
+  // ⚠️ La plus traîtresse : la séance TAPÉE dans le cadre mais jamais ajoutée par « Ajouter cette
+  // séance ». Elle n'existe pas pour le document, alors que la personne l'a sous les yeux.
+  function montrerSeanceManquante() {
+    var tapee = ['s-date', 's-obj', 's-mots', 's-gram', 's-pron', 's-err', 's-next'].some(function (id) { return reelTexte(val(id)); });
+    var vides = genState.sessions.length > 0;
+    // en MODIFICATION, le bouton du cadre s'appelle « Mettre à jour la séance » : la consigne le nomme
+    var msg = (tapee && genState.editIdx != null) ? 'Votre séance n\'est pas encore enregistrée : cliquez sur « Mettre à jour la séance », puis générez le document.'
+      : tapee ? 'Votre séance n\'est pas encore ajoutée : cliquez sur « Ajouter cette séance », puis générez le document.'
+      : vides ? 'Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis générez le document.'
+      : 'Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».';
+    var e = document.getElementById('gen-sess-err');
+    if (e) { e.textContent = msg; e.hidden = false; }
+    var d = document.querySelector('#gen-modal .gen-add');
+    if (d) {
+      if (!vides || tapee) d.open = true;
+      d.classList.add('a-completer');
+      (e || d).scrollIntoView({ block: 'center', behavior: 'smooth' });
+      var cible = tapee ? d.querySelector('.gen-add-btn') : vides ? document.querySelector('#gen-modal .gen-edit') : document.getElementById('s-date');
+      if (cible) setTimeout(function () { try { cible.focus({ preventScroll: true }); } catch (x) { cible.focus(); } }, 350);
+    }
+  }
   function renderGen() {
     var h = genState.header || {}, n = h.notes || {};
     var editing = genState.editIdx != null, es = editing ? (genState.sessions[genState.editIdx] || {}) : {};
@@ -712,7 +838,8 @@
       '<h4 class="gen-h">Objectifs et organisation — notes du formateur</h4><div class="gf-grid">' +
       ga('g-nVoc', 'Vocabulaire', n.vocabulaire) + ga('g-nStr', 'Structure', n.structure) +
       ga('g-nCom', 'Communication', n.communication) + ga('g-nAut', 'Autre', n.autre) + '</div>' +
-      '<h4 class="gen-h">Séances (' + genState.sessions.length + ')</h4><div id="gen-sessions">' + list + '</div>' +
+      '<h4 class="gen-h">Séances (' + genState.sessions.length + ')</h4>' +
+      '<p class="auth-err gen-sess-err" id="gen-sess-err" role="alert" hidden></p><div id="gen-sessions">' + list + '</div>' +
       '<details class="gen-add"' + (editing ? ' open' : '') + '><summary>' + (editing ? '✎ Modifier la séance ' + (genState.editIdx + 1) : '+ Ajouter une séance (après un cours)') + '</summary><div class="gf-grid">' +
       gi('s-date', 'Date et durée du cours', es.dateDuree || '') + gi('s-form', 'Formateur', es.formateur != null ? es.formateur : h.nomFormateur) +
       ga('s-obj', 'Objectifs de la séance', es.objectifs || '') + ga('s-mots', 'Liste des mots', es.mots || '') +
