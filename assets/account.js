@@ -488,7 +488,8 @@
         return '<span class="mchip' + (u.id === ME.id ? moi : '') + '">' + esc(fullName(u)) + ' · ' + role + '</span>';
       }).join('');
     }
-    return '<div class="grp-members">' + chips(g && g.eleve ? [g.eleve] : [], 'Apprenant') + chips(gProfs(g), 'Formateur') +
+    // canal privé : l'apprenant n'y a aucun accès, sa bulle n'a rien à y faire (elle laissait croire qu'il lisait)
+    return '<div class="grp-members">' + (channel === 'prive' ? '' : chips(g && g.eleve ? [g.eleve] : [], 'Apprenant')) + chips(gProfs(g), 'Formateur') +
       '<span class="mchip' + (ME.role === 'admin' ? moi : '') + '">Administration L&amp;S</span></div>';
   }
   function qsMsgHTML(m) {
@@ -745,6 +746,7 @@
   function ga(id, label, v, rows) { return '<label class="gf gf-full">' + label + '<textarea id="' + id + '" rows="' + (rows || 2) + '">' + esc(v || '') + '</textarea></label>'; }
   function showGenModal() {
     ensureGenModal(); renderGen(); var gm = document.getElementById('gen-modal'); gm.classList.add('open'); document.body.style.overflow = 'hidden';
+    gm.querySelector('.gen-generate').textContent = libelleEnvoi(channel);   // la fenêtre est réutilisée : le bouton suit l'onglet ouvert
     // aperçu : seules les séances AJOUTÉES y figurent — exactement ce que le document contiendra
     attacherApercu(gm, function () { if (!genState || !document.getElementById('g-intitule')) return null; syncGen(); return { tpl: 'interactive', donnees: { header: genState.header, sessions: genState.sessions } }; });
   }
@@ -766,7 +768,7 @@
       '<div class="nm-body" id="gen-body"></div>' +
       '<div class="gen-foot">' +
         '<label class="gen-chan">Format <select id="gen-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +
-        '<button class="btn btn-primary gen-generate" style="padding:11px 22px">Générer le document →</button></div></div>';
+        '<button class="btn btn-primary gen-generate" style="padding:11px 22px">Envoyer dans la discussion commune →</button></div></div>';
     document.body.appendChild(m);
     m.querySelector('#gen-close').onclick = closeGenModal;
     m.querySelector('.nm-backdrop').onclick = closeGenModal;
@@ -777,21 +779,10 @@
       // ⚠️ le brouillon est ENREGISTRÉ quand même : ce bouton était le seul qui sauvait l'en-tête et
       // les notes, et le premier jet les perdait à la fermeture de la fenêtre (relecture du 21/09/2026)
       if (!genState.sessions.some(seanceRemplie)) { saveGen(); montrerSeanceManquante(); return; }
-      var btn = m.querySelector('.gen-generate'); btn.disabled = true; btn.textContent = 'Génération…';
+      var btn = m.querySelector('.gen-generate'); btn.disabled = true; btn.textContent = 'Envoi…';
       saveGen(function () {
         var fmt = document.getElementById('gen-format').value;
-        fetch('/api/worksheet/generate', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() }, body: JSON.stringify({ group: selected, format: fmt }) })
-          .then(function (r) { if (!r.ok) return r.json().then(function (j) { throw new Error(j.error || 'Erreur'); }); return r.blob(); })
-          .then(function (blob) {
-            var ext = fmt === 'word' ? 'docx' : 'pdf';
-            var nm = '1 - Interactive Worksheet - ' + ((genState.header && genState.header.nomApprenant) || 'apprenant') + ' - ' + new Date().toLocaleDateString('fr-FR') + '.' + ext;
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a'); a.href = url; a.download = nm; document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
-            btn.disabled = false; btn.textContent = 'Document généré ✓ — re-générer';
-            setTimeout(function () { btn.textContent = 'Générer le document →'; }, 3000);
-          })
-          .catch(function (e) { btn.disabled = false; btn.textContent = 'Générer le document →'; alertDialog(e.message || 'Génération impossible.'); });
+        envoyerDoc(btn, '/api/worksheet/generate', { group: selected, format: fmt }, closeGenModal);
       });
     };
   }
@@ -812,13 +803,13 @@
     var ed = document.getElementById('gen-editeur');
     if (ed) {
       var e0 = document.getElementById('gen-sess-err');
-      if (e0) { e0.textContent = 'Votre séance est vide : complétez-la (date, objectifs…), puis générez le document.'; e0.hidden = false; }
+      if (e0) { e0.textContent = 'Votre séance est vide : complétez-la (date, objectifs…), puis envoyez le document.'; e0.hidden = false; }
       ed.classList.add('a-completer'); ed.scrollIntoView({ block: 'start', behavior: 'instant' });
       var p0 = document.getElementById('e-date'); if (p0) setTimeout(function () { try { p0.focus({ preventScroll: true }); } catch (x) { p0.focus(); } }, 350);
       return;
     }
-    var msg = tapee ?'Votre séance n\'est pas encore ajoutée : cliquez sur « Ajouter cette séance », puis générez le document.'
-      : vides ? 'Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis générez le document.'
+    var msg = tapee ?'Votre séance n\'est pas encore ajoutée : cliquez sur « Ajouter cette séance », puis envoyez le document.'
+      : vides ? 'Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis envoyez le document.'
       : 'Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».';
     var e = document.getElementById('gen-sess-err');
     if (e) { e.textContent = msg; e.hidden = false; }
@@ -944,7 +935,7 @@
     var body = document.getElementById('tpl-body');
     if (pane === 'new') {
       body.innerHTML = genTargetsHTML() + '<p class="ds-empty" style="margin:0 0 12px">Choisissez le document à générer :</p><ul class="tpl-list">' +
-        '<li class="tpl-item" data-tpl="interactive"><span class="tpl-ic">📄</span><span class="c-name">1 - Interactive Worksheet<small>Résumé de cours à télécharger / partager à l\'apprenant</small></span><span class="tpl-go">→</span></li>' +
+        '<li class="tpl-item" data-tpl="interactive"><span class="tpl-ic">📄</span><span class="c-name">1 - Interactive Worksheet<small>Résumé de cours à partager à l\'apprenant</small></span><span class="tpl-go">→</span></li>' +
         '<li class="tpl-item" data-tpl="qs_mid"><span class="tpl-ic">📋</span><span class="c-name">2 - QS mi-parcours<small>Questionnaire de satisfaction (rempli par l\'apprenant)</small></span><span class="tpl-go">→</span></li>' +
         '<li class="tpl-item" data-tpl="qs_end"><span class="tpl-ic">📋</span><span class="c-name">3 - QS fin de formation<small>Questionnaire de fin de formation (rempli par l\'apprenant)</small></span><span class="tpl-go">→</span></li>' +
         '<li class="tpl-item" data-tpl="attestation"><span class="tpl-ic">📜</span><span class="c-name">4 - Attestation de fin de formation<small>Début prérempli depuis les fiches ; à compléter et faire signer</small></span><span class="tpl-go">→</span></li>' +
@@ -1541,6 +1532,7 @@
         btn.disabled = false; btn.textContent = 'Enregistrer';
         if (!r.ok) { err('fe-err', (r.data && r.data.error) || 'Erreur'); return; }
         closeFsModal('fe-modal');
+        if (r.data && r.data.invitationRenvoyee) alertDialog("L'adresse a changé et ce compte n'a pas encore choisi son mot de passe : l'invitation vient de repartir à la nouvelle adresse, avec un lien neuf. L'ancien lien ne fonctionne plus.", 'Invitation renvoyée');
         api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; rerenderAdmin(false); } });
       });
     };
@@ -1732,9 +1724,23 @@
   // fiche client (pré-remplissage automatique des documents)
   function clientFiche() { var e = curEleve(); return (e && e.profile) || {}; }
   function profFiche() { var p = curProf(); return (p && p.profile) || {}; }
-  // téléchargement direct d'un document généré (binaire) + états du bouton
+  // ⚠️ « ENVOYER » AU LIEU DE « GÉNÉRER » (22/09/2026) : avec l'aperçu en direct, le document n'est plus
+  // téléchargé pour être relu — il part dans le dossier, dans le canal de l'ONGLET OUVERT, et le bouton
+  // dit où. `canalImpose` : la fiche satisfaction formateur va toujours au canal privé.
+  function libelleEnvoi(ch) { return ch === 'prive' ? 'Envoyer dans le canal privé →' : 'Envoyer dans la discussion commune →'; }
+  function envoyerDoc(btn, url, body, fermer, canalImpose) {
+    var ch = canalImpose || (channel === 'prive' ? 'prive' : 'commun'), orig = libelleEnvoi(ch);
+    btn.disabled = true; btn.textContent = 'Envoi…';
+    apiJSON(url, 'POST', Object.assign({}, body, { envoyer: true, channel: ch })).then(function (r) {
+      btn.disabled = false; btn.textContent = orig;
+      if (!r.ok) { alertDialog((r.data && r.data.error) || 'Envoi impossible.'); return; }
+      fermer(); channel = ch; renderDashboard();
+      alertDialog(ch === 'prive' ? "Le document est déposé dans le canal privé du dossier. L'apprenant n'y a pas accès." : "Le document est déposé dans la discussion commune du dossier. L'apprenant en est averti.", 'Document envoyé');
+    });
+  }
+  // téléchargement direct d'un document généré (binaire) + états du bouton (il ne sert plus qu'au contrat)
   function downloadDoc(m, btnSel, url, body, baseName) {
-    var btn = m.querySelector(btnSel), orig = 'Générer le document →'; btn.disabled = true; btn.textContent = 'Génération…';
+    var btn = m.querySelector(btnSel), orig = btn.textContent; btn.disabled = true; btn.textContent = 'Génération…';
     fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() }, body: JSON.stringify(body) })
       .then(function (r) { if (!r.ok) return r.json().then(function (j) { throw new Error(j.error || 'Erreur'); }); return r.blob(); })
       .then(function (blob) {
@@ -1936,14 +1942,14 @@
     // pas de ligne « Certification » sur les tests mi-parcours et fin de formation
     var fields = [['nomApprenant', "Nom de l'apprenant"], ['societe', 'Société'], ['langue', 'Langue'], ['intitule', 'Intitulé de la formation'], ['formateur', 'Formateur'], ['date', 'Date']];
     var h = headerPrefill();
-    var body = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête, le résultat et votre appréciation, puis générez le document à télécharger.</p><div class="gf-grid">' +
+    var body = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête, le résultat et votre appréciation, puis envoyez le document dans le dossier.</p><div class="gf-grid">' +
       fields.map(function (f) { return gi('td-' + f[0], f[1], h[f[0]]); }).join('') + '</div>' +
       '<h4 class="gen-h">Résultat &amp; appréciation</h4><div class="gf-grid">' +
       gi('td-resultat', 'Résultat', '') + ga('td-appreciation', 'Appréciation formateur', '', 4) + '</div>' +
       '<h4 class="gen-h">Zone libre <small style="font-weight:400;color:var(--ink-soft)">(mise en forme avancée — sans titre sur le document)</small></h4>' +
       richEditorHTML('td-rt');
     var footer = '<label class="gen-chan">Format <select id="td-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +
-      '<button class="btn btn-primary td-gen" type="button" style="padding:11px 22px">Générer le document →</button>';
+      '<button class="btn btn-primary td-gen" type="button" style="padding:11px 22px">' + libelleEnvoi(channel) + '</button>';
     var m = buildFsModal('td-modal', titles[type] || 'Test', body, footer);
     wireRichEditor(m, 'td-rt');
     var champsTd = function () {
@@ -1954,19 +1960,8 @@
     m.querySelector('.td-gen').onclick = function () {
       var saisie = champsTd(), header = saisie.header, extra = saisie.extra;
       var fmt = document.getElementById('td-format').value;
-      var btn = m.querySelector('.td-gen'); btn.disabled = true; btn.textContent = 'Génération…';
-      fetch('/api/testdoc/generate', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() }, body: JSON.stringify({ group: selected, type: type, header: header, extra: extra, format: fmt }) })
-        .then(function (r) { if (!r.ok) return r.json().then(function (j) { throw new Error(j.error || 'Erreur'); }); return r.blob(); })
-        .then(function (blob) {
-          var ext = fmt === 'word' ? 'docx' : 'pdf';
-          var nm = (type === 'test_mid' ? '5' : '6') + ' - ' + (titles[type] || 'Test') + ' - ' + (header.nomApprenant || 'apprenant') + ' - ' + new Date().toLocaleDateString('fr-FR') + '.' + ext;
-          var url = URL.createObjectURL(blob);
-          var a = document.createElement('a'); a.href = url; a.download = nm; document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
-          btn.disabled = false; btn.textContent = 'Document généré ✓ — re-générer';
-          setTimeout(function () { btn.textContent = 'Générer le document →'; }, 3000);
-        })
-        .catch(function (e) { btn.disabled = false; btn.textContent = 'Générer le document →'; alertDialog(e.message || 'Génération impossible.'); });
+      var btn = m.querySelector('.td-gen');
+      envoyerDoc(btn, '/api/testdoc/generate', { group: selected, type: type, header: header, extra: extra, format: fmt }, function () { closeFsModal('td-modal'); });
     };
   }
 
@@ -2089,7 +2084,7 @@
       var fc = clientFiche();
       var pre = { dateEval: new Date().toLocaleDateString('fr-FR'), societe: fc.societe || '', langue: fc.langue || '', nom: ((curEleve()||{}).nom || ''), prenom: ((curEleve()||{}).prenom || ''), tel: fc.tel || '', mail: ((curEleve()||{}).email || '') };
       function fld(id, label, v, multi) { return multi ? '<label class="gf">' + label + '<textarea id="' + id + '" rows="2">' + esc(v || '') + '</textarea></label>' : gi(id, label, v); }
-      var head = '<p class="ds-empty" style="margin:0 0 14px">En-tête prérempli depuis la fiche. Complétez l\'évaluation et les besoins, puis générez le document.</p><h4 class="gen-h">En-tête</h4><div class="gf-grid">';
+      var head = '<p class="ds-empty" style="margin:0 0 14px">En-tête prérempli depuis la fiche. Complétez l\'évaluation et les besoins, puis envoyez le document dans le dossier.</p><h4 class="gen-h">En-tête</h4><div class="gf-grid">';
       (tpl.headerRows || []).forEach(function (row) { row.forEach(function (pair) { if (pair) head += fld('lt-' + pair[0], pair[1], pre[pair[0]] || '', pair[0] === 'fonction' || pair[0] === 'planning'); }); });
       head += '</div><div id="lt-extra-wrap"></div><button type="button" class="btn-mini lt-add-field" style="margin-top:4px">+ Ajouter un champ</button>';
       var tfPre = { handicap: 'PAS DE BESOIN SPÉCIFIQUE', objectifs: 'Besoin(s) : \n\nObjectif(s) : ' };
@@ -2100,7 +2095,7 @@
       var ev = [tpl.evalEcrite, tpl.evalOrale].map(function (e) {
         return '<h4 class="gen-h">' + esc(e.titre) + '</h4><div class="gf-grid">' + e.fields.map(function (f) { return gi('lt-' + f[0], f[1], f[2] || ''); }).join('') + '</div>';
       }).join('');
-      var footer = '<label class="gen-chan">Format <select id="lt-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label><button class="btn btn-primary lt-gen" type="button" style="padding:11px 22px">Générer le document →</button>';
+      var footer = '<label class="gen-chan">Format <select id="lt-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label><button class="btn btn-primary lt-gen" type="button" style="padding:11px 22px">' + libelleEnvoi(channel) + '</button>';
       var m = buildFsModal('lt-modal', tpl.title || 'Level Test', head + tf + bes + ev, footer);
       var addField = function (label, value) {
         var wrap = m.querySelector('#lt-extra-wrap');
@@ -2126,7 +2121,7 @@
       attacherApercu(m, function () { return { tpl: 'leveltest', donnees: { fields: champsLt() } }; });
       m.querySelector('.lt-gen').onclick = function () {
         var fields = champsLt();
-        downloadDoc(m, '.lt-gen', '/api/leveltest/generate', { group: selected, fields: fields, format: document.getElementById('lt-format').value }, (ME.role === 'admin' ? '9' : '8') + ' - Level Test - ' + (fields.prenom || fields.nom || 'apprenant'));
+        envoyerDoc(m.querySelector('.lt-gen'), '/api/leveltest/generate', { group: selected, fields: fields, format: document.getElementById('lt-format').value }, function () { closeFsModal('lt-modal'); });
       };
     });
   }
@@ -2383,10 +2378,10 @@
       var hf = tpl.headerFields || [];
       var fc = clientFiche();
       var pre = { formateur: fullName(curProf()), nomApprenant: fullName(curEleve()), date: fc.dateDebut || new Date().toLocaleDateString('fr-FR'), langue: fc.langue || '', intitule: fc.intitule || '' };
-      var headerHTML = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête et cochez vos réponses, puis générez le document à télécharger (à transmettre ensuite à l\'administration via le canal privé).</p>' +
+      var headerHTML = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête et cochez vos réponses, puis envoyez : la fiche part dans le canal privé du dossier, que seule l\'administration lit avec vous. L\'apprenant ne la voit pas.</p>' +
         '<div class="gf-grid">' + hf.map(function (f) { return gi('fm-h-' + f.id, f.label, pre[f.id] || ''); }).join('') + '</div>';
       var footer = '<label class="gen-chan">Format <select id="fm-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +
-        '<button class="btn btn-primary fm-gen" type="button" style="padding:11px 22px">Générer le document →</button>';
+        '<button class="btn btn-primary fm-gen" type="button" style="padding:11px 22px">' + libelleEnvoi('prive') + '</button>';
       var m = buildFsModal('fm-modal', tpl.title || 'Document', headerHTML + qsItemsHTML(tpl.items || [], {}), footer);
       wireQsConditional(m);
       var champsFm = function () {
@@ -2403,19 +2398,8 @@
       m.querySelector('.fm-gen').onclick = function () {
         var saisieFm = champsFm(), header = saisieFm.header, answers = saisieFm.answers;
         var fmt = document.getElementById('fm-format').value;
-        var btn = m.querySelector('.fm-gen'); btn.disabled = true; btn.textContent = 'Génération…';
-        fetch('/api/form/generate', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() }, body: JSON.stringify({ group: selected, type: type, header: header, answers: answers, format: fmt }) })
-          .then(function (rr) { if (!rr.ok) return rr.json().then(function (j) { throw new Error(j.error || 'Erreur'); }); return rr.blob(); })
-          .then(function (blob) {
-            var ext = fmt === 'word' ? 'docx' : 'pdf';
-            var nm = (ME.role === 'admin' ? '8' : '7') + ' - ' + (tpl.title || 'Document') + ' - ' + (header.nomApprenant || 'apprenant') + ' - ' + new Date().toLocaleDateString('fr-FR').replace(/\//g, '-') + '.' + ext;
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a'); a.href = url; a.download = nm; document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
-            btn.disabled = false; btn.textContent = 'Document généré ✓ — re-générer';
-            setTimeout(function () { btn.textContent = 'Générer le document →'; }, 3000);
-          })
-          .catch(function (e) { btn.disabled = false; btn.textContent = 'Générer le document →'; alertDialog(e.message || 'Génération impossible.'); });
+        var btn = m.querySelector('.fm-gen');
+        envoyerDoc(btn, '/api/form/generate', { group: selected, type: type, header: header, answers: answers, format: fmt }, function () { closeFsModal('fm-modal'); }, 'prive');
       };
     });
   }
@@ -2544,10 +2528,11 @@
     ] },
     { ancre: '.gen-btn', ouvrirDossier: true, titre: 'Générer un document', paras: [
       'Ce bouton ouvre la liste des modèles : worksheet, questionnaires, tests, attestation, Level Test, feuilles de présence.',
+      'À droite, l\'aperçu du document se met à jour pendant que vous tapez. Le bouton d\'envoi dépose le document dans l\'onglet ouvert du dossier.',
       'Les informations de l\'apprenant viennent de sa fiche. Un champ vide veut dire que la fiche est incomplète : demandez à l\'administration de la remplir.'
     ] },
     { ancre: 'centre', titre: 'Questionnaires et feuilles de présence', paras: [
-      'Ces deux-là ne se téléchargent pas : ils partent chez l\'apprenant, qui reçoit une notification et un e-mail.',
+      'Ces deux-là partent chez l\'apprenant pour être remplis ou signés : il reçoit une notification et un e-mail.',
       'Une fois rempli ou signé, le document revient tout seul dans la discussion commune.'
     ] },
     TUTO_NOTIFS,

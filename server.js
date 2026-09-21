@@ -1662,11 +1662,22 @@ app.patch('/api/users/:id', auth, (req, res) => {
   const avant = ficheReportable(u);
   if (prenom != null && sTrim(prenom)) u.prenom = sTrim(prenom);
   if (nom != null && sTrim(nom)) u.nom = sTrim(nom);
+  const mailChange = !!(mail && mail !== u.email);
   if (mail) u.email = mail;
   if (profile != null) u.profile = cleanProfile(u.role, Object.assign({}, u.profile, profile));
   const reportes = reporterFiche(u, avant);
+  // ⚠️ ADRESSE CORRIGÉE SUR UN COMPTE EN ATTENTE → L'INVITATION REPART TOUTE SEULE (22/09/2026, demande de
+  // l'utilisateur). Le cas réel : une faute de frappe à la création, la personne n'a donc jamais rien reçu ;
+  // corriger l'adresse ne servait à rien tant qu'on ne pensait pas à cliquer « Envoyer une relance ».
+  // Le lien est RÉGÉNÉRÉ : l'ancien est parti à une adresse qui n'est pas la sienne, il ne doit plus valoir.
+  // Un compte déjà activé ne reçoit rien : son mot de passe reste valable, seul son identifiant change.
+  let invitationRenvoyee = false;
+  if (mailChange && u.mustActivate && u.role !== 'admin') {
+    u.activation = newActivation(); u.relances = (u.relances || 0) + 1; u.derniereRelance = Date.now(); invitationRenvoyee = true;
+  }
   save();
-  res.json({ ok: true, user: pubFull(u), reportes });
+  if (invitationRenvoyee) sendActivationMail(u, req.user, 'relance');
+  res.json({ ok: true, user: pubFull(u), reportes, invitationRenvoyee });
 });
 // ⚠️ REPORTER UNE FICHE CORRIGÉE (16/09/2026) : le brouillon d'Interactive Worksheet d'un dossier est
 // ENREGISTRÉ (une fois créé, il ne se relit plus depuis la fiche), et un document envoyé pour
@@ -2301,6 +2312,30 @@ const SEANCE_CHAMPS = ['dateDuree', 'objectifs', 'mots', 'grammaire', 'pronuncia
 // ⚠️ les caractères INVISIBLES (espaces sans largeur, trait d'union conditionnel), souvent ramenés
 // par un copier-coller, ne font pas une séance : trim() ne les retire pas.
 const seanceRemplie = (s) => !!s && SEANCE_CHAMPS.some(k => String(s[k] || '').replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, '').trim());
+// ⚠️ « ENVOYER » AU LIEU DE « GÉNÉRER » (22/09/2026, demande de l'utilisateur : avec l'aperçu en direct,
+// télécharger le fichier pour le relire puis le redéposer à la main n'a plus de sens). Quand le
+// formulaire demande `envoyer`, le document produit est DÉPOSÉ dans le dossier, dans le canal de
+// l'onglet ouvert (`channel`), comme un fichier partagé : mêmes droits (`canChannel`), même
+// notification. Sans `envoyer`, l'ancien téléchargement direct reste servi (outils, anciens onglets).
+// `canalImpose` : la fiche satisfaction formateur est destinée à l'administration, elle ne part
+// JAMAIS dans la discussion commune, quel que soit l'onglet.
+function rendreDocument(req, res, g, buf, name, ctype, canalImpose) {
+  if (!(req.body && req.body.envoyer)) {
+    res.setHeader('Content-Type', ctype);
+    res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
+    return res.send(buf);
+  }
+  const ch = canalImpose || (req.body.channel === 'prive' ? 'prive' : 'commun');
+  if (!canChannel(g, req.user, ch)) return res.status(403).json({ error: 'Accès refusé.' });
+  const stored = crypto.randomUUID() + (ctype === 'application/pdf' ? '.pdf' : '.docx');
+  try { fs.writeFileSync(path.join(UPLOADS_DIR, stored), buf); }
+  catch (e) { console.error('dépôt du document généré :', e.message); return res.status(500).json({ error: "Le document n'a pas pu être déposé dans le dossier." }); }
+  const doc = { id: crypto.randomUUID(), group: g.id, channel: ch, from: req.user.id, fromAdmin: req.user.role === 'admin', name, size: buf.length, type: ctype, stored, date: Date.now() };
+  db.docs.push(doc);
+  notifyChannel(g, ch, req.user, `${senderDisplay(req.user)} a partagé un document ${ch === 'prive' ? '(privé) ' : ''}: ${name}`);
+  save();
+  res.json({ ok: true, doc: docPub(doc), channel: ch });
+}
 app.post('/api/worksheet/generate', auth, async (req, res) => {
   const { group, format } = req.body || {};
   const fmt = (format === 'word' || format === 'docx') ? 'word' : 'pdf';
@@ -2311,7 +2346,7 @@ app.post('/api/worksheet/generate', auth, async (req, res) => {
   // document n'est qu'un en-tête. « Remplie » = un vrai champ saisi ; le nom du formateur, lui,
   // est prérempli d'office dans chaque séance et ne compte pas. Le formulaire fait le même contrôle
   // et explique quoi faire ; celui-ci garantit la règle quel que soit le client.
-  if (!(w.sessions || []).some(seanceRemplie)) return res.status(400).json({ error: 'Ajoutez au moins une séance avant de générer l\'Interactive Worksheet.' });
+  if (!(w.sessions || []).some(seanceRemplie)) return res.status(400).json({ error: 'Ajoutez au moins une séance avant d\'envoyer l\'Interactive Worksheet.' });
   const ver = versionModele('interactive');
   let buf, ext, type;
   try {
@@ -2319,11 +2354,8 @@ app.post('/api/worksheet/generate', auth, async (req, res) => {
     else { buf = await buildWorksheetPdf(w, req.user, ver); ext = 'pdf'; type = 'application/pdf'; }
   } catch (e) { console.error('Génération worksheet:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'interactive', title: 'Interactive Worksheet', format: fmt, apprenant: (w.header && w.header.nomApprenant) || 'apprenant', sessionCount: (w.sessions || []).length, snapshot: { header: w.header || {}, sessions: w.sessions || [] } });
-  // on renvoie directement le fichier en téléchargement (aucun dépôt dans le dossier)
   const name = `1 - Interactive Worksheet - ${safeFile((w.header && w.header.nomApprenant) || 'apprenant')} - ${nameDate()}.${ext}`;
-  res.setHeader('Content-Type', type);
-  res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
-  res.send(buf);
+  return rendreDocument(req, res, g, buf, name, type);
 });
 
 app.get('/api/worksheet/history', auth, (req, res) => {
@@ -2469,9 +2501,7 @@ app.post('/api/testdoc/generate', auth, async (req, res) => {
   } catch (e) { console.error('testdoc:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'test', tpl: type, title: tpl.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: (header && header.nomApprenant) || 'apprenant' });
   const name = (type === 'test_mid' ? '5' : '6') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((header && header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
-  res.setHeader('Content-Type', ctype);
-  res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
-  res.send(buf);
+  return rendreDocument(req, res, g, buf, name, ctype);
 });
 
 // ---- Attestation de fin de stage (formateur + admin) -----------------------
@@ -3430,9 +3460,7 @@ app.post('/api/form/generate', auth, async (req, res) => {
   } catch (e) { console.error('form gen:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'form', tpl: type, title: tpl.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: (header && header.nomApprenant) || 'apprenant' });
   const name = (req.user.role === 'admin' ? '8' : '7') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile((header && header.nomApprenant) || 'apprenant') + ' - ' + nameDate() + '.' + ext;
-  res.setHeader('Content-Type', ctype);
-  res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
-  res.send(buf);
+  return rendreDocument(req, res, g, buf, name, ctype, 'prive');
 });
 
 // ---- APERÇU EN DIRECT des documents à générer (21/09/2026, demande de l'utilisateur) --------------
@@ -3612,9 +3640,7 @@ app.post('/api/leveltest/generate', auth, async (req, res) => {
   } catch (e) { console.error('leveltest:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'leveltest', title: LEVEL_TEST.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.prenom || d.nom || 'apprenant' });
   const name = (req.user.role === 'admin' ? '9' : '8') + ' - ' + safeFile(LEVEL_TEST.title) + ' - ' + safeFile(d.prenom || d.nom || 'apprenant') + ' - ' + nameDate() + '.' + ext;
-  res.setHeader('Content-Type', ctype);
-  res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
-  res.send(buf);
+  return rendreDocument(req, res, g, buf, name, ctype);
 });
 
 // ---- Feuilles de présence (formateur + admin) : 3 types -------------------
