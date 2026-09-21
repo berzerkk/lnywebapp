@@ -636,19 +636,21 @@ function cleanProfile(role, p) {
 // d'une partie COMMUNE (en-tête, pied de page, LEGAL_LINES, signature d'Antonin) les fait toutes
 // avancer. Une clé absente vaut 1.0 : ne pas compter sur ce repli, chaque modèle a sa ligne.
 // 1.1 pour tous le 16/09/2026 : pied de page Word refait (sans tableau, numéro de page en bas, comme le PDF)
+// 1.2 pour tous (contrat 1.3) le 21/09/2026 : rendu PDF commun — caractères hors Europe de l'Ouest (→ ≠ phonétique, russe…)
+// enfin lisibles, et case plus haute qu'une page coupée proprement entre deux pages
 const VERSIONS_MODELES = {
-  interactive: '1.1',            // Interactive Worksheet
-  qs_mid: '1.1',                 // Questionnaire de satisfaction en cours de formation
-  qs_end: '1.1',                 // Questionnaire de fin de formation
-  attestation: '1.1',            // Attestation de fin de formation
-  test_mid: '1.1',               // Test de mi-parcours
-  test_end: '1.1',               // Test de fin de formation
-  contrat: '1.2',                // Contrat de sous-traitance (1.1 : « Languages & Success » ; 1.2 : pied de page)
-  qs_formateur: '1.1',           // Fiche satisfaction formateur
-  leveltest: '1.1',              // Level Test
-  'presence-elearning': '1.1',   // Suivi assiduité e-learning
-  'presence-presentiel': '1.1',  // Feuille de présence présentiel / distanciel
-  'presence-test': '1.1',        // Feuille de présence Test (certification)
+  interactive: '1.2',            // Interactive Worksheet
+  qs_mid: '1.2',                 // Questionnaire de satisfaction en cours de formation
+  qs_end: '1.2',                 // Questionnaire de fin de formation
+  attestation: '1.2',            // Attestation de fin de formation
+  test_mid: '1.2',               // Test de mi-parcours
+  test_end: '1.2',               // Test de fin de formation
+  contrat: '1.3',                // Contrat de sous-traitance (1.1 : « Languages & Success » ; 1.2 : pied de page ; 1.3 : caractères spéciaux et cases longues)
+  qs_formateur: '1.2',           // Fiche satisfaction formateur
+  leveltest: '1.2',              // Level Test
+  'presence-elearning': '1.2',   // Suivi assiduité e-learning
+  'presence-presentiel': '1.2',  // Feuille de présence présentiel / distanciel
+  'presence-test': '1.2',        // Feuille de présence Test (certification)
 };
 function versionModele(tpl) { return VERSIONS_MODELES[tpl] || '1.0'; }
 // pied de page : lignes méta (présentes sur TOUS les documents générés)
@@ -2023,6 +2025,64 @@ function sigBox(sig, wPt, hPt) {
 const dxCols = (parts) => { const t = parts.reduce((a, b) => a + b, 0); const c = parts.map(p => Math.round(9026 * p / t)); c[c.length - 1] = 9026 - c.slice(0, -1).reduce((a, b) => a + b, 0); return c; };
 const dxRowMin = (children, twips) => new TableRow({ children, height: twips ? { value: twips, rule: HeightRule.ATLEAST } : undefined });
 // cellule pdf (fond + bordure + texte ; valign 'top'|'center')
+// ---- CARACTÈRES HORS HELVETICA (21/09/2026, défaut signalé par l'utilisateur sur l'Interactive
+// Worksheet de Yohan MARCHAND, case « Structure et grammaire ») ---------------------------------
+// Les polices standard de pdfkit ne connaissent que l'alphabet d'Europe de l'Ouest (WinAnsi). Tout
+// autre caractère sortait EN CHARABIA, sans la moindre erreur : « since 3 years → for 3 years »
+// devenait « since 3 years !’ for 3 years », « ≠ » devenait « "` », la phonétique /ɪd/ « /&¦Bð » —
+// et un mot russe, serbe ou hongrois (langues enseignées) une suite de signes. Exactement ce que
+// les formateurs tapent en grammaire, en prononciation et dans les listes de mots.
+// ⚠️ Correctif CENTRAL : pdfUnicode() enveloppe text / heightOfString / widthOfString du document.
+// Une chaîne qui contient un caractère hors WinAnsi est composée en DejaVu Sans (lib/polices/, libre),
+// de même graisse, puis la police d'origine est remise. ⚠️ UNE CHAÎNE SANS CARACTÈRE SPÉCIAL NE CHANGE
+// PAS D'UN OCTET : les documents déjà produits restent identiques, aucune version de modèle n'avance.
+// ⚠️ La chaîne ENTIÈRE change de police, pas le seul caractère : mélanger deux polices dans une ligne
+// demanderait de refaire le repli des lignes de pdfkit. DejaVu étant plus large qu'Helvetica, le corps
+// est réduit à 93 % pour que la case garde le même gris que ses voisines.
+// ⚠️ Non couverts : chinois, japonais, coréen (une police CJK pèse 16 Mo) — ils sortent en cases vides
+// « □ », ce qui est honnête, et non plus en signes trompeurs. Le Word, lui, n'a jamais eu ce défaut
+// (Word choisit seul une police de repli).
+const PDF_HORS_WINANSI = /[^\u0000-\u007F\u00A0-\u00FF\u20AC\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u017D\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u017E\u0178]/;
+const PDF_REPLI = { 'Helvetica': 'DejaVuSans', 'Helvetica-Bold': 'DejaVuSans-Bold', 'Helvetica-Oblique': 'DejaVuSans-Oblique', 'Helvetica-BoldOblique': 'DejaVuSans-BoldOblique' };
+const PDF_REPLI_CORPS = 0.93;
+const pdfPolices = {};   // lues une seule fois ; absentes → les documents sortent comme avant, jamais d'échec
+for (const n of Object.values(PDF_REPLI)) { try { pdfPolices[n] = fs.readFileSync(path.join(ROOT, 'lib', 'polices', n + '.ttf')); } catch (e) { console.error('police de repli absente :', n); } }
+// exécute f() avec la police de repli si `chaine` en a besoin ; rend la main dans l'état d'origine
+function pdfAvecRepli(doc, chaine, f) {
+  const nom = doc._font && doc._font.name, repli = PDF_REPLI[nom];
+  if (!repli || !pdfPolices[repli] || !PDF_HORS_WINANSI.test(String(chaine == null ? '' : chaine))) return f();
+  const corps = doc._fontSize;
+  doc.font(repli).fontSize(corps * PDF_REPLI_CORPS);
+  try { return f(); } finally { doc.font(nom).fontSize(corps); }
+}
+function pdfUnicode(doc) {
+  for (const n of Object.keys(pdfPolices)) doc.registerFont(n, pdfPolices[n]);
+  ['text', 'heightOfString', 'widthOfString'].forEach(m => {
+    const origine = doc[m];
+    doc[m] = function (chaine) { const args = arguments; return pdfAvecRepli(doc, chaine, () => origine.apply(doc, args)); };
+  });
+  return doc;
+}
+// Lignes VISUELLES d'un texte dans une largeur donnée (police et corps déjà posés) : sert à couper
+// une case trop haute entre deux pages. Un mot plus large que la case est coupé lettre à lettre.
+function pdfLignes(doc, texte, largeur) {
+  const lignes = [];
+  String(texte == null ? '' : texte).replace(/\r/g, '').split('\n').forEach(para => {
+    let cours = '';
+    para.split(/ +/).forEach(mot => {
+      const essai = cours ? cours + ' ' + mot : mot;
+      if (doc.widthOfString(essai) <= largeur) { cours = essai; return; }
+      if (cours) lignes.push(cours);
+      cours = mot;
+      while (doc.widthOfString(cours) > largeur && cours.length > 1) {
+        let k = cours.length - 1; while (k > 1 && doc.widthOfString(cours.slice(0, k)) > largeur) k--;
+        lignes.push(cours.slice(0, k)); cours = cours.slice(k);
+      }
+    });
+    lignes.push(cours);
+  });
+  return lignes;
+}
 function pdfCell(doc, x, y, w, hh, text, o) {
   o = o || {};
   if (o.fill) doc.rect(x, y, w, hh).fillColor(o.fill).fill();
@@ -2035,13 +2095,60 @@ function pdfCell(doc, x, y, w, hh, text, o) {
     doc.text(String(text), x + padX, ty, { width: availW, align: o.align || 'left' });
   }
 }
+const PDF_LIGNE_INSECABLE = 140;   // en points (~12 lignes) : en dessous, une ligne de tableau ne se coupe pas
+// Dessine UNE ligne de tableau en plusieurs morceaux, page après page. Les cases courtes (libellés)
+// sont répétées sur chaque morceau, suivies de « (suite) » ; le texte long est coupé entre deux
+// lignes visuelles, jamais au milieu d'une ligne.
+function pdfRowDecoupee(doc, row, left) {
+  const bas = () => doc.page.height - doc.page.margins.bottom;
+  const police = (c) => doc.font(c.bold ? 'Helvetica-Bold' : (c.italics ? 'Helvetica-Oblique' : 'Helvetica')).fontSize(c.size || 9.5);
+  const infos = row.cells.map(c => {
+    police(c);
+    const texte = String(c.text == null ? '' : c.text);
+    return pdfAvecRepli(doc, texte, () => ({ c, texte, lignes: pdfLignes(doc, texte, c.w - 14), lh: doc.currentLineHeight(true) }));
+  });
+  const plusLongue = Math.max(...infos.map(i => i.lignes.length));
+  infos.forEach(i => { i.etiquette = i.lignes.length <= 3 && plusLongue > 3; });
+  let premier = true;
+  while (infos.some(i => !i.etiquette && i.lignes.length)) {
+    if (bas() - doc.y < 64) doc.addPage();                   // pas la place pour quatre lignes : page suivante
+    const dispo = bas() - doc.y, y = doc.y;
+    infos.forEach(i => { i.prises = i.etiquette ? 0 : Math.min(i.lignes.length, Math.max(1, Math.floor((dispo - 11) / i.lh))); });
+    const hh = Math.max(premier && row.minH ? row.minH : 16, ...infos.map(i => i.prises * i.lh + 11));
+    let x = left;
+    infos.forEach(i => {
+      const c = i.c;
+      if (i.etiquette) pdfCell(doc, x, y, c.w, hh, i.texte && !premier ? i.texte + ' (suite)' : i.texte, c);
+      else {
+        pdfCell(doc, x, y, c.w, hh, '', c);                   // fond et cadre
+        police(c); doc.fillColor(c.color || '#2a241d');
+        const morceau = i.lignes.splice(0, i.prises);
+        pdfAvecRepli(doc, i.texte, () => morceau.forEach((l, k) => {
+          const dx = c.align === 'center' ? Math.max(0, (c.w - 14 - doc.widthOfString(l)) / 2) : 0;
+          if (l) doc.text(l, x + 7 + dx, y + 5 + k * i.lh, { lineBreak: false });
+        }));
+      }
+      x += c.w;
+    });
+    doc.y = y + hh; premier = false;
+    if (infos.some(i => !i.etiquette && i.lignes.length)) doc.addPage();
+  }
+}
 // rend une liste de lignes { cells:[{text,w,...}], minH } avec sauts de page
 function pdfRows(doc, rows, left) {
   rows.forEach(row => {
     let hh = 16;
     row.cells.forEach(c => { doc.font(c.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(c.size || 9.5); hh = Math.max(hh, doc.heightOfString(String(c.text == null ? '' : c.text), { width: c.w - 14 }) + 11); });
     if (row.minH) hh = Math.max(hh, row.minH);
-    if (doc.y + hh > doc.page.height - doc.page.margins.bottom) doc.addPage();
+    if (doc.y + hh > doc.page.height - doc.page.margins.bottom) {
+      // ⚠️ UNE CASE HAUTE SE COUPE ENTRE DEUX PAGES (21/09/2026). Avant, la ligne partait d'un bloc à
+      // la page suivante — et quand elle était plus haute qu'une PAGE (longue note de grammaire), son
+      // cadre sortait de la feuille, le libellé centré dans ce cadre tombait hors page et entraînait
+      // un saut : une page entièrement VIDE, puis le texte sans cadre sur les pages suivantes.
+      // Une petite ligne, elle, reste d'un seul tenant et passe à la page suivante, comme avant.
+      if (hh > PDF_LIGNE_INSECABLE) { pdfRowDecoupee(doc, row, left); return; }
+      doc.addPage();
+    }
     let x = left; const y = doc.y;
     row.cells.forEach(c => { pdfCell(doc, x, y, c.w, hh, c.text, c); x += c.w; });
     doc.y = y + hh;
@@ -2139,7 +2246,7 @@ function buildWorksheetDocx(w, user, ver) {
 // --- Interactive Worksheet → PDF (tableaux) ---
 function buildWorksheetPdf(w, user, ver) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
+    const doc = pdfUnicode(new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } }));
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
     const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const h = w.header || {}, n = h.notes || {}, sess = wsRows(w).sessions;
@@ -2193,7 +2300,7 @@ function recordDocgen(g, user, info) {
 const SEANCE_CHAMPS = ['dateDuree', 'objectifs', 'mots', 'grammaire', 'pronunciation', 'erreurs', 'prochaine'];
 // ⚠️ les caractères INVISIBLES (espaces sans largeur, trait d'union conditionnel), souvent ramenés
 // par un copier-coller, ne font pas une séance : trim() ne les retire pas.
-const seanceRemplie = (s) => !!s && SEANCE_CHAMPS.some(k => String(s[k] || '').replace(/[​-‍⁠﻿­]/g, '').trim());
+const seanceRemplie = (s) => !!s && SEANCE_CHAMPS.some(k => String(s[k] || '').replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, '').trim());
 app.post('/api/worksheet/generate', auth, async (req, res) => {
   const { group, format } = req.body || {};
   const fmt = (format === 'word' || format === 'docx') ? 'word' : 'pdf';
@@ -2329,7 +2436,7 @@ function buildTestDocx(title, header, extra, user, ver) {
 // --- Test mi-parcours / fin → PDF (tableau) ---
 function buildTestPdf(title, header, extra, user, ver) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
+    const doc = pdfUnicode(new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } }));
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
     const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right, half = totalW / 2;
     const H = header || {}, X = extra || {}, HB = '#f3e7e0';
@@ -2506,7 +2613,7 @@ function buildAttestationDocx(d, user, ver) {
 }
 function buildAttestationPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
+    const doc = pdfUnicode(new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } }));
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
     const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const p = (t, o) => { o = o || {}; doc.font(o.bold ? 'Helvetica-Bold' : (o.italics ? 'Helvetica-Oblique' : 'Helvetica')).fontSize(o.size || 9.5).fillColor(o.color || '#2a241d').text(String(t == null ? '' : t), left, doc.y, { width: totalW, align: o.align || 'left' }); doc.moveDown(o.after != null ? o.after : 0.4); };
@@ -2831,7 +2938,7 @@ function buildContratDocx(d, user, ver) {
 }
 function buildContratPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
+    const doc = pdfUnicode(new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } }));
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
     const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const p = (t, o) => { o = o || {}; doc.font(o.bold ? 'Helvetica-Bold' : (o.italics ? 'Helvetica-Oblique' : 'Helvetica')).fontSize(o.size || 9).fillColor(o.color || '#2a241d').text(String(t == null ? '' : t), left, doc.y, { width: totalW, align: o.align || 'left' }); doc.moveDown(o.after != null ? o.after : 0.35); };
@@ -3079,7 +3186,7 @@ function qsBlocks(items) {
 }
 function buildQsPdf(qs, tpl, user, ver) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
+    const doc = pdfUnicode(new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } }));
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
     const h = qs.header || {}, ans = qs.answers || {};
     const left = doc.page.margins.left, right = doc.page.width - doc.page.margins.right, totalW = right - left;
@@ -3458,7 +3565,7 @@ function buildLevelTestDocx(d, user, ver) {
 }
 function buildLevelTestPdf(d, user, ver) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
+    const doc = pdfUnicode(new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } }));
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
     const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right, HB = '#f3e7e0', LB = '#f7eee9';
     pdfRows(doc, [{ cells: [{ text: LEVEL_TEST.title.toUpperCase(), w: totalW, align: 'center', bold: true, color: '#be6e54', size: 14, fill: HB }], minH: 26 }], left);
@@ -3569,7 +3676,7 @@ function pdfPresenceGrid(doc, left, totalW, sessions, HB, sigF, sigA, signAdmin)
 function buildPresencePdf(type, d, user, ver) {
   const tpl = PRESENCE_TEMPLATES[type];
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } });
+    const doc = pdfUnicode(new PDFDocument({ size: 'A4', bufferPages: true, margins: { top: 96, bottom: 92, left: 50, right: 50 } }));
     const chunks = []; doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
     const left = doc.page.margins.left, totalW = doc.page.width - doc.page.margins.left - doc.page.margins.right, HB = '#f3e7e0', LB = '#f7eee9';
     const sigF = sigImg(d.formateurSig), sigA = sigImg(d.apprenantSig);

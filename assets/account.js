@@ -800,7 +800,7 @@
   // d'office, il ne suffit pas. ⚠️ Même liste que SEANCE_CHAMPS côté serveur.
   var SEANCE_CHAMPS = ['dateDuree', 'objectifs', 'mots', 'grammaire', 'pronunciation', 'erreurs', 'prochaine'];
   // (caractères invisibles d'un copier-coller retirés : trim() ne les enlève pas)
-  function reelTexte(v) { return String(v || '').replace(/[​-‍⁠﻿­]/g, '').trim(); }
+  function reelTexte(v) { return String(v || '').replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, '').trim(); }
   function seanceRemplie(s) { return !!s && SEANCE_CHAMPS.some(function (k) { return reelTexte(s[k]); }); }
   // Trois situations, trois consignes : le message dit exactement quoi faire.
   // ⚠️ La plus traîtresse : la séance TAPÉE dans le cadre mais jamais ajoutée par « Ajouter cette
