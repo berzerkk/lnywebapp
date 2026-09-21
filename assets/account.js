@@ -808,9 +808,16 @@
   function montrerSeanceManquante() {
     var tapee = ['s-date', 's-obj', 's-mots', 's-gram', 's-pron', 's-err', 's-next'].some(function (id) { return reelTexte(val(id)); });
     var vides = genState.sessions.length > 0;
-    // en MODIFICATION, le bouton du cadre s'appelle « Mettre à jour la séance » : la consigne le nomme
-    var msg = (tapee && genState.editIdx != null) ? 'Votre séance n\'est pas encore enregistrée : cliquez sur « Mettre à jour la séance », puis générez le document.'
-      : tapee ? 'Votre séance n\'est pas encore ajoutée : cliquez sur « Ajouter cette séance », puis générez le document.'
+    // séance ouverte en modification : tout y est appliqué en direct, il ne reste qu'à la remplir
+    var ed = document.getElementById('gen-editeur');
+    if (ed) {
+      var e0 = document.getElementById('gen-sess-err');
+      if (e0) { e0.textContent = 'Votre séance est vide : complétez-la (date, objectifs…), puis générez le document.'; e0.hidden = false; }
+      ed.classList.add('a-completer'); ed.scrollIntoView({ block: 'start', behavior: 'instant' });
+      var p0 = document.getElementById('e-date'); if (p0) setTimeout(function () { try { p0.focus({ preventScroll: true }); } catch (x) { p0.focus(); } }, 350);
+      return;
+    }
+    var msg = tapee ?'Votre séance n\'est pas encore ajoutée : cliquez sur « Ajouter cette séance », puis générez le document.'
       : vides ? 'Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis générez le document.'
       : 'Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».';
     var e = document.getElementById('gen-sess-err');
@@ -827,8 +834,22 @@
   function renderGen() {
     var h = genState.header || {}, n = h.notes || {};
     var editing = genState.editIdx != null, es = editing ? (genState.sessions[genState.editIdx] || {}) : {};
+    var champsSeance = function (p, x, formateurDefaut) {
+      return '<div class="gf-grid">' + gi(p + '-date', 'Date et durée du cours', x.dateDuree || '') + gi(p + '-form', 'Formateur', x.formateur != null ? x.formateur : formateurDefaut) +
+        ga(p + '-obj', 'Objectifs de la séance', x.objectifs || '') + ga(p + '-mots', 'Liste des mots', x.mots || '') +
+        ga(p + '-gram', 'Structure et grammaire', x.grammaire || '') + ga(p + '-pron', 'Pronunciation', x.pronunciation || '') +
+        ga(p + '-err', 'Erreurs à éviter', x.erreurs || '') + ga(p + '-next', 'Pour la prochaine fois', x.prochaine || '') + '</div>';
+    };
     var list = genState.sessions.length ? genState.sessions.map(function (s, i) {
-      return '<div class="gen-sess' + (editing && genState.editIdx === i ? ' editing' : '') + '"><b>Séance ' + (i + 1) + '</b> · ' + esc(s.dateDuree || '(date ?)') +
+      // ⚠️ MODIFICATION SUR PLACE (21/09/2026, retour de l'utilisateur : le bouton « Mettre à jour la séance »
+      // était tout en bas du formulaire, on ne le voyait pas, et sans lui la modification n'existait pas).
+      // L'éditeur s'ouvre À LA PLACE de la séance ; ce qu'on y tape est appliqué AU FUR ET À MESURE (syncGen),
+      // donc visible dans l'aperçu et jamais perdu ; sa barre de boutons reste collée en bas de la zone visible.
+      if (editing && genState.editIdx === i) return '<div class="gen-editeur" id="gen-editeur"><div class="gen-editeur-t">✎ Modification de la séance ' + (i + 1) + '</div>' +
+        '<p class="ds-empty" style="margin:0 0 10px">Vos modifications sont prises en compte au fur et à mesure : l\'aperçu se met à jour pendant que vous tapez.</p>' +
+        champsSeance('e', s, '') +
+        '<div class="gen-actions"><button class="link-btn gen-cancel" type="button">Annuler les modifications</button><button class="btn btn-primary gen-fini" type="button">Terminer la modification ✓</button></div></div>';
+      return '<div class="gen-sess"><b>Séance ' + (i + 1) + '</b> · ' + esc(s.dateDuree || '(date ?)') +
         '<button class="gen-edit" data-i="' + i + '" title="Modifier">✎</button><button class="gen-del" data-i="' + i + '" title="Supprimer">&times;</button>' +
         '<div class="gen-sess-sum">' + esc((s.objectifs || '').slice(0, 90)) + '</div></div>';
     }).join('') : '<p class="ds-empty">Aucune séance ajoutée.</p>';
@@ -844,25 +865,30 @@
       ga('g-nCom', 'Communication', n.communication) + ga('g-nAut', 'Autre', n.autre) + '</div>' +
       '<h4 class="gen-h">Séances (' + genState.sessions.length + ')</h4>' +
       '<p class="auth-err gen-sess-err" id="gen-sess-err" role="alert" hidden></p><div id="gen-sessions">' + list + '</div>' +
-      '<details class="gen-add"' + (editing ? ' open' : '') + '><summary>' + (editing ? '✎ Modifier la séance ' + (genState.editIdx + 1) : '+ Ajouter une séance (après un cours)') + '</summary><div class="gf-grid">' +
-      gi('s-date', 'Date et durée du cours', es.dateDuree || '') + gi('s-form', 'Formateur', es.formateur != null ? es.formateur : h.nomFormateur) +
-      ga('s-obj', 'Objectifs de la séance', es.objectifs || '') + ga('s-mots', 'Liste des mots', es.mots || '') +
-      ga('s-gram', 'Structure et grammaire', es.grammaire || '') + ga('s-pron', 'Pronunciation', es.pronunciation || '') +
-      ga('s-err', 'Erreurs à éviter', es.erreurs || '') + ga('s-next', 'Pour la prochaine fois', es.prochaine || '') + '</div>' +
-      '<button class="btn-mini gen-add-btn" type="button">' + (editing ? 'Mettre à jour la séance' : 'Ajouter cette séance') + '</button>' +
-      (editing ? ' <button class="link-btn gen-cancel" type="button">Annuler</button>' : '') + '</details>';
-    document.querySelector('.gen-add-btn').onclick = function () {
-      syncGen();
-      var s = { dateDuree: val('s-date'), formateur: val('s-form'), objectifs: val('s-obj'), mots: val('s-mots'), grammaire: val('s-gram'), pronunciation: val('s-pron'), erreurs: val('s-err'), prochaine: val('s-next') };
-      if (genState.editIdx != null) { genState.sessions[genState.editIdx] = s; genState.editIdx = null; }
-      else genState.sessions.push(s);
-      renderGen();
+      (editing ? '' : '<details class="gen-add"><summary>+ Ajouter une séance (après un cours)</summary>' + champsSeance('s', {}, h.nomFormateur) +
+        '<div class="gen-actions"><button class="btn btn-primary gen-add-btn" type="button">Ajouter cette séance</button></div></details>');
+    var addBtn = document.querySelector('.gen-add-btn'); if (addBtn) addBtn.onclick = function () { syncGen(); genState.sessions.push(lireSeance('s')); renderGen(); };
+    var finBtn = document.querySelector('.gen-fini'); if (finBtn) finBtn.onclick = function () { syncGen(); genState.editIdx = null; genState.editAvant = null; renderGen(); };
+    // « Annuler » rend la séance telle qu'elle était À L'OUVERTURE de l'éditeur (les frappes étant appliquées en direct)
+    var cancelBtn = document.querySelector('.gen-cancel'); if (cancelBtn) cancelBtn.onclick = function () {
+      syncEntete(); if (genState.editAvant) genState.sessions[genState.editIdx] = genState.editAvant;
+      genState.editIdx = null; genState.editAvant = null; renderGen();
     };
-    var cancelBtn = document.querySelector('.gen-cancel'); if (cancelBtn) cancelBtn.onclick = function () { syncGen(); genState.editIdx = null; renderGen(); };
-    document.querySelectorAll('.gen-edit').forEach(function (b) { b.onclick = function () { syncGen(); genState.editIdx = parseInt(b.getAttribute('data-i'), 10); renderGen(); var d = document.querySelector('.gen-add'); if (d) d.scrollIntoView({ block: 'nearest' }); }; });
-    document.querySelectorAll('.gen-del').forEach(function (b) { b.onclick = function () { syncGen(); var i = parseInt(b.getAttribute('data-i'), 10); genState.sessions.splice(i, 1); if (genState.editIdx != null) { if (genState.editIdx === i) genState.editIdx = null; else if (genState.editIdx > i) genState.editIdx--; } renderGen(); }; });
+    document.querySelectorAll('.gen-edit').forEach(function (b) { b.onclick = function () {
+      syncGen(); genState.editIdx = parseInt(b.getAttribute('data-i'), 10); genState.editAvant = Object.assign({}, genState.sessions[genState.editIdx]); renderGen();
+      var ed = document.getElementById('gen-editeur');
+      if (ed) { ed.scrollIntoView({ block: 'start', behavior: 'instant' }); var p = document.getElementById('e-date'); if (p) { try { p.focus({ preventScroll: true }); } catch (x) { p.focus(); } } }
+    }; });
+    document.querySelectorAll('.gen-del').forEach(function (b) { b.onclick = function () { syncGen(); var i = parseInt(b.getAttribute('data-i'), 10); genState.sessions.splice(i, 1); if (genState.editIdx != null) { if (genState.editIdx === i) { genState.editIdx = null; genState.editAvant = null; } else if (genState.editIdx > i) genState.editIdx--; } renderGen(); }; });
   }
+  function lireSeance(p) { return { dateDuree: val(p + '-date'), formateur: val(p + '-form'), objectifs: val(p + '-obj'), mots: val(p + '-mots'), grammaire: val(p + '-gram'), pronunciation: val(p + '-pron'), erreurs: val(p + '-err'), prochaine: val(p + '-next') }; }
+  // ⚠️ appelée avant chaque action ET à chaque rafraîchissement de l'aperçu : c'est elle qui rend la
+  // modification d'une séance immédiate — il n'y a plus rien à « valider » pour qu'elle existe.
   function syncGen() {
+    if (genState.editIdx != null && document.getElementById('e-date')) genState.sessions[genState.editIdx] = lireSeance('e');
+    syncEntete();
+  }
+  function syncEntete() {
     genState.header = {
       intitule: val('g-intitule'), langue: val('g-langue'), societe: val('g-societe'),
       nomApprenant: val('g-nomA'), nomFormateur: val('g-nomF'),

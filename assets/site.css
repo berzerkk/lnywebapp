@@ -1023,7 +1023,16 @@ footer a:hover{color:#fff8ef}
 .gf select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:34px;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23be6e54' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
 .gf input:focus,.gf textarea:focus,.gf select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
 .gen-sess{position:relative;border:1px solid var(--line);border-radius:10px;padding:10px 58px 10px 12px;margin-bottom:8px;font-size:13.5px;background:var(--bg)}
-.gen-sess.editing{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in oklab,var(--accent) 18%,transparent)}
+/* Modification d'une séance SUR PLACE (21/09/2026) : l'éditeur remplace la carte de la séance, et sa barre
+   de boutons reste collée en bas de la zone visible — on ne peut plus la manquer. */
+.gen-editeur{border:2px solid var(--accent);border-radius:12px;padding:12px 14px 0;margin-bottom:10px;background:var(--bg-card);scroll-margin-top:12px}
+.gen-editeur-t{font-weight:700;font-size:14px;color:var(--accent);margin-bottom:6px}
+.gen-editeur.a-completer{border-color:#c0392b}
+.gen-actions{position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:flex-end;
+  margin:12px -14px 0;padding:10px 14px;background:var(--bg-card);border-top:1px solid var(--line);border-radius:0 0 10px 10px;box-shadow:0 -8px 14px -10px rgba(42,33,24,.35)}
+.gen-actions .btn{padding:10px 18px;font-size:14px}
+.gen-add .gen-actions{margin:12px -12px -10px}
+@media (max-width:620px){.gen-actions{justify-content:stretch}.gen-actions .btn{flex:1 1 auto;min-height:44px}.gen-actions .link-btn{min-height:44px}}
 .gen-sess-sum{color:var(--ink-soft);font-size:12.5px;margin-top:3px}
 .gen-del,.gen-edit{position:absolute;top:7px;border:0;background:none;font-size:18px;line-height:1;color:var(--ink-soft);cursor:pointer}
 .gen-del{right:8px;font-size:20px}

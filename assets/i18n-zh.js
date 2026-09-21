@@ -415,7 +415,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Évaluation orale / questionnaire d'objectifs (rempli par le formateur)": "口语评估 / 目标问卷（由培训师填写）",
   "E-learning, présentiel/distanciel ou test (au choix)": "在线学习、面授/远程或测试（可选）",
   "Générer le document →": "生成文档 →", "Word (.docx)": "Word (.docx)", "En-tête": "抬头", "Séances": "课次",
-  "+ Ajouter une séance": "+ 添加课次", "+ Ajouter une séance (après un cours)": "+ 添加课次（下课后）", "Ajouter cette séance": "添加此课次", "Mettre à jour la séance": "更新此课次", "Aucune séance ajoutée.": "尚未添加课次。",
+  "+ Ajouter une séance": "+ 添加课次", "+ Ajouter une séance (après un cours)": "+ 添加课次（下课后）", "Ajouter cette séance": "添加此课次", "Aucune séance ajoutée.": "尚未添加课次。",
   "Vocabulaire": "词汇", "Structure et grammaire": "结构与语法", "Communication": "交流", "Autre": "其他",
   "Objectifs de la séance": "课次目标", "Liste des mots": "单词表", "Pronunciation": "发音", "Erreurs à éviter": "需避免的错误", "Pour la prochaine fois": "下次课准备", "Date et durée du cours": "课程日期和时长",
   "Formation": "课程", "Résultat": "成绩", "Appréciation formateur": "培训师评价", "Zone libre": "自由区域",
@@ -518,6 +518,11 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "合同将从私密频道中撤回，培训师将无法再签署。您可以重新发送一份新合同。",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "忘记密码？",
+  /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */
+  "Annuler les modifications": "放弃修改",
+  "Terminer la modification ✓": "完成修改 ✓",
+  "Vos modifications sont prises en compte au fur et à mesure : l'aperçu se met à jour pendant que vous tapez.": "修改会即时生效：预览会随您的输入同步更新。",
+  "Votre séance est vide : complétez-la (date, objectifs…), puis générez le document.": "课次为空：请补充内容（日期、目标…），然后生成文档。",
   /* ---- aperçu en direct du document à générer (21/09/2026) ---- */
   "Aperçu du document": "文档预览",
   "Formulaire": "表单",
@@ -548,7 +553,6 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis générez le document.": "课次为空：请点击 ✎ 补充内容（日期、目标…），然后生成文档。",
   "Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "生成文档前请至少添加一个课次：在下方填写，然后点击「添加此课次」。",
   "Ajoutez au moins une séance avant de générer l'Interactive Worksheet.": "生成 Interactive Worksheet 前请至少添加一个课次。",
-  "Votre séance n'est pas encore enregistrée : cliquez sur « Mettre à jour la séance », puis générez le document.": "课次尚未保存：请点击「更新此课次」，然后生成文档。",
   "La démonstration est terminée": "演示已结束",
   "Elle s'arrête d'elle-même après trois heures sans activité, ou lors d'une mise à jour du site.": "演示在三小时无操作后或网站更新时会自动停止。",
   "Revenir à mon espace": "返回我的空间",

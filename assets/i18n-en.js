@@ -436,7 +436,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Évaluation orale / questionnaire d'objectifs (rempli par le formateur)": "Oral assessment / objectives questionnaire (filled in by the trainer)",
   "E-learning, présentiel/distanciel ou test (au choix)": "E-learning, in-person/remote or test (your choice)",
   "Générer le document →": "Generate the document →", "Word (.docx)": "Word (.docx)", "En-tête": "Header", "Séances": "Sessions",
-  "+ Ajouter une séance": "+ Add a session", "+ Ajouter une séance (après un cours)": "+ Add a session (after a lesson)", "Ajouter cette séance": "Add this session", "Mettre à jour la séance": "Update the session", "Aucune séance ajoutée.": "No sessions added.",
+  "+ Ajouter une séance": "+ Add a session", "+ Ajouter une séance (après un cours)": "+ Add a session (after a lesson)", "Ajouter cette séance": "Add this session", "Aucune séance ajoutée.": "No sessions added.",
   "Vocabulaire": "Vocabulary", "Structure et grammaire": "Structure and grammar", "Communication": "Communication", "Autre": "Other",
   "Objectifs de la séance": "Session objectives", "Liste des mots": "Word list", "Pronunciation": "Pronunciation", "Erreurs à éviter": "Mistakes to avoid", "Pour la prochaine fois": "For next time", "Date et durée du cours": "Lesson date and duration",
   "Formation": "Course", "Résultat": "Result", "Appréciation formateur": "Trainer assessment", "Zone libre": "Free area",
@@ -539,6 +539,11 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "The agreement will be removed from the private channel and the trainer will no longer be able to sign it. You can send a new one.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Forgotten your password?",
+  /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */
+  "Annuler les modifications": "Discard changes",
+  "Terminer la modification ✓": "Finish editing ✓",
+  "Vos modifications sont prises en compte au fur et à mesure : l'aperçu se met à jour pendant que vous tapez.": "Your changes are applied as you go: the preview updates while you type.",
+  "Votre séance est vide : complétez-la (date, objectifs…), puis générez le document.": "Your session is empty: complete it (date, objectives…), then generate the document.",
   /* ---- aperçu en direct du document à générer (21/09/2026) ---- */
   "Aperçu du document": "Document preview",
   "Formulaire": "Form",
@@ -569,7 +574,6 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis générez le document.": "Your session is empty: click ✎ to complete it (date, objectives…), then generate the document.",
   "Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "Add at least one session before generating the document: fill it in below, then click “Add this session”.",
   "Ajoutez au moins une séance avant de générer l'Interactive Worksheet.": "Add at least one session before generating the Interactive Worksheet.",
-  "Votre séance n'est pas encore enregistrée : cliquez sur « Mettre à jour la séance », puis générez le document.": "Your session has not been saved yet: click “Update the session”, then generate the document.",
   "La démonstration est terminée": "The demonstration has ended",
   "Elle s'arrête d'elle-même après trois heures sans activité, ou lors d'une mise à jour du site.": "It stops by itself after three hours without activity, or when the site is updated.",
   "Revenir à mon espace": "Back to my space",

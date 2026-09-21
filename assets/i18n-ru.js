@@ -414,7 +414,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Évaluation orale / questionnaire d'objectifs (rempli par le formateur)": "Устная оценка / анкета целей (заполняет преподаватель)",
   "E-learning, présentiel/distanciel ou test (au choix)": "E-learning, очно/дистанционно или тест (на выбор)",
   "Générer le document →": "Создать документ →", "Word (.docx)": "Word (.docx)", "En-tête": "Шапка", "Séances": "Занятия",
-  "+ Ajouter une séance": "+ Добавить занятие", "+ Ajouter une séance (après un cours)": "+ Добавить занятие (после урока)", "Ajouter cette séance": "Добавить это занятие", "Mettre à jour la séance": "Обновить занятие", "Aucune séance ajoutée.": "Занятия не добавлены.",
+  "+ Ajouter une séance": "+ Добавить занятие", "+ Ajouter une séance (après un cours)": "+ Добавить занятие (после урока)", "Ajouter cette séance": "Добавить это занятие", "Aucune séance ajoutée.": "Занятия не добавлены.",
   "Vocabulaire": "Лексика", "Structure et grammaire": "Структура и грамматика", "Communication": "Коммуникация", "Autre": "Другое",
   "Objectifs de la séance": "Цели занятия", "Liste des mots": "Список слов", "Pronunciation": "Произношение", "Erreurs à éviter": "Ошибки, которых следует избегать", "Pour la prochaine fois": "К следующему разу", "Date et durée du cours": "Дата и длительность занятия",
   "Formation": "Курс", "Résultat": "Результат", "Appréciation formateur": "Оценка преподавателя", "Zone libre": "Свободная зона",
@@ -517,6 +517,11 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Договор будет удалён из приватного канала, и преподаватель больше не сможет его подписать. Вы сможете отправить новый.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Забыли пароль?",
+  /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */
+  "Annuler les modifications": "Отменить изменения",
+  "Terminer la modification ✓": "Завершить редактирование ✓",
+  "Vos modifications sont prises en compte au fur et à mesure : l'aperçu se met à jour pendant que vous tapez.": "Изменения применяются сразу: предпросмотр обновляется по мере ввода.",
+  "Votre séance est vide : complétez-la (date, objectifs…), puis générez le document.": "Занятие пустое: заполните его (дата, цели…), затем создайте документ.",
   /* ---- aperçu en direct du document à générer (21/09/2026) ---- */
   "Aperçu du document": "Предпросмотр документа",
   "Formulaire": "Форма",
@@ -547,7 +552,6 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis générez le document.": "Занятие пустое: нажмите ✎, чтобы заполнить его (дата, цели…), затем создайте документ.",
   "Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "Добавьте хотя бы одно занятие, прежде чем создавать документ: заполните его ниже, затем нажмите «Добавить это занятие».",
   "Ajoutez au moins une séance avant de générer l'Interactive Worksheet.": "Добавьте хотя бы одно занятие, прежде чем создавать Interactive Worksheet.",
-  "Votre séance n'est pas encore enregistrée : cliquez sur « Mettre à jour la séance », puis générez le document.": "Занятие ещё не сохранено: нажмите «Обновить занятие», затем создайте документ.",
   "La démonstration est terminée": "Демонстрация завершена",
   "Elle s'arrête d'elle-même après trois heures sans activité, ou lors d'une mise à jour du site.": "Она останавливается сама после трёх часов бездействия или при обновлении сайта.",
   "Revenir à mon espace": "Вернуться в моё пространство",

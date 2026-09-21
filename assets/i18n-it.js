@@ -414,7 +414,7 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Évaluation orale / questionnaire d'objectifs (rempli par le formateur)": "Valutazione orale / questionario degli obiettivi (compilato dal formatore)",
   "E-learning, présentiel/distanciel ou test (au choix)": "E-learning, in presenza/a distanza o test (a scelta)",
   "Générer le document →": "Genera il documento →", "Word (.docx)": "Word (.docx)", "En-tête": "Intestazione", "Séances": "Sessioni",
-  "+ Ajouter une séance": "+ Aggiungi una sessione", "+ Ajouter une séance (après un cours)": "+ Aggiungi una sessione (dopo una lezione)", "Ajouter cette séance": "Aggiungi questa sessione", "Mettre à jour la séance": "Aggiorna la sessione", "Aucune séance ajoutée.": "Nessuna sessione aggiunta.",
+  "+ Ajouter une séance": "+ Aggiungi una sessione", "+ Ajouter une séance (après un cours)": "+ Aggiungi una sessione (dopo una lezione)", "Ajouter cette séance": "Aggiungi questa sessione", "Aucune séance ajoutée.": "Nessuna sessione aggiunta.",
   "Vocabulaire": "Vocabolario", "Structure et grammaire": "Struttura e grammatica", "Communication": "Comunicazione", "Autre": "Altro",
   "Objectifs de la séance": "Obiettivi della sessione", "Liste des mots": "Lista delle parole", "Pronunciation": "Pronuncia", "Erreurs à éviter": "Errori da evitare", "Pour la prochaine fois": "Per la prossima volta", "Date et durée du cours": "Data e durata della lezione",
   "Formation": "Formazione", "Résultat": "Risultato", "Appréciation formateur": "Valutazione del formatore", "Zone libre": "Area libera",
@@ -517,6 +517,11 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Il contratto sarà rimosso dal canale privato e il formatore non potrà più firmarlo. Potrete inviarne uno nuovo.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Password dimenticata?",
+  /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */
+  "Annuler les modifications": "Annulla le modifiche",
+  "Terminer la modification ✓": "Termina la modifica ✓",
+  "Vos modifications sont prises en compte au fur et à mesure : l'aperçu se met à jour pendant que vous tapez.": "Le modifiche vengono applicate man mano: l'anteprima si aggiorna mentre scrivi.",
+  "Votre séance est vide : complétez-la (date, objectifs…), puis générez le document.": "La tua sessione è vuota: completala (data, obiettivi…), poi genera il documento.",
   /* ---- aperçu en direct du document à générer (21/09/2026) ---- */
   "Aperçu du document": "Anteprima del documento",
   "Formulaire": "Modulo",
@@ -547,7 +552,6 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis générez le document.": "La tua sessione è vuota: fai clic su ✎ per completarla (data, obiettivi…), poi genera il documento.",
   "Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "Aggiungi almeno una sessione prima di generare il documento: compilala qui sotto, poi fai clic su «Aggiungi questa sessione».",
   "Ajoutez au moins une séance avant de générer l'Interactive Worksheet.": "Aggiungi almeno una sessione prima di generare l'Interactive Worksheet.",
-  "Votre séance n'est pas encore enregistrée : cliquez sur « Mettre à jour la séance », puis générez le document.": "La tua sessione non è ancora stata salvata: fai clic su «Aggiorna la sessione», poi genera il documento.",
   "La démonstration est terminée": "La dimostrazione è terminata",
   "Elle s'arrête d'elle-même après trois heures sans activité, ou lors d'une mise à jour du site.": "Si interrompe da sola dopo tre ore di inattività, o quando il sito viene aggiornato.",
   "Revenir à mon espace": "Torna al mio spazio",
