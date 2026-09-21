@@ -521,7 +521,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Envoyer dans le canal privé →": "发送到私密频道 →",
   "Document envoyé": "文档已发送",
   "Le document est déposé dans le canal privé du dossier. L'apprenant n'y a pas accès.": "文档已放入该档案的私密频道。学员无法访问。",
-  "Le document est déposé dans la discussion commune du dossier. L'apprenant en est averti.": "文档已放入该档案的公共讨论。学员已收到通知。",
+  "Le document est déposé dans la discussion commune du dossier. L'apprenant le verra à sa prochaine connexion : une notification l'attend dans son espace (aucun e-mail ne part).": "文档已放入该档案的公共讨论。学员下次登录时会看到：其空间内有一条通知（不会发送电子邮件）。",
   "Le document n'a pas pu être déposé dans le dossier.": "文档未能放入档案。",
   "Votre séance est vide : complétez-la (date, objectifs…), puis envoyez le document.": "课次为空：请补充内容（日期、目标…），然后发送文档。",
   "Votre séance n'est pas encore ajoutée : cliquez sur « Ajouter cette séance », puis envoyez le document.": "课次尚未添加：请点击“添加此课次”，然后发送文档。",

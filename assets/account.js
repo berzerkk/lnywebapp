@@ -1735,7 +1735,7 @@
       btn.disabled = false; btn.textContent = orig;
       if (!r.ok) { alertDialog((r.data && r.data.error) || 'Envoi impossible.'); return; }
       fermer(); channel = ch; renderDashboard();
-      alertDialog(ch === 'prive' ? "Le document est déposé dans le canal privé du dossier. L'apprenant n'y a pas accès." : "Le document est déposé dans la discussion commune du dossier. L'apprenant en est averti.", 'Document envoyé');
+      alertDialog(ch === 'prive' ? "Le document est déposé dans le canal privé du dossier. L'apprenant n'y a pas accès." : "Le document est déposé dans la discussion commune du dossier. L'apprenant le verra à sa prochaine connexion : une notification l'attend dans son espace (aucun e-mail ne part).", 'Document envoyé');
     });
   }
   // téléchargement direct d'un document généré (binaire) + états du bouton (il ne sert plus qu'au contrat)

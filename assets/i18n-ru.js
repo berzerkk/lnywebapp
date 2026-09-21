@@ -520,7 +520,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Envoyer dans le canal privé →": "Отправить в приватный канал →",
   "Document envoyé": "Документ отправлен",
   "Le document est déposé dans le canal privé du dossier. L'apprenant n'y a pas accès.": "Документ размещён в приватном канале папки. У слушателя нет к нему доступа.",
-  "Le document est déposé dans la discussion commune du dossier. L'apprenant en est averti.": "Документ размещён в общем чате папки. Слушатель получил уведомление.",
+  "Le document est déposé dans la discussion commune du dossier. L'apprenant le verra à sa prochaine connexion : une notification l'attend dans son espace (aucun e-mail ne part).": "Документ размещён в общем чате папки. Слушатель увидит его при следующем входе: в его пространстве ждёт уведомление (письмо не отправляется).",
   "Le document n'a pas pu être déposé dans le dossier.": "Не удалось разместить документ в папке.",
   "Votre séance est vide : complétez-la (date, objectifs…), puis envoyez le document.": "Занятие пустое: заполните его (дата, цели…), затем отправьте документ.",
   "Votre séance n'est pas encore ajoutée : cliquez sur « Ajouter cette séance », puis envoyez le document.": "Занятие ещё не добавлено: нажмите «Добавить это занятие», затем отправьте документ.",

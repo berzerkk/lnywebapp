@@ -542,7 +542,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Envoyer dans le canal privé →": "Send to the private channel →",
   "Document envoyé": "Document sent",
   "Le document est déposé dans le canal privé du dossier. L'apprenant n'y a pas accès.": "The document has been added to the private channel of the folder. The learner has no access to it.",
-  "Le document est déposé dans la discussion commune du dossier. L'apprenant en est averti.": "The document has been added to the shared discussion of the folder. The learner has been notified.",
+  "Le document est déposé dans la discussion commune du dossier. L'apprenant le verra à sa prochaine connexion : une notification l'attend dans son espace (aucun e-mail ne part).": "The document has been added to the shared discussion of the folder. The learner will see it the next time they log in: a notification is waiting in their space (no e-mail is sent).",
   "Le document n'a pas pu être déposé dans le dossier.": "The document could not be added to the folder.",
   "Votre séance est vide : complétez-la (date, objectifs…), puis envoyez le document.": "Your session is empty: complete it (date, objectives…), then send the document.",
   "Votre séance n'est pas encore ajoutée : cliquez sur « Ajouter cette séance », puis envoyez le document.": "Your session has not been added yet: click \"Add this session\", then send the document.",

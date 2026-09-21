@@ -520,7 +520,7 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Envoyer dans le canal privé →": "Enviar al canal privado →",
   "Document envoyé": "Documento enviado",
   "Le document est déposé dans le canal privé du dossier. L'apprenant n'y a pas accès.": "El documento se ha depositado en el canal privado de la carpeta. El alumno no tiene acceso.",
-  "Le document est déposé dans la discussion commune du dossier. L'apprenant en est averti.": "El documento se ha depositado en la conversación común de la carpeta. El alumno ha sido avisado.",
+  "Le document est déposé dans la discussion commune du dossier. L'apprenant le verra à sa prochaine connexion : une notification l'attend dans son espace (aucun e-mail ne part).": "El documento se ha depositado en la conversación común de la carpeta. El alumno lo verá en su próxima conexión: le espera una notificación en su espacio (no se envía ningún correo).",
   "Le document n'a pas pu être déposé dans le dossier.": "No se ha podido depositar el documento en la carpeta.",
   "Votre séance est vide : complétez-la (date, objectifs…), puis envoyez le document.": "Su sesión está vacía: complétela (fecha, objetivos…) y luego envíe el documento.",
   "Votre séance n'est pas encore ajoutée : cliquez sur « Ajouter cette séance », puis envoyez le document.": "Su sesión aún no se ha añadido: haga clic en «Añadir esta sesión» y luego envíe el documento.",
