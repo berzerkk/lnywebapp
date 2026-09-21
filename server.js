@@ -642,15 +642,15 @@ const VERSIONS_MODELES = {
   interactive: '1.2',            // Interactive Worksheet
   qs_mid: '1.2',                 // Questionnaire de satisfaction en cours de formation
   qs_end: '1.2',                 // Questionnaire de fin de formation
-  attestation: '1.2',            // Attestation de fin de formation
+  attestation: '1.3',            // Attestation de fin de formation (1.3 : tableau des acquis toujours présent)
   test_mid: '1.2',               // Test de mi-parcours
   test_end: '1.2',               // Test de fin de formation
   contrat: '1.3',                // Contrat de sous-traitance (1.1 : « Languages & Success » ; 1.2 : pied de page ; 1.3 : caractères spéciaux et cases longues)
   qs_formateur: '1.2',           // Fiche satisfaction formateur
   leveltest: '1.2',              // Level Test
-  'presence-elearning': '1.2',   // Suivi assiduité e-learning
+  'presence-elearning': '1.3',   // Suivi assiduité e-learning (1.3 : signature administratif centrée)
   'presence-presentiel': '1.2',  // Feuille de présence présentiel / distanciel
-  'presence-test': '1.2',        // Feuille de présence Test (certification)
+  'presence-test': '1.3',        // Feuille de présence Certification (1.3 : signature administratif centrée)
 };
 function versionModele(tpl) { return VERSIONS_MODELES[tpl] || '1.0'; }
 // pied de page : lignes méta (présentes sur TOUS les documents générés)
@@ -2529,7 +2529,8 @@ function pdfPlacePourSignature(doc, hauteur) {
 // PDF : dessine la signature (seule ou sur le tampon) et renvoie la hauteur utilisée.
 // `hMax` borne la HAUTEUR : sans elle, une signature large débordait de sa case et mordait sur
 // la ligne suivante (cas signalé sur le récapitulatif « Suivi assiduité »).
-function pdfSignatureAntonin(doc, x, y, largeur, variante, hMax) {
+// `caseL` / `caseH` (facultatifs) : dimensions de la case où CENTRER la signature (x, y = son coin).
+function pdfSignatureAntonin(doc, x, y, largeur, variante, hMax, caseL, caseH) {
   const p = imgSiPresent(variante || SIGN_ANTONIN);
   if (!p) return 0;
   // ⚠️ Le rapport se lit DANS le fichier (même correction que côté Word, cf. dxSignatureAntonin) :
@@ -2542,6 +2543,8 @@ function pdfSignatureAntonin(doc, x, y, largeur, variante, hMax) {
   let w = largeur || 120;
   if (hMax && w * ratio > hMax) w = hMax / ratio;      // on rétrécit à proportions constantes
   const h = w * ratio;
+  if (caseL) x += Math.max(0, (caseL - w) / 2);
+  if (caseH) y += Math.max(0, (caseH - h) / 2);
   try { doc.image(p, x, y, { fit: [w, h] }); return h + 4; } catch (e) { return 0; }
 }
 function buildAttestationDocx(d, user, ver) {
@@ -2576,7 +2579,9 @@ function buildAttestationDocx(d, user, ver) {
     compRows.push(dxRowMin([dxCell(c.label, { width: PC(40), size: 19, margins: M })].concat(ATT_NIVEAUX.map(n => { const sel = c.niveau === n; return dxCell(sel ? '✗' : '', { width: PC(20), align: AlignmentType.CENTER, bold: true, fill: sel ? ACCENTC : undefined, color: sel ? 'FFFFFF' : INKC, size: 22, margins: M }); })), 480));
   });
   // proportions du PDF : « Compétences » de x50 à x284 (≈47 %), puis 3 colonnes égales
-  if (compRows.length > 1) { kids.push(dxTable(compRows, dxCols([47, 17.7, 17.7, 17.6]))); kids.push(dxGap()); }
+  // ⚠️ le tableau figure TOUJOURS (21/09/2026) : sans compétence saisie, une ligne vide — l'aperçu le montre dès l'ouverture
+  if (compRows.length === 1) compRows.push(dxRowMin([dxCell('', { width: PC(40), size: 19, margins: M })].concat(ATT_NIVEAUX.map(() => dxCell('', { width: PC(20), margins: M }))), 480));
+  kids.push(dxTable(compRows, dxCols([47, 17.7, 17.7, 17.6]))); kids.push(dxGap());
   // ligne dégagée au-dessus ET en dessous
   kids.push(dxSpacer()); kids.push(dxSpacer());
   kids.push(new Paragraph({ spacing: { after: 240 }, children: [
@@ -2630,10 +2635,12 @@ function buildAttestationPdf(d, user, ver) {
     p("Action d'acquisition, d'entretien ou de perfectionnement de la langue.", { after: 0.5 });
     doc.moveDown(1.6); p("Résultat de l'évaluation des acquis :", { bold: true, color: '#a8593c', size: 11, after: 0.55 });
     const comps = (d.competences || []).filter(c => c && c.label && c.label.trim());
-    if (comps.length) {
+    // ⚠️ le tableau figure TOUJOURS (21/09/2026) : sans compétence saisie, une ligne vide
+    if (!comps.length) comps.push({ label: '', niveau: '' });
+    {
       const cw = totalW * 0.4, ow = (totalW * 0.6) / 3;
       const crows = [{ cells: [{ text: 'Compétences', w: cw, fill: '#f3e7e0', bold: true, size: 9 }].concat(ATT_NIVEAUX.map(n => ({ text: n, w: ow, fill: '#f3e7e0', bold: true, align: 'center', size: 8 }))) }];
-      comps.forEach(c => crows.push({ cells: [{ text: c.label, w: cw, size: 9 }].concat(ATT_NIVEAUX.map(n => { const sel = c.niveau === n; return { text: sel ? 'X' : '', w: ow, align: 'center', bold: true, fill: sel ? '#be6e54' : null, color: '#ffffff', size: 11 }; })) }));
+      comps.forEach(c => crows.push({ minH: 22, cells: [{ text: c.label, w: cw, size: 9 }].concat(ATT_NIVEAUX.map(n => { const sel = c.niveau === n; return { text: sel ? 'X' : '', w: ow, align: 'center', bold: true, fill: sel ? '#be6e54' : null, color: '#ffffff', size: 11 }; })) }));
       pdfRows(doc, crows, left); doc.moveDown(0.5);
     }
     // ligne dégagée au-dessus ET en dessous
@@ -3456,6 +3463,7 @@ app.post('/api/apercu', auth, async (req, res) => {
       buf = await buildContratPdf(Object.assign({}, d.fields, { ref: apercuRefContrat(), representant: 'Antonin HATTABE' }), req.user, versionModele('contrat'));
     }
     else if (tpl === 'leveltest') buf = await buildLevelTestPdf(d.fields || {}, req.user, versionModele('leveltest'));
+    else if (tpl === 'presence' && presenceReservee(PRESENCE_TEMPLATES[d.type], req.user)) return res.status(403).json({ error: MSG_PRESENCE_RESERVEE });
     else if (tpl === 'presence' && PRESENCE_TEMPLATES[d.type]) buf = await buildPresencePdf(d.type, Object.assign({}, d.fields, { formateurSig: d.formateurSig || null }), req.user, versionModele('presence-' + d.type));
     else return res.status(400).json({ error: 'Modèle inconnu.' });
     res.setHeader('Content-Type', 'application/pdf');
@@ -3637,7 +3645,7 @@ const PRESENCE_TEMPLATES = {
     ]
   },
   test: {
-    title: 'Feuille de présence — Test', kind: 'grid', signAdmin: true,
+    title: 'Feuille de présence — Certification', kind: 'grid', signAdmin: true, adminOnly: true,
     headerRows: [
       [['mois', 'Mois'], ['langue', 'Contrat langue']],
       [['formateur', 'Administratif'], ['formation', 'Formation']],
@@ -3647,6 +3655,10 @@ const PRESENCE_TEMPLATES = {
     ]
   }
 };
+// ⚠️ La feuille « Certification » (clé `test`) ne se choisit QUE par l'administration (21/09/2026) :
+// contrôlé ici et pas seulement dans le formulaire, qui se contourne.
+const presenceReservee = (tpl, user) => !!(tpl && tpl.adminOnly && user.role !== 'admin');
+const MSG_PRESENCE_RESERVEE = "Ce type de feuille est réservé à l'administration.";
 // grille PDF : créneaux 0:30→10:00 (case à cocher) + colonnes séance (+ signatures par séance remplie)
 function pdfPresenceGrid(doc, left, totalW, sessions, HB, sigF, sigA, signAdmin) {
   const W = {}; PRESENCE_GRID_HEADER.forEach(c => { W[c[1]] = totalW * c[2] / 100; });
@@ -3667,7 +3679,7 @@ function pdfPresenceGrid(doc, left, totalW, sessions, HB, sigF, sigA, signAdmin)
     const vals = { time: t, date: s.date || '', jour: s.jour || '', hDebut: s.hDebut || '', hFin: s.hFin || '', duree: s.duree || '', sf: '', ss: '' };
     let sfX = 0, ssX = 0;
     ['time', 'date', 'jour', 'hDebut', 'hFin', 'duree', 'sf', 'ss'].forEach(k => { if (k === 'sf') sfX = x; if (k === 'ss') ssX = x; pdfCell(doc, x, y, W[k], rowH, vals[k], { size: 8, align: 'center', bold: k === 'time' }); x += W[k]; });
-    if (hasData && signAdmin) pdfSignatureAntonin(doc, sfX + 3, y + 2, Math.min(W.sf - 6, (rowH - 4) / RATIO_SIGN));
+    if (hasData && signAdmin) pdfSignatureAntonin(doc, sfX + 3, y + 2, W.sf - 6, null, rowH - 4, W.sf - 6, rowH - 4);   // centrée dans sa case
     else if (hasData && sigF) { try { doc.image(sigF.buffer, sfX + 3, y + 2, { fit: [W.sf - 6, rowH - 4], align: 'center', valign: 'center' }); } catch (e) { } }
     if (hasData && sigA) { try { doc.image(sigA.buffer, ssX + 3, y + 2, { fit: [W.ss - 6, rowH - 4], align: 'center', valign: 'center' }); } catch (e) { } }
     doc.y = y + rowH;
@@ -3694,7 +3706,7 @@ function buildPresencePdf(type, d, user, ver) {
         { cells: [{ text: 'Signature Apprenant', w: totalW * 0.32, fill: LB, bold: true, size: 9, valign: 'top' }, { text: '', w: valW }], minH: 56 }
       ], left);
       // feuille administrative : la signature d'Antonin (sans tampon) remplace celle du formateur
-      if (tpl.signAdmin) pdfSignatureAntonin(doc, valX + 10, sigY + 6, valW - 20, null, 44);
+      if (tpl.signAdmin) pdfSignatureAntonin(doc, valX + 10, sigY + 6, valW - 20, null, 44, valW - 20, 44);   // centrée, comme la signature de l'apprenant en dessous
       else if (sigF) { try { doc.image(sigF.buffer, valX + 10, sigY + 6, { fit: [valW - 20, 44], align: 'center', valign: 'center' }); } catch (e) { } }
       if (sigA) { try { doc.image(sigA.buffer, valX + 10, sigY + 62, { fit: [valW - 20, 44], align: 'center', valign: 'center' }); } catch (e) { } }
     } else {
@@ -3756,6 +3768,7 @@ app.post('/api/presence/generate', auth, async (req, res) => {
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  if (presenceReservee(tpl, req.user)) return res.status(403).json({ error: MSG_PRESENCE_RESERVEE });
   const ver = versionModele('presence-' + type);
   const d = fields || {};
   let buf, ext, ctype;
@@ -3804,6 +3817,7 @@ app.post('/api/presence/send', auth, (req, res) => {
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  if (presenceReservee(tpl, req.user)) return res.status(403).json({ error: MSG_PRESENCE_RESERVEE });
   // feuilles administratives : la signature d'Antonin est apposée d'office, le formateur ne signe pas
   if (!tpl.signAdmin && !sigImg(formateurSig)) return res.status(400).json({ error: 'Signature du formateur manquante.' });
   const dupS = duplicateSlot(fields);
@@ -3854,6 +3868,7 @@ app.post('/api/presence/:id/update', auth, (req, res) => {
   const { type, fields, formateurSig } = req.body || {};
   const tpl = PRESENCE_TEMPLATES[type || p.type];
   if (!tpl) return res.status(400).json({ error: 'Type de feuille inconnu.' });
+  if (presenceReservee(tpl, req.user)) return res.status(403).json({ error: MSG_PRESENCE_RESERVEE });
   const dup = duplicateSlot(fields);
   if (dup) return res.status(400).json({ error: 'Deux séances utilisent le créneau ' + dup + '. Chaque séance doit avoir un créneau différent.' });
   p.type = type || p.type;
@@ -3882,8 +3897,11 @@ app.post('/api/presence/:id/sign', auth, async (req, res) => {
   // on GÉNÈRE D'ABORD (sur une copie), on ne bascule l'état qu'ensuite : si la génération
   // échoue, la feuille reste signable au lieu de rester bloquée en « signée » sans document.
   let doc;
+  if (signaturesEnCours.has(p.id)) return res.status(409).json({ error: 'Signature déjà en cours.' });
+  signaturesEnCours.add(p.id);
   try { doc = await depositPresenceDoc(Object.assign({}, p, { apprenantSig: sig }), byUser); }
-  catch (e) { console.error('presence sign:', e); return res.status(500).json({ error: 'Erreur de génération du document. La feuille reste à signer, réessayez.' }); }
+  catch (e) { signaturesEnCours.delete(p.id); console.error('presence sign:', e); return res.status(500).json({ error: 'Erreur de génération du document. La feuille reste à signer, réessayez.' }); }
+  signaturesEnCours.delete(p.id);
   p.apprenantSig = sig; p.status = 'done'; p.signedBy = req.user.id; p.signedAt = Date.now();
   p.docId = doc.id;
   recordDocgen(g, byUser, { kind: 'presence', tpl: 'presence', title: (PRESENCE_TEMPLATES[p.type] || {}).title, format: 'pdf', apprenant: (p.fields && p.fields.apprenant) || 'apprenant' });
@@ -3922,6 +3940,9 @@ app.post('/api/presence/:id/cancel', auth, (req, res) => {
 // que signée des deux parties (décision de l'utilisateur).
 // ⚠️ Même ordre que la feuille de présence : on génère AVANT de basculer l'état, sinon un échec
 // laisserait une attestation « signée » sans document et non re-signable.
+// ⚠️ Le contrôle « déjà signé » précède un `await` (génération du PDF) : deux requêtes lancées en même
+// temps le franchissaient toutes les deux et déposaient DEUX pièces signées. Verrou par pièce, en mémoire.
+const signaturesEnCours = new Set();
 async function depositAttestationDoc(a, byUser) {
   const d = Object.assign({}, a.fields, { formateurSig: a.formateurSig, apprenantSig: a.apprenantSig });
   const ver = versionModele('attestation');
@@ -3992,8 +4013,11 @@ app.post('/api/attestation/:id/sign', auth, async (req, res) => {
   if (!sigImg(sig)) return res.status(400).json({ error: 'Signature manquante.' });
   const byUser = db.users.find(u => u.id === a.by) || req.user;
   let doc;
+  if (signaturesEnCours.has(a.id)) return res.status(409).json({ error: 'Signature déjà en cours.' });
+  signaturesEnCours.add(a.id);
   try { doc = await depositAttestationDoc(Object.assign({}, a, { apprenantSig: sig }), byUser); }
-  catch (e) { console.error('attestation sign:', e); return res.status(500).json({ error: 'Erreur de génération du document. L\'attestation reste à signer, réessayez.' }); }
+  catch (e) { signaturesEnCours.delete(a.id); console.error('attestation sign:', e); return res.status(500).json({ error: 'Erreur de génération du document. L\'attestation reste à signer, réessayez.' }); }
+  signaturesEnCours.delete(a.id);
   a.apprenantSig = sig; a.status = 'done'; a.signedBy = req.user.id; a.signedAt = Date.now(); a.docId = doc.id;
   recordDocgen(g, byUser, { kind: 'attestation', tpl: 'attestation', title: 'Attestation de fin de formation', format: 'pdf', apprenant: (a.fields && a.fields.apprenant) || 'apprenant' });
   notifyChannel(g, 'commun', req.user, `${senderDisplay(req.user)} a signé son attestation de fin de formation — document déposé dans le dossier.`);
@@ -4114,8 +4138,11 @@ app.post('/api/contrat/:id/sign', auth, async (req, res) => {
   if (!sigImg(sig)) return res.status(400).json({ error: 'Signature manquante.' });
   const adminU = db.users.find(u => u.id === c.by) || req.user;
   let doc;
+  if (signaturesEnCours.has(c.id)) return res.status(409).json({ error: 'Signature déjà en cours.' });
+  signaturesEnCours.add(c.id);
   try { doc = await depositContratDoc(Object.assign({}, c, { profSig: sig }), adminU); }
-  catch (e) { console.error('contrat sign:', e); return res.status(500).json({ error: 'Erreur de génération du document. Le contrat reste à signer, réessayez.' }); }
+  catch (e) { signaturesEnCours.delete(c.id); console.error('contrat sign:', e); return res.status(500).json({ error: 'Erreur de génération du document. Le contrat reste à signer, réessayez.' }); }
+  signaturesEnCours.delete(c.id);
   c.profSig = sig; c.status = 'done'; c.signedAt = Date.now(); c.docId = doc.id;
   recordDocgen(g, adminU, { kind: 'contrat', tpl: 'contrat', title: 'Contrat de sous-traitance', format: 'pdf', apprenant: (c.fields && c.fields.stnom) || 'formateur' });
   // ⚠️ canal PRIVÉ : notifyChannel n'y prévient que les formateurs du dossier et les admins.

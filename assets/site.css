@@ -926,10 +926,15 @@ footer a:hover{color:#fff8ef}
 .sigpad-up{cursor:pointer}
 /* attestation : lignes de compétences */
 .att-comps{display:flex;flex-direction:column;gap:8px;margin-top:6px}
-.att-comp-row{display:grid;grid-template-columns:1fr 200px;gap:10px}
+.att-comp-row{display:grid;grid-template-columns:1fr 200px 36px;gap:10px}
+.att-obj-row{display:grid;grid-template-columns:1fr 36px;gap:10px}
+.att-obj-row input{font:inherit;font-size:14px;padding:9px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--ink);min-width:0}
+.att-obj-row input:focus{outline:none;border-color:var(--accent)}
+.att-rm{appearance:none;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--muted,#8a7d70);font:inherit;font-size:14px;line-height:1;cursor:pointer;padding:0}
+.att-rm:hover{border-color:var(--accent);color:var(--accent)}
 .att-comp-row input,.att-comp-row select{font:inherit;font-size:14px;padding:9px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg-card);color:var(--ink);min-width:0}
 .att-comp-row input:focus,.att-comp-row select:focus{outline:none;border-color:var(--accent)}
-@media(max-width:520px){.att-comp-row{grid-template-columns:1fr}}
+@media(max-width:520px){#att-complist{gap:18px}.att-comp-row{grid-template-columns:1fr 44px}.att-comp-row input{grid-column:1 / -1}.att-obj-row{grid-template-columns:1fr 44px}.att-rm{min-height:44px}}
 .pwd-wrap{position:relative;display:block}
 .pwd-wrap input{padding-right:46px}
 .pwd-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--ink-soft);cursor:pointer;display:flex;align-items:center;padding:6px;border-radius:8px}

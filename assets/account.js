@@ -1982,10 +1982,13 @@
       gi('att-debut', 'Date de début', pre.dateDebut) + gi('att-fin', 'Date de fin', pre.dateFin) +
       gi('att-duree', 'Durée totale', pre.dureeTotale) + gi('att-lieu', 'Lieu', pre.lieu) +
       gi('att-detail', 'Dont (visio / e-learning / certification…)', pre.dureeDetail) + gi('att-rep', 'Représentant L&S', pre.representant) + '</div>';
-    var obj = '<h4 class="gen-h">Objectifs de la formation</h4><div class="gf-grid">' + ga('att-objectifs', 'Un objectif par ligne', '', 4) + '</div>';
-    var comps = '<h4 class="gen-h">Résultat de l\'évaluation des acquis</h4><div class="att-comps">';
-    for (var i = 0; i < 6; i++) { comps += '<div class="att-comp-row"><input id="att-comp-l-' + i + '" placeholder="Compétence ' + (i + 1) + '" /><select id="att-comp-n-' + i + '"><option value="">—</option><option>Acquis</option><option>En cours d\'acquisition</option><option>Non acquis</option></select></div>'; }
-    comps += '</div>';
+    // ⚠️ UNE LIGNE PAR OBJECTIF ET PAR COMPÉTENCE (21/09/2026, retour de l'utilisateur : la zone de texte
+    // « un objectif par ligne » n'était pas comprise). Lignes ajoutables et retirables ; une ligne laissée
+    // vide ne figure pas sur le document. Le serveur reçoit toujours `objectifs` en texte, une ligne par objectif.
+    var ligneObj = function () { return '<div class="att-row att-obj-row"><input class="att-obj" placeholder="Objectif" /><button type="button" class="att-rm" title="Retirer cette ligne" aria-label="Retirer cette ligne">✕</button></div>'; };
+    var ligneComp = function () { return '<div class="att-row att-comp-row"><input class="att-comp-l" placeholder="Compétence" /><select class="att-comp-n"><option value="">—</option><option>Acquis</option><option>En cours d\'acquisition</option><option>Non acquis</option></select><button type="button" class="att-rm" title="Retirer cette ligne" aria-label="Retirer cette ligne">✕</button></div>'; };
+    var obj = '<h4 class="gen-h">Objectifs de la formation</h4><p class="ds-empty" style="margin:0 0 8px">Un objectif par ligne. Une ligne laissée vide n\'apparaît pas sur le document.</p><div class="att-comps" id="att-objs">' + ligneObj() + ligneObj() + ligneObj() + '</div><button type="button" class="btn-mini att-add" data-liste="att-objs" style="margin-top:8px">+ Ajouter un objectif</button>';
+    var comps = '<h4 class="gen-h">Résultat de l\'évaluation des acquis</h4><p class="ds-empty" style="margin:0 0 8px">Une compétence par ligne, avec son niveau. Une ligne laissée vide n\'apparaît pas sur le document.</p><div class="att-comps" id="att-complist">' + ligneComp() + ligneComp() + ligneComp() + '</div><button type="button" class="btn-mini att-add" data-liste="att-complist" style="margin-top:8px">+ Ajouter une compétence</button>';
     var fin = '<h4 class="gen-h">Niveau &amp; commentaires</h4><div class="gf-grid">' + gi('att-niveau', 'Niveau atteint', '') + gi('att-certif', 'Certification', pre.certification) + gi('att-dateeval', "Date de l'évaluation", '') + gi('att-resultat', 'Résultat', '') + '</div>' +
       '<div class="gf-grid">' + ga('att-comments', 'Commentaires du formateur', '', 3) + '</div>' +
       '<div class="gf-grid">' + gi('att-lieufait', 'Fait à', pre.lieuFait) + gi('att-datefait', 'Le', pre.dateFait) + '</div>';
@@ -1996,11 +1999,25 @@
     var m = buildFsModal('att-modal', 'Attestation de fin de stage', head + obj + comps + fin + sigF, footer);
     var padAtt = mountSignaturePad(m.querySelector('.sigpad'));
     var champsAtt = function () {
-      var competences = [];
-      for (var i = 0; i < 6; i++) { var lbl = val('att-comp-l-' + i); if (lbl && lbl.trim()) competences.push({ label: lbl, niveau: val('att-comp-n-' + i) }); }
-      var fields = { representant: val('att-rep'), apprenant: val('att-apprenant'), societe: val('att-societe'), intitule: val('att-intitule'), formateur: val('att-formateur'), dateDebut: val('att-debut'), dateFin: val('att-fin'), dureeTotale: val('att-duree'), dureeDetail: val('att-detail'), lieu: val('att-lieu'), objectifs: val('att-objectifs'), competences: competences, niveauAtteint: val('att-niveau'), certification: val('att-certif'), dateEval: val('att-dateeval'), resultat: val('att-resultat'), commentaires: val('att-comments'), lieuFait: val('att-lieufait'), dateFait: val('att-datefait') };
+      var competences = [], objectifs = [];
+      m.querySelectorAll('.att-comp-row').forEach(function (row) { var lbl = row.querySelector('.att-comp-l').value; if (lbl && lbl.trim()) competences.push({ label: lbl.trim(), niveau: row.querySelector('.att-comp-n').value }); });
+      m.querySelectorAll('.att-obj').forEach(function (i) { var t = (i.value || '').replace(/\s+/g, ' ').trim(); if (t) objectifs.push(t); });
+      var fields = { representant: val('att-rep'), apprenant: val('att-apprenant'), societe: val('att-societe'), intitule: val('att-intitule'), formateur: val('att-formateur'), dateDebut: val('att-debut'), dateFin: val('att-fin'), dureeTotale: val('att-duree'), dureeDetail: val('att-detail'), lieu: val('att-lieu'), objectifs: objectifs.join('\n'), competences: competences, niveauAtteint: val('att-niveau'), certification: val('att-certif'), dateEval: val('att-dateeval'), resultat: val('att-resultat'), commentaires: val('att-comments'), lieuFait: val('att-lieufait'), dateFait: val('att-datefait') };
       return fields;
     };
+    // ajout et retrait de lignes, par délégation (les lignes naissent et meurent) ; la dernière ligne d'une
+    // liste se vide au lieu de disparaître, pour qu'il reste toujours où écrire. Entrée = ligne suivante.
+    m.addEventListener('click', function (e) {
+      var add = e.target.closest && e.target.closest('.att-add'), rm = e.target.closest && e.target.closest('.att-rm');
+      if (add) { var l = document.getElementById(add.getAttribute('data-liste')); l.insertAdjacentHTML('beforeend', l.id === 'att-objs' ? ligneObj() : ligneComp()); var n = l.lastElementChild.querySelector('input'); if (n) n.focus(); }
+      else if (rm) { var row = rm.closest('.att-row'), liste = row.parentNode; if (liste.children.length > 1) liste.removeChild(row); else { row.querySelector('input').value = ''; var sel = row.querySelector('select'); if (sel) sel.value = ''; } }
+    });
+    m.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || !e.target.classList || !(e.target.classList.contains('att-obj') || e.target.classList.contains('att-comp-l'))) return;
+      e.preventDefault(); var row = e.target.closest('.att-row'), suiv = row.nextElementSibling;
+      if (!suiv) { row.parentNode.insertAdjacentHTML('beforeend', e.target.classList.contains('att-obj') ? ligneObj() : ligneComp()); suiv = row.nextElementSibling; }
+      suiv.querySelector('input').focus();
+    });
     attacherApercu(m, function () { return { tpl: 'attestation', donnees: { fields: champsAtt(), formateurSig: padAtt.dataURL() } }; });
     m.querySelector('.att-send').onclick = function () {
       var fields = champsAtt();
@@ -2140,7 +2157,7 @@
       var sessions = (editing && init.fields && init.fields.sessions) ? init.fields.sessions.map(function (s) { return Object.assign({}, s); }) : [];
       var PR_TIMES = ['0:30', '1:00', '1:30', '2:00', '2:30', '3:00', '3:30', '4:00', '4:30', '5:00', '5:30', '6:00', '6:30', '7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00'];
       function nextSlot() { var used = sessions.map(function (s) { return s.slot; }); for (var i = 0; i < PR_TIMES.length; i++) { if (used.indexOf(PR_TIMES[i]) < 0) return PR_TIMES[i]; } return PR_TIMES[0]; }
-      var dyn = '<label class="gen-chan" style="margin-bottom:14px">Type de feuille <select id="pr-type"><option value="elearning">E-learning</option><option value="presentiel">Présentiel / Distanciel</option><option value="test">Test</option></select></label><div id="pr-dyn"></div>' +
+      var dyn = '<label class="gen-chan" style="margin-bottom:14px">Type de feuille <select id="pr-type"><option value="elearning">E-learning</option><option value="presentiel">Présentiel / Distanciel</option>' + (ME.role === 'admin' ? '<option value="test">Certification</option>' : '') + '</select></label><div id="pr-dyn"></div>' +
         '<div id="pr-sigwrap"><h4 class="gen-h">Votre signature (formateur)</h4><p class="ds-empty" style="margin:0 0 8px">Signez ci-dessous à la souris (ou au doigt), ou téléversez une image de votre signature. L\'apprenant la recevra dans le dossier pour signer à son tour.</p>' + sigPadHTML() + '</div>' +
         '<p class="ds-empty" id="pr-signote" style="display:none;margin:0">Ce document est signé par l\'administration : la signature d\'Antonin HATTABE y est apposée automatiquement. Vous n\'avez pas à signer.</p>';
       var sendLabel = editing ? 'Enregistrer les modifications →' : 'Envoyer à l\'apprenant pour signature →';

@@ -539,6 +539,16 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "The agreement will be removed from the private channel and the trainer will no longer be able to sign it. You can send a new one.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Forgotten your password?",
+  /* ---- attestation en lignes, feuille Certification (21/09/2026) ---- */
+  "Objectif": "Objective",
+  "Compétence": "Skill",
+  "Retirer cette ligne": "Remove this line",
+  "+ Ajouter un objectif": "+ Add an objective",
+  "+ Ajouter une compétence": "+ Add a skill",
+  "Un objectif par ligne. Une ligne laissée vide n'apparaît pas sur le document.": "One objective per line. A line left empty does not appear on the document.",
+  "Une compétence par ligne, avec son niveau. Une ligne laissée vide n'apparaît pas sur le document.": "One skill per line, with its level. A line left empty does not appear on the document.",
+  "Ce type de feuille est réservé à l'administration.": "This type of sheet is reserved for the administration.",
+  "Signature déjà en cours.": "Signature already in progress.",
   /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */
   "Annuler les modifications": "Discard changes",
   "Terminer la modification ✓": "Finish editing ✓",

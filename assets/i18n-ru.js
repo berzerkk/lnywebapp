@@ -517,6 +517,16 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Договор будет удалён из приватного канала, и преподаватель больше не сможет его подписать. Вы сможете отправить новый.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Забыли пароль?",
+  /* ---- attestation en lignes, feuille Certification (21/09/2026) ---- */
+  "Objectif": "Цель",
+  "Compétence": "Навык",
+  "Retirer cette ligne": "Удалить эту строку",
+  "+ Ajouter un objectif": "+ Добавить цель",
+  "+ Ajouter une compétence": "+ Добавить навык",
+  "Un objectif par ligne. Une ligne laissée vide n'apparaît pas sur le document.": "Одна цель в строке. Пустая строка не попадает в документ.",
+  "Une compétence par ligne, avec son niveau. Une ligne laissée vide n'apparaît pas sur le document.": "Один навык в строке, с уровнем. Пустая строка не попадает в документ.",
+  "Ce type de feuille est réservé à l'administration.": "Этот тип листа доступен только администрации.",
+  "Signature déjà en cours.": "Подпись уже обрабатывается.",
   /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */
   "Annuler les modifications": "Отменить изменения",
   "Terminer la modification ✓": "Завершить редактирование ✓",

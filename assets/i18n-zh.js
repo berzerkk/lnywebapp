@@ -518,6 +518,16 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "合同将从私密频道中撤回，培训师将无法再签署。您可以重新发送一份新合同。",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "忘记密码？",
+  /* ---- attestation en lignes, feuille Certification (21/09/2026) ---- */
+  "Objectif": "目标",
+  "Compétence": "能力",
+  "Retirer cette ligne": "删除此行",
+  "+ Ajouter un objectif": "+ 添加目标",
+  "+ Ajouter une compétence": "+ 添加能力",
+  "Un objectif par ligne. Une ligne laissée vide n'apparaît pas sur le document.": "每行一个目标。留空的行不会出现在文档中。",
+  "Une compétence par ligne, avec son niveau. Une ligne laissée vide n'apparaît pas sur le document.": "每行一项能力及其水平。留空的行不会出现在文档中。",
+  "Ce type de feuille est réservé à l'administration.": "此类表格仅限管理部门使用。",
+  "Signature déjà en cours.": "签名正在处理中。",
   /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */
   "Annuler les modifications": "放弃修改",
   "Terminer la modification ✓": "完成修改 ✓",

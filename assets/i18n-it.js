@@ -517,6 +517,16 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Il contratto sarà rimosso dal canale privato e il formatore non potrà più firmarlo. Potrete inviarne uno nuovo.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Password dimenticata?",
+  /* ---- attestation en lignes, feuille Certification (21/09/2026) ---- */
+  "Objectif": "Obiettivo",
+  "Compétence": "Competenza",
+  "Retirer cette ligne": "Rimuovi questa riga",
+  "+ Ajouter un objectif": "+ Aggiungi un obiettivo",
+  "+ Ajouter une compétence": "+ Aggiungi una competenza",
+  "Un objectif par ligne. Une ligne laissée vide n'apparaît pas sur le document.": "Un obiettivo per riga. Una riga lasciata vuota non compare nel documento.",
+  "Une compétence par ligne, avec son niveau. Une ligne laissée vide n'apparaît pas sur le document.": "Una competenza per riga, con il suo livello. Una riga lasciata vuota non compare nel documento.",
+  "Ce type de feuille est réservé à l'administration.": "Questo tipo di foglio è riservato all'amministrazione.",
+  "Signature déjà en cours.": "Firma già in corso.",
   /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */
   "Annuler les modifications": "Annulla le modifiche",
   "Terminer la modification ✓": "Termina la modifica ✓",
