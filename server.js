@@ -3321,6 +3321,41 @@ app.post('/api/form/generate', auth, async (req, res) => {
   res.send(buf);
 });
 
+// ---- APERÇU EN DIRECT des documents à générer (21/09/2026, demande de l'utilisateur) --------------
+// À droite de chaque fenêtre « Générer un document », le navigateur affiche le document tel qu'il
+// sortira, et le redemande à chaque modification du formulaire.
+// ⚠️⚠️ L'APERÇU EST LE VRAI PDF, produit par les MÊMES constructeurs que la génération — jamais une
+// imitation en HTML, qui finirait par diverger du document réel (pagination, replis, tableaux).
+// ⚠️ Cette route NE LAISSE AUCUNE TRACE : pas de recordDocgen (l'historique se remplirait d'une
+// ligne par frappe), pas de save(), pas d'e-mail, pas de notification, et surtout PAS de
+// newContratRef() — chaque appel consomme un numéro de contrat pour toujours. L'aperçu du contrat
+// porte une référence d'attente, la vraie est attribuée à l'envoi ou au téléchargement.
+// Mêmes droits que la génération : canEditWs sur le dossier, contrat réservé à l'administration.
+// Les données viennent du FORMULAIRE (corps de la requête), jamais de la base : rien ne fuit.
+const apercuRefContrat = () => 'Réf. n° ' + new Date().getFullYear() + '/L&S - attribuée à l\'envoi';
+app.post('/api/apercu', auth, async (req, res) => {
+  const { group, tpl, donnees } = req.body || {};
+  const g = groupById(group), d = donnees || {};
+  if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  try {
+    let buf;
+    if (tpl === 'interactive') buf = await buildWorksheetPdf({ header: d.header || {}, sessions: Array.isArray(d.sessions) ? d.sessions : [] }, req.user, versionModele('interactive'));
+    else if (QS_TEMPLATES[tpl]) buf = await buildQsPdf({ header: d.header || {}, answers: {} }, QS_TEMPLATES[tpl], req.user, versionModele(tpl));
+    else if (FORM_TEMPLATES[tpl]) buf = await buildQsPdf({ header: d.header || {}, answers: d.answers || {} }, FORM_TEMPLATES[tpl], req.user, versionModele(tpl));
+    else if (TEST_TEMPLATES[tpl]) buf = await buildTestPdf(TEST_TEMPLATES[tpl].title, d.header || {}, d.extra || {}, req.user, versionModele(tpl));
+    else if (tpl === 'attestation') buf = await buildAttestationPdf(Object.assign({}, d.fields, { formateurSig: d.formateurSig || null }), req.user, versionModele('attestation'));
+    else if (tpl === 'contrat') {
+      if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
+      buf = await buildContratPdf(Object.assign({}, d.fields, { ref: apercuRefContrat(), representant: 'Antonin HATTABE' }), req.user, versionModele('contrat'));
+    }
+    else if (tpl === 'leveltest') buf = await buildLevelTestPdf(d.fields || {}, req.user, versionModele('leveltest'));
+    else if (tpl === 'presence' && PRESENCE_TEMPLATES[d.type]) buf = await buildPresencePdf(d.type, Object.assign({}, d.fields, { formateurSig: d.formateurSig || null }), req.user, versionModele('presence-' + d.type));
+    else return res.status(400).json({ error: 'Modèle inconnu.' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.send(buf);
+  } catch (e) { console.error('aperçu (' + tpl + ') :', e.message); res.status(500).json({ error: 'Aperçu indisponible.' }); }
+});
+
 // ---- Level Test : Évaluation orale / Questionnaire d'objectifs (formateur + admin) ----
 const LEVEL_TEST = {
   title: "Évaluation orale / Questionnaire d'objectifs",

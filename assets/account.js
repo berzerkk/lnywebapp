@@ -743,7 +743,11 @@
   // ---- générateur de documents (Interactive Worksheet) -------------------
   function gi(id, label, v) { return '<label class="gf">' + label + '<input id="' + id + '" value="' + esc(v || '') + '" /></label>'; }
   function ga(id, label, v, rows) { return '<label class="gf gf-full">' + label + '<textarea id="' + id + '" rows="' + (rows || 2) + '">' + esc(v || '') + '</textarea></label>'; }
-  function showGenModal() { ensureGenModal(); renderGen(); document.getElementById('gen-modal').classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function showGenModal() {
+    ensureGenModal(); renderGen(); var gm = document.getElementById('gen-modal'); gm.classList.add('open'); document.body.style.overflow = 'hidden';
+    // aperçu : seules les séances AJOUTÉES y figurent — exactement ce que le document contiendra
+    attacherApercu(gm, function () { if (!genState || !document.getElementById('g-intitule')) return null; syncGen(); return { tpl: 'interactive', donnees: { header: genState.header, sessions: genState.sessions } }; });
+  }
   function openGenModal(preset) {
     if (!selected) return;
     if (preset) { genState = { header: preset.header || {}, sessions: Array.isArray(preset.sessions) ? preset.sessions.slice() : [] }; showGenModal(); return; }
@@ -1527,6 +1531,141 @@
     m.classList.add('open'); document.body.style.overflow = 'hidden';
     return m;
   }
+  // ---- APERÇU EN DIRECT du document à générer (21/09/2026, demande de l'utilisateur) -----------
+  // À droite du formulaire : le VRAI PDF (POST /api/apercu, mêmes constructeurs que la génération),
+  // redemandé à chaque modification, affiché page par page avec pdf.js — hébergé sur le site
+  // (assets/pdfjs/), chargé à la demande : aucune requête vers un tiers, et rien pour qui n'ouvre
+  // jamais ces fenêtres.
+  // ⚠️ Un <iframe> sur le PDF aurait été plus court, mais chaque mise à jour le recharge (position
+  // et zoom perdus à chaque frappe), iPhone n'en montre que la première page et Chrome Android rien.
+  // `collecter()` rend { tpl, donnees } (ou null tant que le formulaire n'est pas prêt) : c'est la
+  // MÊME collecte que celle du bouton d'envoi de chaque fenêtre, pour que l'aperçu ne puisse pas
+  // montrer autre chose que ce qui partira.
+  var PDFJS = null;
+  function chargerPdfjs() {
+    if (!PDFJS) PDFJS = import('/assets/pdfjs/pdf.min.mjs').then(function (lib) { lib.GlobalWorkerOptions.workerSrc = '/assets/pdfjs/pdf.worker.min.mjs'; return lib; });
+    PDFJS.catch(function () { PDFJS = null; });   // échec de chargement : on réessaiera à la prochaine ouverture
+    return PDFJS;
+  }
+  var AP_ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
+  function attacherApercu(m, collecter) {
+    var carte = m.querySelector('.nm-card'), corps = m.querySelector('.nm-body');
+    if (!carte || !corps) return { rafraichir: function () { } };
+    if (m._apercu) { m._apercu.rafraichir(true); return m._apercu; }   // fenêtre réutilisée (Interactive Worksheet)
+    carte.classList.add('avec-apercu');
+    var split = document.createElement('div'); split.className = 'ap-split';
+    corps.parentNode.insertBefore(split, corps); split.appendChild(corps);
+    var pane = document.createElement('aside'); pane.className = 'ap-pane'; pane.setAttribute('aria-label', 'Aperçu du document');
+    pane.innerHTML = '<div class="ap-barre"><span class="ap-titre">Aperçu du document</span><span class="ap-nb" hidden><b></b> <span></span></span><span class="ap-etat" aria-live="polite"></span>' +
+      '<span class="ap-zoom"><button type="button" class="ap-moins" title="Zoom arrière" aria-label="Zoom arrière">−</button><span class="ap-pct">100 %</span>' +
+      '<button type="button" class="ap-plus" title="Zoom avant" aria-label="Zoom avant">+</button><button type="button" class="ap-ajuster" title="Ajuster à la largeur">Ajuster</button></span></div>' +
+      '<div class="ap-pages" tabindex="0"><div class="ap-inner"><p class="ap-vide">Préparation de l\'aperçu…</p></div></div>';
+    split.appendChild(pane);
+    // téléphone et tablette : pas la place pour deux colonnes, on bascule par onglets
+    var onglets = document.createElement('div'); onglets.className = 'ap-onglets';
+    onglets.innerHTML = '<button type="button" class="on" data-ap="form">Formulaire</button><button type="button" data-ap="doc">Aperçu</button>';
+    split.parentNode.insertBefore(onglets, split);
+    var pages = pane.querySelector('.ap-pages'), inner = pane.querySelector('.ap-inner'), etat = pane.querySelector('.ap-etat');
+    var zoom = 1, docPdf = null, dernier = null, minuteur = null, requete = null, tour = 0, aRendre = false;
+    function vivante() { return document.body.contains(m) && m.classList.contains('open'); }
+    function dire(t) { etat.textContent = t || ''; }
+    function rendre(garderRatio) {
+      if (!docPdf) return Promise.resolve();
+      if (!pages.clientWidth) { aRendre = true; return Promise.resolve(); }   // volet masqué (onglet « Formulaire » sur téléphone)
+      aRendre = false;
+      var monTour = ++tour, ratio = pages.scrollHeight ? pages.scrollTop / pages.scrollHeight : 0, haut = pages.scrollTop;
+      var frag = document.createDocumentFragment(), suite = Promise.resolve();
+      var dispo = Math.max(200, pages.clientWidth - 32), dpr = Math.min(window.devicePixelRatio || 1, 2);
+      for (var i = 1; i <= docPdf.numPages; i++) (function (n) {
+        suite = suite.then(function () { return docPdf.getPage(n); }).then(function (pg) {
+          if (monTour !== tour) return;
+          var base = pg.getViewport({ scale: 1 }), css = zoom * dispo / base.width;
+          // ⚠️ netteté bornée : à 300 % sur un contrat de 5 pages, des canevas à pleine définition
+          // pèseraient plusieurs centaines de Mo. Au-delà de 2200 px de large, on étire.
+          var ech = Math.min(css * dpr, 2200 / base.width), vp = pg.getViewport({ scale: ech });
+          var c = document.createElement('canvas'); c.className = 'ap-page';
+          c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+          c.style.width = Math.round(base.width * css) + 'px'; c.style.height = Math.round(base.height * css) + 'px';
+          frag.appendChild(c);
+          return pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        });
+      })(i);
+      return suite.then(function () {
+        if (monTour !== tour) return;
+        // ⚠️ on remplace D'UN COUP, une fois toutes les pages dessinées : vider puis redessiner
+        // ferait sauter la position de lecture à chaque frappe
+        inner.textContent = ''; inner.appendChild(frag);
+        pages.scrollTop = garderRatio ? ratio * pages.scrollHeight : haut;
+        var nb = pane.querySelector('.ap-nb'); nb.hidden = false;
+        nb.querySelector('b').textContent = docPdf.numPages; nb.querySelector('span').textContent = docPdf.numPages > 1 ? 'pages' : 'page';
+      });
+    }
+    function rafraichir(force) {
+      if (!vivante()) return;
+      var p = null; try { p = collecter(); } catch (e) { p = null; }
+      if (!p) return;
+      var corpsReq = JSON.stringify({ group: selected, tpl: p.tpl, donnees: p.donnees });
+      if (!force && corpsReq === dernier) return;   // un clic qui ne change rien ne redemande rien
+      dernier = corpsReq;
+      if (requete) requete.abort();
+      var ctl = requete = (window.AbortController ? new AbortController() : { abort: function () { } });
+      dire('Mise à jour…');
+      Promise.all([chargerPdfjs(), fetch('/api/apercu', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() }, body: corpsReq, signal: ctl.signal })
+        .then(function (r) { if (!r.ok) throw new Error('refus'); return r.arrayBuffer(); })])
+        .then(function (x) {
+          if (ctl !== requete || !vivante()) return;
+          // isEvalSupported:false — pdf.js ne compile jamais de code tiré d'un PDF
+          return x[0].getDocument({ data: x[1], standardFontDataUrl: '/assets/pdfjs/standard_fonts/', isEvalSupported: false }).promise.then(function (d) {
+            if (ctl !== requete) { d.destroy(); return; }
+            var ancien = docPdf; docPdf = d;
+            return rendre(false).then(function () { if (ancien) ancien.destroy(); dire(''); });
+          });
+        })
+        .catch(function (e) {
+          if (e && e.name === 'AbortError') return;
+          if (ctl !== requete) return;
+          dernier = null; dire('');
+          // le dernier aperçu valable reste affiché ; on ne le remplace par un message que s'il n'y en a aucun
+          if (!docPdf) inner.innerHTML = '<p class="ap-vide">Aperçu indisponible pour le moment.</p>';
+        });
+    }
+    function planifier() { clearTimeout(minuteur); minuteur = setTimeout(function () { rafraichir(false); }, 450); }
+    // toute action dans le formulaire peut changer le document : frappe, choix, ajout ou retrait de
+    // ligne, trait de signature. La comparaison dans rafraichir() écarte ce qui ne change rien.
+    ['input', 'change', 'click'].forEach(function (ev) { corps.addEventListener(ev, planifier); });
+    // fin d'un trait de signature : écoutée sur TOUTE la fenêtre, on relâche souvent la souris hors du cadre
+    ['pointerup', 'touchend'].forEach(function (ev) { m.addEventListener(ev, planifier); });
+    // image de signature téléversée : elle n'est dessinée qu'après sa lecture, sans aucun événement — on repasse un peu plus tard
+    corps.addEventListener('change', function (e) { if (e.target && e.target.type === 'file') setTimeout(function () { rafraichir(false); }, 1500); });
+    function zoomer(z) {
+      zoom = Math.min(3, Math.max(0.5, z));
+      pane.querySelector('.ap-pct').textContent = Math.round(zoom * 100) + ' %';
+      rendre(true);
+    }
+    function cran(sens) { var i = 0; while (i < AP_ZOOMS.length - 1 && AP_ZOOMS[i] < zoom - 0.001) i++; if (sens > 0 && AP_ZOOMS[i] <= zoom + 0.001) i++; if (sens < 0) i--; zoomer(AP_ZOOMS[Math.max(0, Math.min(AP_ZOOMS.length - 1, i))]); }
+    pane.querySelector('.ap-moins').onclick = function () { cran(-1); };
+    pane.querySelector('.ap-plus').onclick = function () { cran(1); };
+    pane.querySelector('.ap-ajuster').onclick = function () { zoomer(1); };
+    // Ctrl + molette au-dessus de l'aperçu : zoome l'aperçu, pas toute la page
+    pages.addEventListener('wheel', function (e) { if (!e.ctrlKey) return; e.preventDefault(); cran(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+    onglets.onclick = function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      var doc = b.getAttribute('data-ap') === 'doc';
+      carte.classList.toggle('ap-voir', doc);
+      onglets.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      // ⚠️ on redessine TOUJOURS en affichant le volet : il était masqué (largeur nulle) quand le document
+      // est arrivé, ou dessiné pour une autre largeur (téléphone tourné) — sinon la page déborde de l'écran
+      if (doc) { rafraichir(false); rendre(true); }
+    };
+    var tRetaille = null;
+    window.addEventListener('resize', function surRetaille() {
+      if (!document.body.contains(m)) { window.removeEventListener('resize', surRetaille); return; }
+      if (!vivante()) return; clearTimeout(tRetaille); tRetaille = setTimeout(function () { rendre(true); }, 250);
+    });
+    m._apercu = { rafraichir: rafraichir };
+    setTimeout(function () { rafraichir(true); }, 60);
+    return m._apercu;
+  }
   function closeFsModal(id) { var m = document.getElementById(id); if (m) { m.classList.remove('open'); document.body.style.overflow = ''; setTimeout(function () { if (m.parentNode) m.remove(); }, 300); } }
   // ---- petite boîte de confirmation (2 boutons) ---------------------------
   function confirmDialog(opts) {
@@ -1597,8 +1736,10 @@
     var body = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête, puis envoyez le questionnaire à l\'apprenant : il reçoit une notification et le remplit depuis le chat.</p><div class="gf-grid">' +
       fields.map(function (f) { return gi('qsh-' + f[0], f[1], h[f[0]]); }).join('') + '</div>';
     var m = buildFsModal('qsh-modal', titles[type] || 'Questionnaire', body, '<button class="btn btn-primary qsh-send" type="button" style="padding:11px 22px">Envoyer à l\'apprenant →</button>');
+    var enteteQs = function () { var header = {}; fields.forEach(function (f) { header[f[0]] = val('qsh-' + f[0]); }); return header; };
+    attacherApercu(m, function () { return { tpl: type, donnees: { header: enteteQs() } }; });
     m.querySelector('.qsh-send').onclick = function () {
-      var header = {}; fields.forEach(function (f) { header[f[0]] = val('qsh-' + f[0]); });
+      var header = enteteQs();
       var btn = m.querySelector('.qsh-send'); btn.disabled = true; btn.textContent = 'Envoi…';
       apiJSON('/api/qs/send', 'POST', { group: selected, type: type, header: header }).then(function (r) {
         if (!r.ok) { btn.disabled = false; btn.textContent = 'Envoyer à l\'apprenant →'; alertDialog((r.data && r.data.error) || 'Erreur'); return; }
@@ -1779,9 +1920,13 @@
       '<button class="btn btn-primary td-gen" type="button" style="padding:11px 22px">Générer le document →</button>';
     var m = buildFsModal('td-modal', titles[type] || 'Test', body, footer);
     wireRichEditor(m, 'td-rt');
-    m.querySelector('.td-gen').onclick = function () {
+    var champsTd = function () {
       var header = {}; fields.forEach(function (f) { header[f[0]] = val('td-' + f[0]); });
-      var extra = { resultat: val('td-resultat'), appreciation: val('td-appreciation'), libre: serializeRich(document.getElementById('td-rt')) };
+      return { header: header, extra: { resultat: val('td-resultat'), appreciation: val('td-appreciation'), libre: serializeRich(document.getElementById('td-rt')) } };
+    };
+    attacherApercu(m, function () { return { tpl: type, donnees: champsTd() }; });
+    m.querySelector('.td-gen').onclick = function () {
+      var saisie = champsTd(), header = saisie.header, extra = saisie.extra;
       var fmt = document.getElementById('td-format').value;
       var btn = m.querySelector('.td-gen'); btn.disabled = true; btn.textContent = 'Génération…';
       fetch('/api/testdoc/generate', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() }, body: JSON.stringify({ group: selected, type: type, header: header, extra: extra, format: fmt }) })
@@ -1824,10 +1969,15 @@
     var footer = '<button class="btn btn-primary att-send" type="button" style="padding:11px 22px">Envoyer à l\'apprenant pour signature →</button>';
     var m = buildFsModal('att-modal', 'Attestation de fin de stage', head + obj + comps + fin + sigF, footer);
     var padAtt = mountSignaturePad(m.querySelector('.sigpad'));
-    m.querySelector('.att-send').onclick = function () {
+    var champsAtt = function () {
       var competences = [];
       for (var i = 0; i < 6; i++) { var lbl = val('att-comp-l-' + i); if (lbl && lbl.trim()) competences.push({ label: lbl, niveau: val('att-comp-n-' + i) }); }
       var fields = { representant: val('att-rep'), apprenant: val('att-apprenant'), societe: val('att-societe'), intitule: val('att-intitule'), formateur: val('att-formateur'), dateDebut: val('att-debut'), dateFin: val('att-fin'), dureeTotale: val('att-duree'), dureeDetail: val('att-detail'), lieu: val('att-lieu'), objectifs: val('att-objectifs'), competences: competences, niveauAtteint: val('att-niveau'), certification: val('att-certif'), dateEval: val('att-dateeval'), resultat: val('att-resultat'), commentaires: val('att-comments'), lieuFait: val('att-lieufait'), dateFait: val('att-datefait') };
+      return fields;
+    };
+    attacherApercu(m, function () { return { tpl: 'attestation', donnees: { fields: champsAtt(), formateurSig: padAtt.dataURL() } }; });
+    m.querySelector('.att-send').onclick = function () {
+      var fields = champsAtt();
       if (padAtt.isEmpty()) { alertDialog('Signez l\'attestation avant de l\'envoyer.'); return; }
       var b = m.querySelector('.att-send'); b.disabled = true; b.textContent = 'Envoi…';
       apiJSON('/api/attestation/send', 'POST', { group: selected, fields: fields, formateurSig: padAtt.dataURL() }).then(function (r) {
@@ -1870,6 +2020,7 @@
     var champsCt = function () {
       return { stnom: val('ct-stnom'), stNaissance: val('ct-naissance'), stNationalite: val('ct-nationalite'), stAdresse: val('ct-adresse'), stSiret: val('ct-siret'), stNda: val('ct-nda'), intitule: val('ct-intitule'), langue: val('ct-langue'), stagiaire: val('ct-stagiaire'), programme: val('ct-programme'), mission: val('ct-mission'), lieu: val('ct-lieu'), dateDebut: val('ct-debut'), dateFin: val('ct-fin'), tauxHoraire: val('ct-taux'), montantTotal: val('ct-montant'), heuresSync: val('ct-heuressync'), lieuFait: val('ct-lieufait'), dateFait: val('ct-datefait') };
     };
+    attacherApercu(m, function () { return { tpl: 'contrat', donnees: { fields: champsCt() } }; });
     m.querySelector('.ct-gen').onclick = function () {
       var fields = champsCt();
       downloadDoc(m, '.ct-gen', '/api/contrat/generate', { group: selected, prof: GEN_PROF, fields: fields, format: document.getElementById('ct-format').value }, '7 - Contrat de sous-traitance - ' + (fields.stnom || 'formateur'));
@@ -1918,7 +2069,7 @@
         wrap.appendChild(row); row.querySelector('.lt-xf-label').focus();
       };
       m.querySelector('.lt-add-field').onclick = function () { addField(); };
-      m.querySelector('.lt-gen').onclick = function () {
+      var champsLt = function () {
         var fields = {};
         (tpl.headerRows || []).forEach(function (row) { row.forEach(function (pair) { if (pair) fields[pair[0]] = val('lt-' + pair[0]); }); });
         (tpl.textFields || []).forEach(function (f) { fields[f.id] = val('lt-' + f.id); });
@@ -1927,6 +2078,11 @@
         var extra = [];
         m.querySelectorAll('.lt-xf').forEach(function (row) { var l = row.querySelector('.lt-xf-label').value.trim(), v = row.querySelector('.lt-xf-value').value.trim(); if (l || v) extra.push({ label: l, value: v }); });
         fields.extraHeader = extra;
+        return fields;
+      };
+      attacherApercu(m, function () { return { tpl: 'leveltest', donnees: { fields: champsLt() } }; });
+      m.querySelector('.lt-gen').onclick = function () {
+        var fields = champsLt();
         downloadDoc(m, '.lt-gen', '/api/leveltest/generate', { group: selected, fields: fields, format: document.getElementById('lt-format').value }, (ME.role === 'admin' ? '9' : '8') + ' - Level Test - ' + (fields.prenom || fields.nom || 'apprenant'));
       };
     });
@@ -2011,15 +2167,20 @@
         curType = this.value; render();
       };
       render();
-      m.querySelector('.pr-gen').onclick = function () {
+      // la MÊME collecte sert à l'envoi et à l'aperçu en direct
+      var champsPr = function () {
         var tpl = T[curType], fields = {};
-        // sur une feuille administrative, la signature d'Antonin est apposée d'office : rien à signer
-        if (!tpl.signAdmin && sigPad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature) avant d\'envoyer à l\'apprenant.'); return; }
         tpl.headerRows.forEach(function (row) { row.forEach(function (pair) { if (pair) fields[pair[0]] = val('pr-' + pair[0]); }); });
         if (tpl.kind === 'summary') { fields.heuresPrevues = val('pr-heuresPrevues'); fields.heuresRealisees = val('pr-heuresRealisees'); fields.dateRapport = val('pr-dateRapport'); }
-        else {
-          collectSessions();
-          fields.sessions = sessions.filter(function (s) { return s.date || s.jour || s.hDebut || s.hFin || s.duree; });
+        else { collectSessions(); fields.sessions = sessions.filter(function (s) { return s.date || s.jour || s.hDebut || s.hFin || s.duree; }); }
+        return fields;
+      };
+      attacherApercu(m, function () { return { tpl: 'presence', donnees: { type: curType, fields: champsPr(), formateurSig: T[curType].signAdmin ? '' : sigPad.dataURL() } }; });
+      m.querySelector('.pr-gen').onclick = function () {
+        var tpl = T[curType], fields = champsPr();
+        // sur une feuille administrative, la signature d'Antonin est apposée d'office : rien à signer
+        if (!tpl.signAdmin && sigPad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature) avant d\'envoyer à l\'apprenant.'); return; }
+        if (tpl.kind !== 'summary') {
           // deux séances sur le même créneau : l'une écraserait l'autre dans la grille
           var vus = {}, dbl = null;
           fields.sessions.forEach(function (s) { if (s.slot) { if (vus[s.slot]) dbl = s.slot; vus[s.slot] = 1; } });
@@ -2185,7 +2346,7 @@
         '<button class="btn btn-primary fm-gen" type="button" style="padding:11px 22px">Générer le document →</button>';
       var m = buildFsModal('fm-modal', tpl.title || 'Document', headerHTML + qsItemsHTML(tpl.items || [], {}), footer);
       wireQsConditional(m);
-      m.querySelector('.fm-gen').onclick = function () {
+      var champsFm = function () {
         var header = {}; hf.forEach(function (f) { header[f.id] = val('fm-h-' + f.id); });
         var answers = {};
         (tpl.items || []).forEach(function (it) {
@@ -2193,6 +2354,11 @@
           if (it.type === 'text') { var t = m.querySelector('textarea[data-t="' + it.id + '"]'); if (t) answers[it.id] = t.value; }
           if (it.comment) { var c = m.querySelector('textarea[data-c="' + it.id + '"]'); if (c && c.value) answers[it.id + '_c'] = c.value; }
         });
+        return { header: header, answers: answers };
+      };
+      attacherApercu(m, function () { return { tpl: type, donnees: champsFm() }; });
+      m.querySelector('.fm-gen').onclick = function () {
+        var saisieFm = champsFm(), header = saisieFm.header, answers = saisieFm.answers;
         var fmt = document.getElementById('fm-format').value;
         var btn = m.querySelector('.fm-gen'); btn.disabled = true; btn.textContent = 'Génération…';
         fetch('/api/form/generate', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() }, body: JSON.stringify({ group: selected, type: type, header: header, answers: answers, format: fmt }) })

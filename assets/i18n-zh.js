@@ -518,6 +518,19 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "合同将从私密频道中撤回，培训师将无法再签署。您可以重新发送一份新合同。",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "忘记密码？",
+  /* ---- aperçu en direct du document à générer (21/09/2026) ---- */
+  "Aperçu du document": "文档预览",
+  "Formulaire": "表单",
+  "Aperçu": "预览",
+  "Ajuster": "适应",
+  "Ajuster à la largeur": "适应宽度",
+  "Zoom avant": "放大",
+  "Zoom arrière": "缩小",
+  "Mise à jour…": "正在更新…",
+  "Préparation de l'aperçu…": "正在准备预览…",
+  "Aperçu indisponible pour le moment.": "预览暂时不可用。",
+  "page": "页",
+  "pages": "页",
   /* ---- mode simulation + worksheet : au moins une séance (21/09/2026) ---- */
   "🎭 Simulation": "🎭 模拟演示",
   "🎭 Mode simulation": "🎭 模拟模式",

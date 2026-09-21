@@ -517,6 +517,19 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Договор будет удалён из приватного канала, и преподаватель больше не сможет его подписать. Вы сможете отправить новый.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Забыли пароль?",
+  /* ---- aperçu en direct du document à générer (21/09/2026) ---- */
+  "Aperçu du document": "Предпросмотр документа",
+  "Formulaire": "Форма",
+  "Aperçu": "Предпросмотр",
+  "Ajuster": "По ширине",
+  "Ajuster à la largeur": "Подогнать по ширине",
+  "Zoom avant": "Увеличить",
+  "Zoom arrière": "Уменьшить",
+  "Mise à jour…": "Обновление…",
+  "Préparation de l'aperçu…": "Подготовка предпросмотра…",
+  "Aperçu indisponible pour le moment.": "Предпросмотр пока недоступен.",
+  "page": "стр.",
+  "pages": "стр.",
   /* ---- mode simulation + worksheet : au moins une séance (21/09/2026) ---- */
   "🎭 Simulation": "🎭 Симуляция",
   "🎭 Mode simulation": "🎭 Режим симуляции",

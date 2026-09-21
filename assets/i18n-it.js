@@ -517,6 +517,19 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Il contratto sarà rimosso dal canale privato e il formatore non potrà più firmarlo. Potrete inviarne uno nuovo.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Password dimenticata?",
+  /* ---- aperçu en direct du document à générer (21/09/2026) ---- */
+  "Aperçu du document": "Anteprima del documento",
+  "Formulaire": "Modulo",
+  "Aperçu": "Anteprima",
+  "Ajuster": "Adatta",
+  "Ajuster à la largeur": "Adatta alla larghezza",
+  "Zoom avant": "Ingrandisci",
+  "Zoom arrière": "Riduci",
+  "Mise à jour…": "Aggiornamento…",
+  "Préparation de l'aperçu…": "Preparazione dell'anteprima…",
+  "Aperçu indisponible pour le moment.": "Anteprima non disponibile al momento.",
+  "page": "pagina",
+  "pages": "pagine",
   /* ---- mode simulation + worksheet : au moins une séance (21/09/2026) ---- */
   "🎭 Simulation": "🎭 Simulazione",
   "🎭 Mode simulation": "🎭 Modalità simulazione",

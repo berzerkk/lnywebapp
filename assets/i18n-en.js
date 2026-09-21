@@ -539,6 +539,19 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "The agreement will be removed from the private channel and the trainer will no longer be able to sign it. You can send a new one.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Forgotten your password?",
+  /* ---- aperçu en direct du document à générer (21/09/2026) ---- */
+  "Aperçu du document": "Document preview",
+  "Formulaire": "Form",
+  "Aperçu": "Preview",
+  "Ajuster": "Fit",
+  "Ajuster à la largeur": "Fit to width",
+  "Zoom avant": "Zoom in",
+  "Zoom arrière": "Zoom out",
+  "Mise à jour…": "Updating…",
+  "Préparation de l'aperçu…": "Preparing the preview…",
+  "Aperçu indisponible pour le moment.": "Preview unavailable for the moment.",
+  "page": "page",
+  "pages": "pages",
   /* ---- mode simulation + worksheet : au moins une séance (21/09/2026) ---- */
   "🎭 Simulation": "🎭 Simulation",
   "🎭 Mode simulation": "🎭 Simulation mode",
