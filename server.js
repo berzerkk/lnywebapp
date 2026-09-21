@@ -734,11 +734,15 @@ const simulation = { proc: null, port: null, secret: null, pret: false, demarrag
 const jourIso = (decalage) => new Date(Date.now() + decalage * 86400000).toISOString().slice(0, 10);
 const SIM_PERSONNES = {
   formatrice: { id: 'sim-formatrice', prenom: 'Sophie', nom: 'DUPONT', email: 'sophie.dupont@example.com', role: 'prof',
-    profile: { langue: 'Anglais, Espagnol', siret: '123 456 789 00012', nda: '93 06 12345 06', adresse: '12 rue de la République, 06000 Nice', tel: '06 12 34 56 78', dateNaissance: '1986-04-12', nationalite: 'Française' } },
+    profile: { langue: 'Anglais, Espagnol, Italien', siret: '123 456 789 00012', nda: '93 06 12345 06', adresse: '12 rue de la République, 06000 Nice', tel: '06 12 34 56 78', dateNaissance: '1986-04-12', nationalite: 'Française' } },
   lucas: { id: 'sim-lucas', prenom: 'Lucas', nom: 'MARTIN', email: 'lucas.martin@example.com', role: 'eleve',
     profile: { tel: '06 98 76 54 32', societe: 'Riviera Tech', heuresTotal: '30', heuresDetail: '30 h de cours individuels', intitule: 'Anglais professionnel : réunions et négociation', langue: 'Anglais', dateDebut: jourIso(-14), dateFin: jourIso(60), lieu: 'distanciel', certification: 'oui', certificationText: 'TOEIC' } },
   emma: { id: 'sim-emma', prenom: 'Emma', nom: 'BERNARD', email: 'emma.bernard@example.com', role: 'eleve',
     profile: { tel: '07 11 22 33 44', societe: 'Hôtel Belvédère', heuresTotal: '20', heuresDetail: '20 h en petit groupe', intitule: 'Espagnol : accueil de la clientèle', langue: 'Espagnol', dateDebut: jourIso(-7), dateFin: jourIso(45), lieu: 'presentiel', lieuAdresse: '5 promenade des Anglais, 06000 Nice', certification: 'non' } },
+  // dossier VIDE (demande de l'utilisateur, 21/09/2026) : une formation qui commence la semaine
+  // prochaine, rien que le règlement intérieur — pour montrer à quoi ressemble un dossier tout neuf
+  hugo: { id: 'sim-hugo', prenom: 'Hugo', nom: 'PETIT', email: 'hugo.petit@example.com', role: 'eleve',
+    profile: { tel: '06 55 44 33 22', societe: '', heuresTotal: '15', heuresDetail: '15 h de cours individuels', intitule: 'Italien : prendre la parole au quotidien', langue: 'Italien', dateDebut: jourIso(7), dateFin: jourIso(70), lieu: 'distanciel', certification: 'non' } },
 };
 // ⚠️ LISTE BLANCHE, jamais « tout sauf » : le serveur de démo ne reçoit que ce qu'il faut pour
 // tourner. Les identifiants SMTP, Backblaze (dont la rétention supprime des archives !), Slack
@@ -787,11 +791,27 @@ async function remplirSimulation() {
   await msg(P.emma.id, gEmma, 'commun', 'Bonjour, à quelle heure commence notre prochain cours ?');
   if (gEmma) await etape('questionnaire', () => appel(F, '/api/qs/send', { group: gEmma, type: 'qs_mid', header: {
     nomApprenant: 'Emma BERNARD', societe: P.emma.profile.societe, langue: 'Espagnol', intitule: P.emma.profile.intitule, formateur: 'Sophie DUPONT', date: jourIso(0) } }));
+  // le dossier vide : la création y dépose le règlement intérieur, et rien d'autre
+  await etape('dossier de Hugo', () => appel(SIM_ADMIN, '/api/groups', { profIds: [F], eleveId: P.hugo.id }));
+}
+// ⚠️ LES NOTIFICATIONS REVIENNENT À CHAQUE ENTRÉE (21/09/2026, demande de l'utilisateur). Ouvrir
+// un dossier ou vider la cloche SUPPRIME les notifications : sans ceci, en revenant dans la démo
+// (la même, tant qu'elle tourne), on retrouvait une cloche vide et des dossiers sans pastille.
+// Le serveur de démo photographie ses notifications à la fin de la préparation et les remet telles
+// quelles à chaque nouvelle entrée. « Recommencer la démo » n'en a pas besoin : tout repart de zéro.
+async function notifsSimulation(action) {
+  try {
+    const r = await fetch('http://127.0.0.1:' + simulation.port + '/api/simulation/notifications', {
+      method: 'POST', body: JSON.stringify({ action }), signal: AbortSignal.timeout(10000),
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jwt.sign({ id: SIM_ADMIN }, simulation.secret, { expiresIn: '5m' }) } });
+    if (!r.ok) throw new Error('réponse ' + r.status);
+  } catch (e) { console.error('🎭 simulation, notifications (' + action + ') :', e.message); }   // jamais bloquant
 }
 const simulationVivante = () => !!(simulation.pret && simulation.proc && simulation.proc.exitCode === null && simulation.port);
 function demarrerSimulation(recommencer) {
   if (simulation.demarrage) return simulation.demarrage;   // deux clics simultanés : un seul démarrage
-  if (simulationVivante() && !recommencer) { simulation.derniere = Date.now(); return Promise.resolve(); }
+  // démo déjà lancée : on y retourne, et ses notifications reviennent comme au premier jour
+  if (simulationVivante() && !recommencer) { simulation.derniere = Date.now(); return notifsSimulation('restaurer'); }
   simulation.demarrage = (async () => {
     await arreterSimulation();
     fs.rmSync(SIM_DIR, { recursive: true, force: true });
@@ -829,6 +849,7 @@ function demarrerSimulation(recommencer) {
         proc.once('exit', c => { clearTimeout(t); ko(new Error('le serveur de démonstration s\'est arrêté (code ' + c + ')')); });
       });
       await remplirSimulation();
+      await notifsSimulation('photographier');
       // ⚠️ mort PENDANT le remplissage : chaque étape a échoué sans bruit, et sans ce contrôle la démo
       // se déclarait prête sans processus — plus aucune entrée ne fonctionnait pendant trois heures
       if (erreurLancement || simulation.proc !== proc || proc.exitCode !== null) throw new Error('le serveur de démonstration s\'est arrêté pendant sa préparation');
@@ -1398,6 +1419,20 @@ app.get('/api/me', auth, (req, res) => res.json({ user: meFull(req.user) }));
 // { recommencer: true } efface tout ce qui a été fait dans la démo et la reconstruit à neuf.
 // ⚠️ Le jeton de la démo ne vaut RIEN ici : il est signé avec le secret de la démo, pas celui du
 // site, et le relais l'intercepte avant qu'il n'atteigne une seule route réelle.
+// Côté SERVEUR DE DÉMO uniquement : photographier / remettre les notifications (voir notifsSimulation).
+// ⚠️ Réservée au compte d'administration INTERNE de la démo, dont le jeton ne quitte jamais le serveur
+// principal : la formatrice fictive — seul jeton que le navigateur détienne et que le relais transmette —
+// reçoit 403. La route n'existe pas du tout sur le vrai site.
+if (SIMULATION) {
+  let notifsInitiales = null;
+  app.post('/api/simulation/notifications', auth, (req, res) => {
+    if (req.user.id !== SIM_ADMIN) return res.status(403).json({ error: 'Accès refusé.' });
+    const action = (req.body || {}).action;
+    if (action === 'photographier') { notifsInitiales = JSON.parse(JSON.stringify(db.notifs)); return res.json({ ok: true, n: notifsInitiales.length }); }
+    if (action === 'restaurer' && notifsInitiales) { db.notifs = JSON.parse(JSON.stringify(notifsInitiales)); save(); return res.json({ ok: true, n: db.notifs.length }); }
+    res.status(400).json({ error: 'Action impossible.' });
+  });
+}
 if (!SIMULATION) app.post('/api/admin/simulation', auth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
   try {
