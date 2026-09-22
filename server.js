@@ -22,7 +22,7 @@ const http = require('http');
 const { fork } = require('child_process');
 const zlib = require('zlib');
 const PDFDocument = require('pdfkit');
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType, Tab, TabStopType } = require('docx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, Header, Footer, ImageRun, PageNumber, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign, VerticalMergeType, HeightRule, TableLayoutType, Tab, TabStopType, ExternalHyperlink } = require('docx');
 const { rendreDocxPortable } = require('./lib/docx-portable');
 // ⚠️ TOUT .docx sort par là : les réglages que Word applique d'office y sont écrits en toutes lettres,
 // pour qu'Apple Pages affiche le même interlignage (rendu Word inchangé, cf. lib/docx-portable.js)
@@ -643,8 +643,8 @@ const VERSIONS_MODELES = {
   qs_mid: '1.2',                 // Questionnaire de satisfaction en cours de formation
   qs_end: '1.2',                 // Questionnaire de fin de formation
   attestation: '1.3',            // Attestation de fin de formation (1.3 : tableau des acquis toujours présent)
-  test_mid: '1.2',               // Test de mi-parcours
-  test_end: '1.2',               // Test de fin de formation
+  test_mid: '1.3',               // Test de mi-parcours (1.3 : liens cliquables dans la zone libre)
+  test_end: '1.3',               // Test de fin de formation (1.3 : liens cliquables dans la zone libre)
   contrat: '1.3',                // Contrat de sous-traitance (1.1 : « Languages & Success » ; 1.2 : pied de page ; 1.3 : caractères spéciaux et cases longues)
   qs_formateur: '1.2',           // Fiche satisfaction formateur
   leveltest: '1.2',              // Level Test
@@ -2379,9 +2379,22 @@ function rtHexClean(c) {
   const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/); if (m) return [m[1], m[2], m[3]].map(n => ('0' + (+n).toString(16)).slice(-2)).join('').toUpperCase();
   return undefined;
 }
+// ⚠️ LIENS CLIQUABLES (22/09/2026, question de l'utilisateur) : l'éditeur n'a pas de bouton « lien », mais une
+// adresse collée (https://…) est RECONNUE au rendu et devient un vrai lien, en PDF comme en Word. Le
+// texte reste celui saisi ; seuls le soulignement et la couleur bleue s'ajoutent.
+const RT_URL = /(https?:\/\/[^\s<>«»"']+?)([.,;:!?)]*)(?=\s|$)/g;
+function rtSegments(texte) {   // découpe un texte en [{t, lien?}]
+  const out = []; let i = 0; const s = String(texte == null ? '' : texte);
+  for (const m of s.matchAll(RT_URL)) { if (m.index > i) out.push({ t: s.slice(i, m.index) }); out.push({ t: m[1], lien: m[1] }); if (m[2]) out.push({ t: m[2] }); i = m.index + m[0].length; }
+  if (i < s.length) out.push({ t: s.slice(i) });
+  return out;
+}
 function rtDxRuns(runs) {
   const out = [];
-  (runs || []).forEach(r => { String(r.text == null ? '' : r.text).split('\n').forEach((ln, i) => { if (i > 0) out.push(new TextRun({ break: 1 })); if (ln !== '') out.push(new TextRun({ text: ln, bold: !!r.bold, italics: !!r.italic, underline: r.underline ? {} : undefined, color: rtHexClean(r.color) || '000000', size: 20 })); }); });
+  (runs || []).forEach(r => { String(r.text == null ? '' : r.text).split('\n').forEach((ln, i) => { if (i > 0) out.push(new TextRun({ break: 1 })); rtSegments(ln).forEach(sg => {
+    if (sg.lien) out.push(new ExternalHyperlink({ link: sg.lien, children: [new TextRun({ text: sg.t, bold: !!r.bold, italics: !!r.italic, underline: {}, color: '1155CC', size: 20 })] }));
+    else if (sg.t !== '') out.push(new TextRun({ text: sg.t, bold: !!r.bold, italics: !!r.italic, underline: r.underline ? {} : undefined, color: rtHexClean(r.color) || '000000', size: 20 }));
+  }); }); });
   return out.length ? out : [new TextRun({ text: '' })];
 }
 function richToDocx(blocks) {
@@ -2415,11 +2428,15 @@ function richToPdf(doc, blocks, left, totalW) {
   doc.moveDown(0.5);
   function drawRuns(runs, x, w, prefix) {
     if (prefix) doc.font('Helvetica').fontSize(10).fillColor('#000000').text(prefix, x, doc.y, { continued: true, width: w });
-    const rs = runs || [];
+    const rs = [];
+    (runs || []).forEach(r => rtSegments(r.text).forEach(sg => rs.push(Object.assign({}, r, { text: sg.t, lien: sg.lien }))));
     if (!rs.length) { if (prefix) doc.text(' '); else doc.moveDown(0.2); return; }
     rs.forEach((r, i) => {
-      doc.font(rtPdfFont(r)).fontSize(10).fillColor(r.color ? ('#' + (rtHexClean(r.color) || '000000')) : '#000000');
-      const opts = { continued: i < rs.length - 1, width: w, underline: !!r.underline };
+      doc.font(rtPdfFont(r)).fontSize(10).fillColor(r.lien ? '#1155cc' : (r.color ? ('#' + (rtHexClean(r.color) || '000000')) : '#000000'));
+      const opts = { continued: i < rs.length - 1, width: w, underline: !!r.underline || !!r.lien };
+      // ⚠️ pdfkit reporte les options d'un segment « continued » sur le suivant : le lien doit être posé
+      // EXPLICITEMENT à null sur les segments sans lien, sinon tout ce qui suit une adresse reste cliquable.
+      opts.link = r.lien || null;
       if (i === 0 && !prefix) doc.text(String(r.text), x, doc.y, opts); else doc.text(String(r.text), opts);
     });
   }
@@ -3490,6 +3507,7 @@ app.post('/api/apercu', auth, async (req, res) => {
       if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
       buf = await buildContratPdf(Object.assign({}, d.fields, { ref: apercuRefContrat(), representant: 'Antonin HATTABE' }), req.user, versionModele('contrat'));
     }
+    else if (tpl === 'leveltest' && req.user.role !== 'admin') return res.status(403).json({ error: MSG_LEVELTEST_RESERVE });
     else if (tpl === 'leveltest') buf = await buildLevelTestPdf(d.fields || {}, req.user, versionModele('leveltest'));
     else if (tpl === 'presence' && presenceReservee(PRESENCE_TEMPLATES[d.type], req.user)) return res.status(403).json({ error: MSG_PRESENCE_RESERVEE });
     else if (tpl === 'presence' && PRESENCE_TEMPLATES[d.type]) buf = await buildPresencePdf(d.type, Object.assign({}, d.fields, { formateurSig: d.formateurSig || null }), req.user, versionModele('presence-' + d.type));
@@ -3626,11 +3644,15 @@ function buildLevelTestPdf(d, user, ver) {
     pdfHeaderFooter(doc, user, ver); doc.end();
   });
 }
-app.get('/api/leveltest', auth, (req, res) => res.json({ tpl: LEVEL_TEST }));
+// ⚠️ LE LEVEL TEST EST FOURNI PAR L'ADMINISTRATION (22/09/2026, demande de l'utilisateur) : le formateur
+// ne le produit pas. Refus côté serveur sur les trois entrées (modèle, génération, aperçu), pas seulement dans la liste.
+const MSG_LEVELTEST_RESERVE = "Le Level Test est établi par l'administration.";
+app.get('/api/leveltest', auth, (req, res) => { if (req.user.role !== 'admin') return res.status(403).json({ error: MSG_LEVELTEST_RESERVE }); res.json({ tpl: LEVEL_TEST }); });
 app.post('/api/leveltest/generate', auth, async (req, res) => {
   const { group, fields, format } = req.body || {};
   const g = groupById(group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  if (req.user.role !== 'admin') return res.status(403).json({ error: MSG_LEVELTEST_RESERVE });
   const ver = versionModele('leveltest');
   const d = fields || {};
   let buf, ext, ctype;
@@ -3639,7 +3661,7 @@ app.post('/api/leveltest/generate', auth, async (req, res) => {
     else { buf = await buildLevelTestPdf(d, req.user, ver); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('leveltest:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'leveltest', title: LEVEL_TEST.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.prenom || d.nom || 'apprenant' });
-  const name = (req.user.role === 'admin' ? '9' : '8') + ' - ' + safeFile(LEVEL_TEST.title) + ' - ' + safeFile(d.prenom || d.nom || 'apprenant') + ' - ' + nameDate() + '.' + ext;
+  const name = '9 - ' + safeFile(LEVEL_TEST.title) + ' - ' + safeFile(d.prenom || d.nom || 'apprenant') + ' - ' + nameDate() + '.' + ext;
   return rendreDocument(req, res, g, buf, name, ctype);
 });
 
@@ -3803,7 +3825,7 @@ app.post('/api/presence/generate', auth, async (req, res) => {
     else { buf = await buildPresencePdf(type, d, req.user, ver); ext = 'pdf'; ctype = 'application/pdf'; }
   } catch (e) { console.error('presence:', e); return res.status(500).json({ error: 'Erreur de génération du document.' }); }
   recordDocgen(g, req.user, { kind: 'presence', title: tpl.title, format: ext === 'docx' ? 'word' : 'pdf', apprenant: d.apprenant || 'apprenant' });
-  const name = (req.user.role === 'admin' ? '10' : '9') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile(d.apprenant || 'apprenant') + ' - ' + nameDate() + '.' + ext;
+  const name = (req.user.role === 'admin' ? '10' : '8') + ' - ' + safeFile(tpl.title) + ' - ' + safeFile(d.apprenant || 'apprenant') + ' - ' + nameDate() + '.' + ext;
   res.setHeader('Content-Type', ctype);
   res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(name));
   res.send(buf);

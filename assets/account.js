@@ -943,8 +943,8 @@
         '<li class="tpl-item" data-tpl="test_end"><span class="tpl-ic">📝</span><span class="c-name">6 - Test fin de formation<small>Résultat &amp; appréciation (rempli par le formateur)</small></span><span class="tpl-go">→</span></li>' +
         (ME.role === 'admin' ? '<li class="tpl-item" data-tpl="contrat"><span class="tpl-ic">📑</span><span class="c-name">7 - Contrat de sous-traitance<small>Réservé à l\'administration · intro &amp; article 1 préremplis</small></span><span class="tpl-go">→</span></li>' : '') +
         '<li class="tpl-item" data-tpl="qs_formateur"><span class="tpl-ic">🗒️</span><span class="c-name">' + (ME.role === 'admin' ? '8' : '7') + ' - QS Formateur<small>Bilan rempli par le formateur (à transmettre à l\'administration)</small></span><span class="tpl-go">→</span></li>' +
-        '<li class="tpl-item" data-tpl="leveltest"><span class="tpl-ic">📊</span><span class="c-name">' + (ME.role === 'admin' ? '9' : '8') + ' - Level Test<small>Évaluation orale / questionnaire d\'objectifs (rempli par le formateur)</small></span><span class="tpl-go">→</span></li>' +
-        '<li class="tpl-item" data-tpl="presence"><span class="tpl-ic">🗓️</span><span class="c-name">' + (ME.role === 'admin' ? '10' : '9') + ' - Feuille de présence<small>E-learning, présentiel/distanciel ou test (au choix)</small></span><span class="tpl-go">→</span></li>' + '</ul>';
+        (ME.role === 'admin' ? '<li class="tpl-item" data-tpl="leveltest"><span class="tpl-ic">📊</span><span class="c-name">9 - Level Test<small>Évaluation orale / questionnaire d\'objectifs (établi par l\'administration)</small></span><span class="tpl-go">→</span></li>' : '') +
+        '<li class="tpl-item" data-tpl="presence"><span class="tpl-ic">🗓️</span><span class="c-name">' + (ME.role === 'admin' ? '10' : '8') + ' - Feuille de présence<small>E-learning, présentiel/distanciel ou test (au choix)</small></span><span class="tpl-go">→</span></li>' + '</ul>';
       wireGenTargets(body);
       body.querySelectorAll('.tpl-item').forEach(function (li) { li.onclick = function () { var t = li.getAttribute('data-tpl'); closeTplModal(); if (t === 'interactive') openGenModal(); else if (t === 'qs_mid' || t === 'qs_end') openQsHeaderModal(t); else if (t === 'test_mid' || t === 'test_end') openTestDocModal(t); else if (t === 'attestation') openAttestationModal(); else if (t === 'contrat') openContratModal(); else if (t === 'leveltest') openLevelTestModal(); else if (t === 'presence') openPresenceModal(); else openFormModal(t); }; });
     } else {
@@ -1946,7 +1946,7 @@
       fields.map(function (f) { return gi('td-' + f[0], f[1], h[f[0]]); }).join('') + '</div>' +
       '<h4 class="gen-h">Résultat &amp; appréciation</h4><div class="gf-grid">' +
       gi('td-resultat', 'Résultat', '') + ga('td-appreciation', 'Appréciation formateur', '', 4) + '</div>' +
-      '<h4 class="gen-h">Zone libre <small style="font-weight:400;color:var(--ink-soft)">(mise en forme avancée — sans titre sur le document)</small></h4>' +
+      '<h4 class="gen-h">Zone libre <small style="font-weight:400;color:var(--ink-soft)">(mise en forme avancée — une adresse https://… devient un lien cliquable)</small></h4>' +
       richEditorHTML('td-rt');
     var footer = '<label class="gen-chan">Format <select id="td-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +
       '<button class="btn btn-primary td-gen" type="button" style="padding:11px 22px">' + libelleEnvoi(channel) + '</button>';
@@ -2527,7 +2527,7 @@
       'Attention à l\'onglet ouvert : c\'est lui qui décide qui verra le fichier.'
     ] },
     { ancre: '.gen-btn', ouvrirDossier: true, titre: 'Générer un document', paras: [
-      'Ce bouton ouvre la liste des modèles : worksheet, questionnaires, tests, attestation, Level Test, feuilles de présence.',
+      'Ce bouton ouvre la liste des modèles : worksheet, questionnaires, tests, attestation, fiche satisfaction, feuilles de présence.',
       'À droite, l\'aperçu du document se met à jour pendant que vous tapez. Le bouton d\'envoi dépose le document dans l\'onglet ouvert du dossier.',
       'Les informations de l\'apprenant viennent de sa fiche. Un champ vide veut dire que la fiche est incomplète : demandez à l\'administration de la remplir.'
     ] },
