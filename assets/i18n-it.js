@@ -544,8 +544,8 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Retirer cette ligne": "Rimuovi questa riga",
   "+ Ajouter un objectif": "+ Aggiungi un obiettivo",
   "+ Ajouter une compétence": "+ Aggiungi una competenza",
-  "Un objectif par ligne. Une ligne laissée vide n'apparaît pas sur le document.": "Un obiettivo per riga. Una riga lasciata vuota non compare nel documento.",
-  "Une compétence par ligne, avec son niveau. Une ligne laissée vide n'apparaît pas sur le document.": "Una competenza per riga, con il suo livello. Una riga lasciata vuota non compare nel documento.",
+  "Un objectif par ligne.": "Un obiettivo per riga.",
+  "Une compétence par ligne, avec son niveau.": "Una competenza per riga, con il suo livello.",
   "Ce type de feuille est réservé à l'administration.": "Questo tipo di foglio è riservato all'amministrazione.",
   "Signature déjà en cours.": "Firma già in corso.",
   /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */

@@ -566,8 +566,8 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Retirer cette ligne": "Remove this line",
   "+ Ajouter un objectif": "+ Add an objective",
   "+ Ajouter une compétence": "+ Add a skill",
-  "Un objectif par ligne. Une ligne laissée vide n'apparaît pas sur le document.": "One objective per line. A line left empty does not appear on the document.",
-  "Une compétence par ligne, avec son niveau. Une ligne laissée vide n'apparaît pas sur le document.": "One skill per line, with its level. A line left empty does not appear on the document.",
+  "Un objectif par ligne.": "One objective per line.",
+  "Une compétence par ligne, avec son niveau.": "One skill per line, with its level.",
   "Ce type de feuille est réservé à l'administration.": "This type of sheet is reserved for the administration.",
   "Signature déjà en cours.": "Signature already in progress.",
   /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */

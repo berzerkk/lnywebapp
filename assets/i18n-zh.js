@@ -545,8 +545,8 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Retirer cette ligne": "删除此行",
   "+ Ajouter un objectif": "+ 添加目标",
   "+ Ajouter une compétence": "+ 添加能力",
-  "Un objectif par ligne. Une ligne laissée vide n'apparaît pas sur le document.": "每行一个目标。留空的行不会出现在文档中。",
-  "Une compétence par ligne, avec son niveau. Une ligne laissée vide n'apparaît pas sur le document.": "每行一项能力及其水平。留空的行不会出现在文档中。",
+  "Un objectif par ligne.": "每行一个目标。",
+  "Une compétence par ligne, avec son niveau.": "每行一项能力及其水平。",
   "Ce type de feuille est réservé à l'administration.": "此类表格仅限管理部门使用。",
   "Signature déjà en cours.": "签名正在处理中。",
   /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */

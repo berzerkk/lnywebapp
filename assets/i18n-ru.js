@@ -544,8 +544,8 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Retirer cette ligne": "Удалить эту строку",
   "+ Ajouter un objectif": "+ Добавить цель",
   "+ Ajouter une compétence": "+ Добавить навык",
-  "Un objectif par ligne. Une ligne laissée vide n'apparaît pas sur le document.": "Одна цель в строке. Пустая строка не попадает в документ.",
-  "Une compétence par ligne, avec son niveau. Une ligne laissée vide n'apparaît pas sur le document.": "Один навык в строке, с уровнем. Пустая строка не попадает в документ.",
+  "Un objectif par ligne.": "Одна цель в строке.",
+  "Une compétence par ligne, avec son niveau.": "Один навык в строке, с уровнем.",
   "Ce type de feuille est réservé à l'administration.": "Этот тип листа доступен только администрации.",
   "Signature déjà en cours.": "Подпись уже обрабатывается.",
   /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */

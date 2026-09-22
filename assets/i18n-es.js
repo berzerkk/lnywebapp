@@ -544,8 +544,8 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Retirer cette ligne": "Quitar esta línea",
   "+ Ajouter un objectif": "+ Añadir un objetivo",
   "+ Ajouter une compétence": "+ Añadir una competencia",
-  "Un objectif par ligne. Une ligne laissée vide n'apparaît pas sur le document.": "Un objetivo por línea. Una línea vacía no aparece en el documento.",
-  "Une compétence par ligne, avec son niveau. Une ligne laissée vide n'apparaît pas sur le document.": "Una competencia por línea, con su nivel. Una línea vacía no aparece en el documento.",
+  "Un objectif par ligne.": "Un objetivo por línea.",
+  "Une compétence par ligne, avec son niveau.": "Una competencia por línea, con su nivel.",
   "Ce type de feuille est réservé à l'administration.": "Este tipo de hoja está reservado a la administración.",
   "Signature déjà en cours.": "Firma ya en curso.",
   /* ---- worksheet : modification d'une séance sur place (21/09/2026) ---- */
