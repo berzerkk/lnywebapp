@@ -537,6 +537,10 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "The agreement will be removed from the private channel and the trainer will no longer be able to sign it. You can send a new one.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Forgotten your password?",
+  /* ---- zone libre des tests obligatoire (22/09/2026) ---- */
+  "Les images ne sont pas reprises dans le document : tapez le contenu du test (exercices, consignes, corrigé) ou collez le lien de l'image, puis envoyez le document.": "Images are not kept in the document: type the content of the test (exercises, instructions, answer key) or paste the link to the image, then send the document.",
+  "La zone libre est vide : ajoutez-y le contenu du test (exercices, consignes, corrigé ou lien), puis envoyez le document.": "The free area is empty: add the content of the test (exercises, instructions, answer key or link), then send the document.",
+  "(obligatoire : le contenu du test · une adresse https://… devient un lien cliquable)": "(required: the content of the test · an https://… address becomes a clickable link)",
   /* ---- envoyer au lieu de générer, invitation renvoyée (22/09/2026) ---- */
   "Envoyer dans la discussion commune →": "Send to the shared discussion →",
   "Envoyer dans le canal privé →": "Send to the private channel →",
@@ -549,7 +553,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis envoyez le document.": "Your session is empty: click ✎ to complete it (date, objectives…), then send the document.",
   "Ajoutez au moins une séance avant d'envoyer l'Interactive Worksheet.": "Add at least one session before sending the Interactive Worksheet.",
   "Résumé de cours à partager à l'apprenant": "Lesson summary to share with the learner",
-  "Renseignez l'en-tête, le résultat et votre appréciation, puis envoyez le document dans le dossier.": "Fill in the header, the result and your assessment, then send the document to the folder.",
+  "Renseignez l'en-tête, le résultat, votre appréciation et la zone libre, puis envoyez le document dans le dossier.": "Fill in the header, the result, your assessment and the free area, then send the document to the folder.",
   "En-tête prérempli depuis la fiche. Complétez l'évaluation et les besoins, puis envoyez le document dans le dossier.": "Header pre-filled from the profile. Complete the assessment and the needs, then send the document to the folder.",
   "Renseignez l'en-tête et cochez vos réponses, puis envoyez : la fiche part dans le canal privé du dossier, que seule l'administration lit avec vous. L'apprenant ne la voit pas.": "Fill in the header and tick your answers, then send: the form goes to the private channel of the folder, which only the administration reads with you. The learner does not see it.",
   "Ces deux-là partent chez l'apprenant pour être remplis ou signés : il reçoit une notification et un e-mail.": "These two go to the learner to be filled in or signed: they receive a notification and an e-mail.",
@@ -596,7 +600,7 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "La simulation n'a pas pu démarrer. Réessayez dans un instant.": "The simulation could not start. Try again in a moment.",
   "Votre navigateur bloque le stockage de session : la simulation ne peut pas s'ouvrir.": "Your browser blocks session storage: the simulation cannot open.",
   "Cette simulation est terminée.": "This simulation has ended.",
-  "Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "Add at least one session before generating the document: fill it in below, then click “Add this session”.",
+  "Ajoutez au moins une séance avant d'envoyer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "Add at least one session before sending the document: fill it in below, then click “Add this session”.",
   "La démonstration est terminée": "The demonstration has ended",
   "Elle s'arrête d'elle-même après trois heures sans activité, ou lors d'une mise à jour du site.": "It stops by itself after three hours without activity, or when the site is updated.",
   "Revenir à mon espace": "Back to my space",

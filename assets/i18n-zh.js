@@ -516,6 +516,10 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "合同将从私密频道中撤回，培训师将无法再签署。您可以重新发送一份新合同。",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "忘记密码？",
+  /* ---- zone libre des tests obligatoire (22/09/2026) ---- */
+  "Les images ne sont pas reprises dans le document : tapez le contenu du test (exercices, consignes, corrigé) ou collez le lien de l'image, puis envoyez le document.": "图片不会保留在文档中：请输入测试内容（练习、说明、答案），或粘贴图片链接，然后发送文档。",
+  "La zone libre est vide : ajoutez-y le contenu du test (exercices, consignes, corrigé ou lien), puis envoyez le document.": "自由区为空：请加入测试内容（练习、说明、答案或链接），然后发送文档。",
+  "(obligatoire : le contenu du test · une adresse https://… devient un lien cliquable)": "（必填：测试内容 · https://… 地址会变成可点击的链接）",
   /* ---- envoyer au lieu de générer, invitation renvoyée (22/09/2026) ---- */
   "Envoyer dans la discussion commune →": "发送到公共讨论 →",
   "Envoyer dans le canal privé →": "发送到私密频道 →",
@@ -528,7 +532,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis envoyez le document.": "课次为空：请点击 ✎ 补充内容（日期、目标…），然后发送文档。",
   "Ajoutez au moins une séance avant d'envoyer l'Interactive Worksheet.": "发送 Interactive Worksheet 前请至少添加一个课次。",
   "Résumé de cours à partager à l'apprenant": "与学员分享的课程小结",
-  "Renseignez l'en-tête, le résultat et votre appréciation, puis envoyez le document dans le dossier.": "请填写表头、结果和您的评语，然后将文档发送到档案。",
+  "Renseignez l'en-tête, le résultat, votre appréciation et la zone libre, puis envoyez le document dans le dossier.": "请填写表头、结果、您的评语和自由区，然后将文档发送到档案。",
   "En-tête prérempli depuis la fiche. Complétez l'évaluation et les besoins, puis envoyez le document dans le dossier.": "表头已根据资料预填。请补充评估和需求，然后将文档发送到档案。",
   "Renseignez l'en-tête et cochez vos réponses, puis envoyez : la fiche part dans le canal privé du dossier, que seule l'administration lit avec vous. L'apprenant ne la voit pas.": "请填写表头并勾选答案，然后发送：该表会进入档案的私密频道，只有管理部门与您可以阅读。学员看不到。",
   "Ces deux-là partent chez l'apprenant pour être remplis ou signés : il reçoit une notification et un e-mail.": "这两类文档会发送给学员填写或签名：学员会收到通知和电子邮件。",
@@ -575,7 +579,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "La simulation n'a pas pu démarrer. Réessayez dans un instant.": "无法启动模拟。请稍后再试。",
   "Votre navigateur bloque le stockage de session : la simulation ne peut pas s'ouvrir.": "您的浏览器阻止了会话存储：无法打开模拟。",
   "Cette simulation est terminée.": "此模拟已结束。",
-  "Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "生成文档前请至少添加一个课次：在下方填写，然后点击「添加此课次」。",
+  "Ajoutez au moins une séance avant d'envoyer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "发送文档前请至少添加一个课次：在下方填写，然后点击「添加此课次」。",
   "La démonstration est terminée": "演示已结束",
   "Elle s'arrête d'elle-même après trois heures sans activité, ou lors d'une mise à jour du site.": "演示在三小时无操作后或网站更新时会自动停止。",
   "Revenir à mon espace": "返回我的空间",

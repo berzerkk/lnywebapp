@@ -515,6 +515,10 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Договор будет удалён из приватного канала, и преподаватель больше не сможет его подписать. Вы сможете отправить новый.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Забыли пароль?",
+  /* ---- zone libre des tests obligatoire (22/09/2026) ---- */
+  "Les images ne sont pas reprises dans le document : tapez le contenu du test (exercices, consignes, corrigé) ou collez le lien de l'image, puis envoyez le document.": "Изображения не переносятся в документ: введите содержание теста (упражнения, задания, ответы) или вставьте ссылку на изображение, затем отправьте документ.",
+  "La zone libre est vide : ajoutez-y le contenu du test (exercices, consignes, corrigé ou lien), puis envoyez le document.": "Свободное поле пустое: добавьте содержание теста (упражнения, задания, ответы или ссылку), затем отправьте документ.",
+  "(obligatoire : le contenu du test · une adresse https://… devient un lien cliquable)": "(обязательно: содержание теста · адрес https://… становится кликабельной ссылкой)",
   /* ---- envoyer au lieu de générer, invitation renvoyée (22/09/2026) ---- */
   "Envoyer dans la discussion commune →": "Отправить в общий чат →",
   "Envoyer dans le canal privé →": "Отправить в приватный канал →",
@@ -527,7 +531,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis envoyez le document.": "Занятие пустое: нажмите ✎, чтобы заполнить его (дата, цели…), затем отправьте документ.",
   "Ajoutez au moins une séance avant d'envoyer l'Interactive Worksheet.": "Добавьте хотя бы одно занятие перед отправкой Interactive Worksheet.",
   "Résumé de cours à partager à l'apprenant": "Конспект занятия для слушателя",
-  "Renseignez l'en-tête, le résultat et votre appréciation, puis envoyez le document dans le dossier.": "Заполните шапку, результат и вашу оценку, затем отправьте документ в папку.",
+  "Renseignez l'en-tête, le résultat, votre appréciation et la zone libre, puis envoyez le document dans le dossier.": "Заполните шапку, результат, вашу оценку и свободное поле, затем отправьте документ в папку.",
   "En-tête prérempli depuis la fiche. Complétez l'évaluation et les besoins, puis envoyez le document dans le dossier.": "Шапка заполнена из карточки. Дополните оценку и потребности, затем отправьте документ в папку.",
   "Renseignez l'en-tête et cochez vos réponses, puis envoyez : la fiche part dans le canal privé du dossier, que seule l'administration lit avec vous. L'apprenant ne la voit pas.": "Заполните шапку и отметьте ответы, затем отправьте: анкета попадёт в приватный канал папки, который читает только администрация вместе с вами. Слушатель её не видит.",
   "Ces deux-là partent chez l'apprenant pour être remplis ou signés : il reçoit une notification et un e-mail.": "Эти два документа уходят слушателю для заполнения или подписи: он получает уведомление и письмо.",
@@ -574,7 +578,7 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "La simulation n'a pas pu démarrer. Réessayez dans un instant.": "Не удалось запустить симуляцию. Повторите попытку через некоторое время.",
   "Votre navigateur bloque le stockage de session : la simulation ne peut pas s'ouvrir.": "Ваш браузер блокирует хранилище сеанса: симуляцию невозможно открыть.",
   "Cette simulation est terminée.": "Эта симуляция завершена.",
-  "Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "Добавьте хотя бы одно занятие, прежде чем создавать документ: заполните его ниже, затем нажмите «Добавить это занятие».",
+  "Ajoutez au moins une séance avant d'envoyer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "Добавьте хотя бы одно занятие, прежде чем отправлять документ: заполните его ниже, затем нажмите «Добавить это занятие».",
   "La démonstration est terminée": "Демонстрация завершена",
   "Elle s'arrête d'elle-même après trois heures sans activité, ou lors d'une mise à jour du site.": "Она останавливается сама после трёх часов бездействия или при обновлении сайта.",
   "Revenir à mon espace": "Вернуться в моё пространство",

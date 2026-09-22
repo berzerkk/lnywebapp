@@ -2504,12 +2504,35 @@ function buildTestPdf(title, header, extra, user, ver) {
     pdfHeaderFooter(doc, user, ver); doc.end();
   });
 }
+// ⚠️ ZONE LIBRE OBLIGATOIRE sur les tests mi-parcours et fin (22/09/2026, demande de l'utilisateur) : c'est
+// là que le formateur met le CONTENU du test (exercices, consignes, corrigé, lien). « Remplie » = au moins
+// un caractère réel quelque part : paragraphe, élément de liste, cellule de tableau, question ou réponse
+// de QCM. Blancs, retours à la ligne, espaces insécables et caractères invisibles d'un copier-coller ne
+// comptent pas ; un tableau ou une liste vides non plus (ils ne montreraient rien sur le document).
+// Même règle dans le formulaire (libreRemplie, account.js). L'aperçu, lui, n'est jamais bloqué.
+const RT_BLANCS = /[\s\u200B-\u200D\u2060\uFEFF\u00AD]/g;
+// ⚠️ seuls les textes (et nombres) comptent : un objet glissé dans une requête fabriquée ferait lever String()
+// AVANT le try de la route, et Express répondrait par sa page d'erreur 500 au lieu d'un 400 propre (relecture du 22/09).
+const rtReel = (v) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '').replace(RT_BLANCS, '');
+const rtRunsReels = (runs) => (Array.isArray(runs) ? runs : []).map(r => rtReel(r && r.text)).join('');
+function libreRemplie(blocs) {
+  return Array.isArray(blocs) && blocs.some(b => {
+    if (!b || typeof b !== 'object') return false;
+    if (b.type === 'p') return !!rtRunsReels(b.runs);
+    if (b.type === 'ul' || b.type === 'ol') return (Array.isArray(b.items) ? b.items : []).some(it => !!rtRunsReels(it));
+    if (b.type === 'table') return (Array.isArray(b.rows) ? b.rows : []).some(row => (Array.isArray(row) ? row : []).some(c => !!rtRunsReels(c)));
+    if (b.type === 'qcm') return !!rtReel(b.question) || (Array.isArray(b.options) ? b.options : []).some(o => !!rtReel(o));
+    return false;
+  });
+}
+const MSG_LIBRE_VIDE = "La zone libre est vide : ajoutez-y le contenu du test (exercices, consignes, corrigé ou lien), puis envoyez le document.";
 app.post('/api/testdoc/generate', auth, async (req, res) => {
   const { group, type, header, extra, format } = req.body || {};
   const tpl = TEST_TEMPLATES[type];
   const g = groupById(group);
   if (!tpl) return res.status(400).json({ error: 'Type de document inconnu.' });
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
+  if (!libreRemplie(extra && extra.libre)) return res.status(400).json({ error: MSG_LIBRE_VIDE });
   const ver = versionModele(type);
   let buf, ext, ctype;
   try {

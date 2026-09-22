@@ -1050,6 +1050,8 @@ footer a:hover{color:#fff8ef}
 .gen-sess-err{font-weight:600;margin:0 0 10px;line-height:1.45}
 .gen-sess-err[hidden]{display:none}
 .gen-add.a-completer{border:2px solid #c0392b;background:rgba(192,57,43,.04)}
+/* zone libre d'un test laissée vide : même rouge, sans changer l'épaisseur (aucun décalage de mise en page) */
+.rt-wrap.a-completer{border-color:#c0392b;box-shadow:0 0 0 1px #c0392b}
 .gen-add summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--accent)}
 .gen-add .gf-grid{margin-top:12px}
 .gen-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line)}

@@ -515,6 +515,10 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Il contratto sarà rimosso dal canale privato e il formatore non potrà più firmarlo. Potrete inviarne uno nuovo.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Password dimenticata?",
+  /* ---- zone libre des tests obligatoire (22/09/2026) ---- */
+  "Les images ne sont pas reprises dans le document : tapez le contenu du test (exercices, consignes, corrigé) ou collez le lien de l'image, puis envoyez le document.": "Le immagini non vengono riportate nel documento: scrivi il contenuto del test (esercizi, consegne, correzione) o incolla il link dell'immagine, poi invia il documento.",
+  "La zone libre est vide : ajoutez-y le contenu du test (exercices, consignes, corrigé ou lien), puis envoyez le document.": "La zona libera è vuota: aggiungi il contenuto del test (esercizi, consegne, correzione o link), poi invia il documento.",
+  "(obligatoire : le contenu du test · une adresse https://… devient un lien cliquable)": "(obbligatoria: il contenuto del test · un indirizzo https://… diventa un link cliccabile)",
   /* ---- envoyer au lieu de générer, invitation renvoyée (22/09/2026) ---- */
   "Envoyer dans la discussion commune →": "Invia nella discussione comune →",
   "Envoyer dans le canal privé →": "Invia nel canale privato →",
@@ -527,7 +531,7 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis envoyez le document.": "La tua sessione è vuota: fai clic su ✎ per completarla (data, obiettivi…), poi invia il documento.",
   "Ajoutez au moins une séance avant d'envoyer l'Interactive Worksheet.": "Aggiungi almeno una sessione prima di inviare l'Interactive Worksheet.",
   "Résumé de cours à partager à l'apprenant": "Riassunto della lezione da condividere con l'allievo",
-  "Renseignez l'en-tête, le résultat et votre appréciation, puis envoyez le document dans le dossier.": "Compila l'intestazione, il risultato e la tua valutazione, poi invia il documento nel fascicolo.",
+  "Renseignez l'en-tête, le résultat, votre appréciation et la zone libre, puis envoyez le document dans le dossier.": "Compila l'intestazione, il risultato, la tua valutazione e la zona libera, poi invia il documento nel fascicolo.",
   "En-tête prérempli depuis la fiche. Complétez l'évaluation et les besoins, puis envoyez le document dans le dossier.": "Intestazione precompilata dalla scheda. Completa la valutazione e i bisogni, poi invia il documento nel fascicolo.",
   "Renseignez l'en-tête et cochez vos réponses, puis envoyez : la fiche part dans le canal privé du dossier, que seule l'administration lit avec vous. L'apprenant ne la voit pas.": "Compila l'intestazione e spunta le tue risposte, poi invia: la scheda va nel canale privato del fascicolo, che solo l'amministrazione legge con te. L'allievo non la vede.",
   "Ces deux-là partent chez l'apprenant pour être remplis ou signés : il reçoit une notification et un e-mail.": "Questi due vanno all'allievo per essere compilati o firmati: riceve una notifica e un'e-mail.",
@@ -574,7 +578,7 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "La simulation n'a pas pu démarrer. Réessayez dans un instant.": "Impossibile avviare la simulazione. Riprova tra un istante.",
   "Votre navigateur bloque le stockage de session : la simulation ne peut pas s'ouvrir.": "Il tuo browser blocca l'archiviazione di sessione: la simulazione non può aprirsi.",
   "Cette simulation est terminée.": "Questa simulazione è terminata.",
-  "Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "Aggiungi almeno una sessione prima di generare il documento: compilala qui sotto, poi fai clic su «Aggiungi questa sessione».",
+  "Ajoutez au moins une séance avant d'envoyer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».": "Aggiungi almeno una sessione prima di inviare il documento: compilala qui sotto, poi fai clic su «Aggiungi questa sessione».",
   "La démonstration est terminée": "La dimostrazione è terminata",
   "Elle s'arrête d'elle-même après trois heures sans activité, ou lors d'une mise à jour du site.": "Si interrompe da sola dopo tre ore di inattività, o quando il sito viene aggiornato.",
   "Revenir à mon espace": "Torna al mio spazio",

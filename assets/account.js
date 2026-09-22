@@ -791,12 +791,29 @@
   // d'office, il ne suffit pas. ⚠️ Même liste que SEANCE_CHAMPS côté serveur.
   var SEANCE_CHAMPS = ['dateDuree', 'objectifs', 'mots', 'grammaire', 'pronunciation', 'erreurs', 'prochaine'];
   // (caractères invisibles d'un copier-coller retirés : trim() ne les enlève pas)
+  // téléphone et tablette : si l'onglet « Aperçu » est ouvert, le formulaire est masqué. Un message qui
+  // montre ce qui manque doit d'abord y ramener, sinon il s'affiche dans un volet invisible.
+  function montrerFormulaire(m) { var b = m && m.querySelector('.ap-onglets [data-ap="form"]'); if (b && !b.classList.contains('on')) b.click(); }
+  // ⚠️ Zone libre des tests : même règle que le serveur (libreRemplie, server.js) — au moins un caractère
+  // réel dans un paragraphe, une liste, une cellule ou un QCM. Une zone qui ne montrerait rien ne part pas.
+  function libreRemplie(blocs) {
+    var txt = function (runs) { return reelTexte((runs || []).map(function (r) { return (r && r.text != null) ? r.text : ''; }).join('')); };
+    return (blocs || []).some(function (b) {
+      if (!b) return false;
+      if (b.type === 'p') return !!txt(b.runs);
+      if (b.type === 'ul' || b.type === 'ol') return (b.items || []).some(function (it) { return !!txt(it); });
+      if (b.type === 'table') return (b.rows || []).some(function (row) { return (row || []).some(function (c) { return !!txt(c); }); });
+      if (b.type === 'qcm') return !!reelTexte(b.question) || (b.options || []).some(function (o) { return !!reelTexte(o); });
+      return false;
+    });
+  }
   function reelTexte(v) { return String(v || '').replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, '').trim(); }
   function seanceRemplie(s) { return !!s && SEANCE_CHAMPS.some(function (k) { return reelTexte(s[k]); }); }
   // Trois situations, trois consignes : le message dit exactement quoi faire.
   // ⚠️ La plus traîtresse : la séance TAPÉE dans le cadre mais jamais ajoutée par « Ajouter cette
   // séance ». Elle n'existe pas pour le document, alors que la personne l'a sous les yeux.
   function montrerSeanceManquante() {
+    montrerFormulaire(document.getElementById('gen-modal'));
     var tapee = ['s-date', 's-obj', 's-mots', 's-gram', 's-pron', 's-err', 's-next'].some(function (id) { return reelTexte(val(id)); });
     var vides = genState.sessions.length > 0;
     // séance ouverte en modification : tout y est appliqué en direct, il ne reste qu'à la remplir
@@ -810,7 +827,7 @@
     }
     var msg = tapee ?'Votre séance n\'est pas encore ajoutée : cliquez sur « Ajouter cette séance », puis envoyez le document.'
       : vides ? 'Votre séance est vide : cliquez sur ✎ pour la compléter (date, objectifs…), puis envoyez le document.'
-      : 'Ajoutez au moins une séance avant de générer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».';
+      : 'Ajoutez au moins une séance avant d\'envoyer le document : remplissez-la ci-dessous, puis cliquez sur « Ajouter cette séance ».';
     var e = document.getElementById('gen-sess-err');
     if (e) { e.textContent = msg; e.hidden = false; }
     var d = document.querySelector('#gen-modal .gen-add');
@@ -1942,12 +1959,12 @@
     // pas de ligne « Certification » sur les tests mi-parcours et fin de formation
     var fields = [['nomApprenant', "Nom de l'apprenant"], ['societe', 'Société'], ['langue', 'Langue'], ['intitule', 'Intitulé de la formation'], ['formateur', 'Formateur'], ['date', 'Date']];
     var h = headerPrefill();
-    var body = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête, le résultat et votre appréciation, puis envoyez le document dans le dossier.</p><div class="gf-grid">' +
+    var body = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête, le résultat, votre appréciation et la zone libre, puis envoyez le document dans le dossier.</p><div class="gf-grid">' +
       fields.map(function (f) { return gi('td-' + f[0], f[1], h[f[0]]); }).join('') + '</div>' +
       '<h4 class="gen-h">Résultat &amp; appréciation</h4><div class="gf-grid">' +
       gi('td-resultat', 'Résultat', '') + ga('td-appreciation', 'Appréciation formateur', '', 4) + '</div>' +
-      '<h4 class="gen-h">Zone libre <small style="font-weight:400;color:var(--ink-soft)">(mise en forme avancée — une adresse https://… devient un lien cliquable)</small></h4>' +
-      richEditorHTML('td-rt');
+      '<h4 class="gen-h">Zone libre <small style="font-weight:400;color:var(--ink-soft)">(obligatoire : le contenu du test · une adresse https://… devient un lien cliquable)</small></h4>' +
+      '<p class="auth-err gen-sess-err" id="td-rt-err" role="alert" hidden></p>' + richEditorHTML('td-rt');
     var footer = '<label class="gen-chan">Format <select id="td-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +
       '<button class="btn btn-primary td-gen" type="button" style="padding:11px 22px">' + libelleEnvoi(channel) + '</button>';
     var m = buildFsModal('td-modal', titles[type] || 'Test', body, footer);
@@ -1957,8 +1974,22 @@
       return { header: header, extra: { resultat: val('td-resultat'), appreciation: val('td-appreciation'), libre: serializeRich(document.getElementById('td-rt')) } };
     };
     attacherApercu(m, function () { return { tpl: type, donnees: champsTd() }; });
+    // zone libre vide : on montre le manque au lieu d'envoyer (le serveur refuse de toute façon)
+    var edTd = document.getElementById('td-rt'), errTd = document.getElementById('td-rt-err'), wrapTd = edTd && edTd.closest('.rt-wrap');
+    if (edTd) edTd.addEventListener('input', function () {
+      if (errTd && !errTd.hidden && libreRemplie(serializeRich(edTd))) { errTd.hidden = true; if (wrapTd) wrapTd.classList.remove('a-completer'); }
+    });
     m.querySelector('.td-gen').onclick = function () {
       var saisie = champsTd(), header = saisie.header, extra = saisie.extra;
+      if (!libreRemplie(extra.libre)) {
+        montrerFormulaire(m);
+        // une image collée se VOIT dans l'éditeur mais n'est pas reprise dans le document : dire « vide » serait faux
+        var aImage = edTd && edTd.querySelector('img, picture, svg, video, canvas');
+        if (errTd) { errTd.textContent = aImage ? 'Les images ne sont pas reprises dans le document : tapez le contenu du test (exercices, consignes, corrigé) ou collez le lien de l\'image, puis envoyez le document.' : 'La zone libre est vide : ajoutez-y le contenu du test (exercices, consignes, corrigé ou lien), puis envoyez le document.'; errTd.hidden = false; }
+        if (wrapTd) { wrapTd.classList.add('a-completer'); (errTd || wrapTd).scrollIntoView({ block: 'center', behavior: 'instant' }); }
+        if (edTd) setTimeout(function () { try { edTd.focus({ preventScroll: true }); } catch (x) { edTd.focus(); } }, 50);
+        return;
+      }
       var fmt = document.getElementById('td-format').value;
       var btn = m.querySelector('.td-gen');
       envoyerDoc(btn, '/api/testdoc/generate', { group: selected, type: type, header: header, extra: extra, format: fmt }, function () { closeFsModal('td-modal'); });
