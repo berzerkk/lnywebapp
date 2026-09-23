@@ -763,7 +763,7 @@
   function ensureGenModal() {
     if (document.getElementById('gen-modal')) return;
     var m = document.createElement('div'); m.id = 'gen-modal'; m.className = 'notif-modal';
-    m.innerHTML = '<div class="nm-backdrop"></div><div class="nm-card gen-card gen-full">' +
+    m.innerHTML = '<div class="nm-backdrop"></div><div class="nm-card gen-card gen-full" data-i18n-champs="' + CHAMPS_DOC_TITRE + '">' +
       '<div class="nm-head"><h3>Générer — Interactive Worksheet</h3><button class="nm-close" id="gen-close" aria-label="Fermer">&times;</button></div>' +
       '<div class="nm-body" id="gen-body"></div>' +
       '<div class="gen-foot">' +
@@ -959,9 +959,9 @@
         '<li class="tpl-item" data-tpl="test_mid"><span class="tpl-ic">📝</span><span class="c-name">5 - Test mi-parcours<small>Résultat &amp; appréciation (rempli par le formateur)</small></span><span class="tpl-go">→</span></li>' +
         '<li class="tpl-item" data-tpl="test_end"><span class="tpl-ic">📝</span><span class="c-name">6 - Test fin de formation<small>Résultat &amp; appréciation (rempli par le formateur)</small></span><span class="tpl-go">→</span></li>' +
         (ME.role === 'admin' ? '<li class="tpl-item" data-tpl="contrat"><span class="tpl-ic">📑</span><span class="c-name">7 - Contrat de sous-traitance<small>Réservé à l\'administration · intro &amp; article 1 préremplis</small></span><span class="tpl-go">→</span></li>' : '') +
-        '<li class="tpl-item" data-tpl="qs_formateur"><span class="tpl-ic">🗒️</span><span class="c-name">' + (ME.role === 'admin' ? '8' : '7') + ' - QS Formateur<small>Bilan rempli par le formateur (à transmettre à l\'administration)</small></span><span class="tpl-go">→</span></li>' +
+        '<li class="tpl-item" data-tpl="qs_formateur"><span class="tpl-ic">🗒️</span><span class="c-name">' + (ME.role === 'admin' ? '8' : '7') + ' - QS Formateur<small>Bilan rempli par le formateur (déposé dans le canal privé)</small></span><span class="tpl-go">→</span></li>' +
         (ME.role === 'admin' ? '<li class="tpl-item" data-tpl="leveltest"><span class="tpl-ic">📊</span><span class="c-name">9 - Level Test<small>Évaluation orale / questionnaire d\'objectifs (établi par l\'administration)</small></span><span class="tpl-go">→</span></li>' : '') +
-        '<li class="tpl-item" data-tpl="presence"><span class="tpl-ic">🗓️</span><span class="c-name">' + (ME.role === 'admin' ? '10' : '8') + ' - Feuille de présence<small>E-learning, présentiel/distanciel ou test (au choix)</small></span><span class="tpl-go">→</span></li>' + '</ul>';
+        '<li class="tpl-item" data-tpl="presence"><span class="tpl-ic">🗓️</span><span class="c-name">' + (ME.role === 'admin' ? '10' : '8') + ' - Feuille de présence<small>' + (ME.role === 'admin' ? 'E-learning, présentiel/distanciel ou certification (au choix)' : 'E-learning ou présentiel/distanciel (au choix)') + '</small></span><span class="tpl-go">→</span></li>' + '</ul>';
       wireGenTargets(body);
       body.querySelectorAll('.tpl-item').forEach(function (li) { li.onclick = function () { var t = li.getAttribute('data-tpl'); closeTplModal(); if (t === 'interactive') openGenModal(); else if (t === 'qs_mid' || t === 'qs_end') openQsHeaderModal(t); else if (t === 'test_mid' || t === 'test_end') openTestDocModal(t); else if (t === 'attestation') openAttestationModal(); else if (t === 'contrat') openContratModal(); else if (t === 'leveltest') openLevelTestModal(); else if (t === 'presence') openPresenceModal(); else openFormModal(t); }; });
     } else {
@@ -1556,10 +1556,19 @@
   }
 
   // ---- modale plein écran générique ---------------------------------------
-  function buildFsModal(id, title, bodyHTML, footerHTML) {
+  // ⚠️ FENÊTRES DE DOCUMENT : LES CHAMPS RESTENT EN FRANÇAIS (23/09/2026, demande de l'utilisateur : « les
+  // consignes ok, pas les champs » — il craint une mauvaise traduction). Site en anglais ou en russe, ce qui
+  // figure SUR le document (noms de champs, titres de rubriques, questions et réponses proposées, valeurs des
+  // listes, zone libre, récapitulatifs) reste tel quel ; les consignes, boutons, textes indicatifs et messages
+  // se traduisent. Le moteur (i18n.js) lit ce sélecteur dans l'attribut data-i18n-champs de la carte.
+  // Deuxième effet, voulu : rien de ce qui part au serveur ne peut être altéré par la traduction (une <option>
+  // sans value envoie son texte, une zone contenteditable est sérialisée depuis le DOM).
+  var CHAMPS_DOC = 'label.gf, .gen-h, .lt-cat, option, .rt-editor, .gen-sess > b, .gen-sess-sum, .gen-editeur-t, .pr-sess-head, .pr-rc, .pr-recap-tbl, .qs-intro, .qs-label, .qs-opt, .qs-comment, .qs-recap';
+  var CHAMPS_DOC_TITRE = CHAMPS_DOC + ', .nm-head h3';   // le titre de la fenêtre = le nom du document
+  function buildFsModal(id, title, bodyHTML, footerHTML, champs) {
     var ex = document.getElementById(id); if (ex) ex.remove();
     var m = document.createElement('div'); m.id = id; m.className = 'notif-modal';
-    m.innerHTML = '<div class="nm-backdrop"></div><div class="nm-card gen-card gen-full"><div class="nm-head"><h3>' + esc(title) + '</h3><button class="nm-close" type="button">&times;</button></div><div class="nm-body">' + bodyHTML + '</div><div class="gen-foot">' + footerHTML + '</div></div>';
+    m.innerHTML = '<div class="nm-backdrop"></div><div class="nm-card gen-card gen-full"' + (champs ? ' data-i18n-champs="' + champs + '"' : '') + '><div class="nm-head"><h3>' + esc(title) + '</h3><button class="nm-close" type="button">&times;</button></div><div class="nm-body">' + bodyHTML + '</div><div class="gen-foot">' + footerHTML + '</div></div>';
     document.body.appendChild(m);
     m.querySelector('.nm-close').onclick = function () { closeFsModal(id); };
     m.querySelector('.nm-backdrop').onclick = function () { closeFsModal(id); };
@@ -1784,7 +1793,7 @@
     var h = headerPrefill();
     var body = '<p class="ds-empty" style="margin:0 0 14px">Renseignez l\'en-tête, puis envoyez le questionnaire à l\'apprenant : il reçoit une notification et le remplit depuis le chat.</p><div class="gf-grid">' +
       fields.map(function (f) { return gi('qsh-' + f[0], f[1], h[f[0]]); }).join('') + '</div>';
-    var m = buildFsModal('qsh-modal', titles[type] || 'Questionnaire', body, '<button class="btn btn-primary qsh-send" type="button" style="padding:11px 22px">Envoyer à l\'apprenant →</button>');
+    var m = buildFsModal('qsh-modal', titles[type] || 'Questionnaire', body, '<button class="btn btn-primary qsh-send" type="button" style="padding:11px 22px">Envoyer à l\'apprenant →</button>', CHAMPS_DOC_TITRE);
     var enteteQs = function () { var header = {}; fields.forEach(function (f) { header[f[0]] = val('qsh-' + f[0]); }); return header; };
     attacherApercu(m, function () { return { tpl: type, donnees: { header: enteteQs() } }; });
     m.querySelector('.qsh-send').onclick = function () {
@@ -1848,7 +1857,7 @@
       '<button type="button" class="rt-b" data-cmd="insertOrderedList" title="Liste numérotée">1. Liste</button>' +
       '<button type="button" class="rt-b rt-tbl" title="Insérer un tableau">▦ Tableau</button>' +
       '<button type="button" class="rt-b rt-qcm-btn" title="Question à choix multiples">◉ QCM</button>' +
-      '</div><div class="rt-editor" id="' + id + '" contenteditable="true"></div></div>';
+      '</div><div class="rt-editor" id="' + id + '" contenteditable="true" data-i18n-skip></div></div>';
   }
   function wireRichEditor(m, id) {
     var ed = document.getElementById(id);
@@ -1963,11 +1972,11 @@
       fields.map(function (f) { return gi('td-' + f[0], f[1], h[f[0]]); }).join('') + '</div>' +
       '<h4 class="gen-h">Résultat &amp; appréciation</h4><div class="gf-grid">' +
       gi('td-resultat', 'Résultat', '') + ga('td-appreciation', 'Appréciation formateur', '', 4) + '</div>' +
-      '<h4 class="gen-h">Zone libre <small style="font-weight:400;color:var(--ink-soft)">(obligatoire : le contenu du test · une adresse https://… devient un lien cliquable)</small></h4>' +
+      '<h4 class="gen-h">Zone libre <small data-i18n-ok style="font-weight:400;color:var(--ink-soft)">(obligatoire : le contenu du test · une adresse https://… devient un lien cliquable)</small></h4>' +
       '<p class="auth-err gen-sess-err" id="td-rt-err" role="alert" hidden></p>' + richEditorHTML('td-rt');
     var footer = '<label class="gen-chan">Format <select id="td-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +
       '<button class="btn btn-primary td-gen" type="button" style="padding:11px 22px">' + libelleEnvoi(channel) + '</button>';
-    var m = buildFsModal('td-modal', titles[type] || 'Test', body, footer);
+    var m = buildFsModal('td-modal', titles[type] || 'Test', body, footer, CHAMPS_DOC_TITRE);
     wireRichEditor(m, 'td-rt');
     var champsTd = function () {
       var header = {}; fields.forEach(function (f) { header[f[0]] = val('td-' + f[0]); });
@@ -2012,7 +2021,7 @@
     // « un objectif par ligne » n'était pas comprise). Lignes ajoutables et retirables ; une ligne laissée
     // vide ne figure pas sur le document. Le serveur reçoit toujours `objectifs` en texte, une ligne par objectif.
     var ligneObj = function () { return '<div class="att-row att-obj-row"><input class="att-obj" placeholder="Objectif" /><button type="button" class="att-rm" title="Retirer cette ligne" aria-label="Retirer cette ligne">✕</button></div>'; };
-    var ligneComp = function () { return '<div class="att-row att-comp-row"><input class="att-comp-l" placeholder="Compétence" /><select class="att-comp-n"><option value="">—</option><option>Acquis</option><option>En cours d\'acquisition</option><option>Non acquis</option></select><button type="button" class="att-rm" title="Retirer cette ligne" aria-label="Retirer cette ligne">✕</button></div>'; };
+    var ligneComp = function () { return '<div class="att-row att-comp-row"><input class="att-comp-l" placeholder="Compétence" /><select class="att-comp-n"><option value="">—</option><option value="Acquis">Acquis</option><option value="En cours d\'acquisition">En cours d\'acquisition</option><option value="Non acquis">Non acquis</option></select><button type="button" class="att-rm" title="Retirer cette ligne" aria-label="Retirer cette ligne">✕</button></div>'; };
     var obj = '<h4 class="gen-h">Objectifs de la formation</h4><p class="ds-empty" style="margin:0 0 8px">Un objectif par ligne.</p><div class="att-comps" id="att-objs">' + ligneObj() + ligneObj() + ligneObj() + '</div><button type="button" class="btn-mini att-add" data-liste="att-objs" style="margin-top:8px">+ Ajouter un objectif</button>';
     var comps = '<h4 class="gen-h">Résultat de l\'évaluation des acquis</h4><p class="ds-empty" style="margin:0 0 8px">Une compétence par ligne, avec son niveau.</p><div class="att-comps" id="att-complist">' + ligneComp() + ligneComp() + ligneComp() + '</div><button type="button" class="btn-mini att-add" data-liste="att-complist" style="margin-top:8px">+ Ajouter une compétence</button>';
     var fin = '<h4 class="gen-h">Niveau &amp; commentaires</h4><div class="gf-grid">' + gi('att-niveau', 'Niveau atteint', '') + gi('att-certif', 'Certification', pre.certification) + gi('att-dateeval', "Date de l'évaluation", '') + gi('att-resultat', 'Résultat', '') + '</div>' +
@@ -2022,7 +2031,7 @@
     // Le formateur signe ici même, à l'envoi, comme pour la feuille de présence.
     var sigF = '<h4 class="gen-h">Votre signature</h4><p class="ds-empty" style="margin:0 0 8px">Signez à la souris (ou au doigt), ou téléversez une image de votre signature. L\'apprenant signera à son tour, puis le document se déposera dans le dossier.</p>' + sigPadHTML();
     var footer = '<button class="btn btn-primary att-send" type="button" style="padding:11px 22px">Envoyer à l\'apprenant pour signature →</button>';
-    var m = buildFsModal('att-modal', 'Attestation de fin de stage', head + obj + comps + fin + sigF, footer);
+    var m = buildFsModal('att-modal', 'Attestation de fin de stage', head + obj + comps + fin + sigF, footer, CHAMPS_DOC_TITRE);
     var padAtt = mountSignaturePad(m.querySelector('.sigpad'));
     var champsAtt = function () {
       var competences = [], objectifs = [];
@@ -2085,7 +2094,7 @@
     var footer = '<label class="gen-chan">Format <select id="ct-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +
       '<button class="btn btn-ghost ct-gen" type="button" style="padding:11px 18px">Télécharger</button>' +
       '<button class="btn btn-primary ct-send" type="button" style="padding:11px 22px">Envoyer au formateur pour signature →</button>';
-    var m = buildFsModal('ct-modal', 'Contrat de sous-traitance', intro + art1 + art6, footer);
+    var m = buildFsModal('ct-modal', 'Contrat de sous-traitance', intro + art1 + art6, footer, CHAMPS_DOC_TITRE);
     var champsCt = function () {
       return { stnom: val('ct-stnom'), stNaissance: val('ct-naissance'), stNationalite: val('ct-nationalite'), stAdresse: val('ct-adresse'), stSiret: val('ct-siret'), stNda: val('ct-nda'), intitule: val('ct-intitule'), langue: val('ct-langue'), stagiaire: val('ct-stagiaire'), programme: val('ct-programme'), mission: val('ct-mission'), lieu: val('ct-lieu'), dateDebut: val('ct-debut'), dateFin: val('ct-fin'), tauxHoraire: val('ct-taux'), montantTotal: val('ct-montant'), heuresSync: val('ct-heuressync'), lieuFait: val('ct-lieufait'), dateFait: val('ct-datefait') };
     };
@@ -2127,7 +2136,7 @@
         return '<h4 class="gen-h">' + esc(e.titre) + '</h4><div class="gf-grid">' + e.fields.map(function (f) { return gi('lt-' + f[0], f[1], f[2] || ''); }).join('') + '</div>';
       }).join('');
       var footer = '<label class="gen-chan">Format <select id="lt-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label><button class="btn btn-primary lt-gen" type="button" style="padding:11px 22px">' + libelleEnvoi(channel) + '</button>';
-      var m = buildFsModal('lt-modal', tpl.title || 'Level Test', head + tf + bes + ev, footer);
+      var m = buildFsModal('lt-modal', tpl.title || 'Level Test', head + tf + bes + ev, footer, CHAMPS_DOC_TITRE);
       var addField = function (label, value) {
         var wrap = m.querySelector('#lt-extra-wrap');
         var row = document.createElement('div'); row.className = 'lt-xf';
@@ -2188,7 +2197,7 @@
         '<p class="ds-empty" id="pr-signote" style="display:none;margin:0">Ce document est signé par l\'administration : la signature d\'Antonin HATTABE y est apposée automatiquement. Vous n\'avez pas à signer.</p>';
       var sendLabel = editing ? 'Enregistrer les modifications →' : 'Envoyer à l\'apprenant pour signature →';
       var footer = '<button class="btn btn-primary pr-gen" type="button" style="padding:11px 22px">' + sendLabel + '</button>';
-      var m = buildFsModal('pr-modal', editing ? 'Feuille de présence — modification' : 'Feuille de présence', dyn, footer);
+      var m = buildFsModal('pr-modal', editing ? 'Feuille de présence — modification' : 'Feuille de présence', dyn, footer, CHAMPS_DOC_TITRE);
       document.getElementById('pr-type').value = curType;
       // en modification, la signature déjà apposée est rechargée dans le pad
       var sigPad = mountSignaturePad(m.querySelector('.sigpad'), editing ? init.formateurSig : null);
@@ -2219,7 +2228,7 @@
         if (tpl.kind === 'summary') {
           html += '<h4 class="gen-h">Heures &amp; rapport</h4><div class="gf-grid">' + gi('pr-heuresPrevues', "Nombre d'heures prévues", pre.heuresPrevues) + gi('pr-heuresRealisees', "Nombre d'heures connexion réalisées", '') + gi('pr-dateRapport', 'Date du rapport', pre.dateRapport) + '</div>';
         } else {
-          html += '<h4 class="gen-h">Séances</h4><div class="pr-sess-head"><span>Créneau</span><span>Date</span><span>Jour</span><span>H début</span><span>H fin</span><span>Durée</span><span></span></div><div id="pr-sess-wrap"></div><button type="button" class="btn-mini pr-add-sess" style="margin-top:8px">+ Ajouter une séance</button><p class="ds-empty" style="margin:10px 0 0">Le <b>créneau</b> coche automatiquement la case correspondante et place la séance sur la bonne ligne de la grille.</p>';
+          html += '<h4 class="gen-h">Séances</h4><div class="pr-sess-head"><span>Créneau</span><span>Date</span><span>Jour</span><span>H début</span><span>H fin</span><span>Durée</span><span></span></div><div id="pr-sess-wrap"></div><button type="button" class="btn-mini pr-add-sess" style="margin-top:8px">+ Ajouter une séance</button><p class="ds-empty" style="margin:10px 0 0">Le créneau coche automatiquement la case correspondante et place la séance sur la bonne ligne de la grille.</p>';
         }
         document.getElementById('pr-dyn').innerHTML = html;
         // feuille administrative : le formateur ne signe pas, la signature d'Antonin est apposée d'office
@@ -2253,7 +2262,7 @@
           // deux séances sur le même créneau : l'une écraserait l'autre dans la grille
           var vus = {}, dbl = null;
           fields.sessions.forEach(function (s) { if (s.slot) { if (vus[s.slot]) dbl = s.slot; vus[s.slot] = 1; } });
-          if (dbl) { alertDialog('Deux séances utilisent le créneau ' + dbl + '. Chaque séance doit avoir un créneau différent, sinon l\'une disparaîtrait du document.'); return; }
+          if (dbl) { alertDialog('Deux séances utilisent le même créneau. Chaque séance doit avoir un créneau différent, sinon l\'une disparaîtrait du document.'); return; }
         }
         var btn = m.querySelector('.pr-gen'); btn.disabled = true; btn.textContent = editing ? 'Enregistrement…' : 'Envoi…';
         var url = editing ? '/api/presence/' + encodeURIComponent(init.id) + '/update' : '/api/presence/send';
@@ -2347,7 +2356,7 @@
       var body = '<p class="ds-empty" style="margin:0 0 14px">' + esc(cfg.rappel) + '</p>' +
         '<div class="req-acts" style="margin:0 0 18px"><a class="btn-mini ghost" href="' + cfg.url + encodeURIComponent(id) + '/apercu?token=' + encodeURIComponent(token()) + '" target="_blank" rel="noopener">' + (kind === 'contrat' ? 'Lire le contrat' : 'Lire le document') + '</a></div>' +
         '<h4 class="gen-h">Votre signature</h4><p class="ds-empty" style="margin:0 0 8px">Signez à la souris (ou au doigt), ou téléversez une image de votre signature.</p>' + sigPadHTML();
-      var m = buildFsModal('sig-modal', cfg.titre, body, '<button class="btn btn-primary sig-send" type="button" style="padding:11px 22px">Envoyer ma signature →</button>');
+      var m = buildFsModal('sig-modal', cfg.titre, body, '<button class="btn btn-primary sig-send" type="button" style="padding:11px 22px">Envoyer ma signature →</button>', CHAMPS_DOC);
       var pad = mountSignaturePad(m.querySelector('.sigpad'));
       m.querySelector('.sig-send').onclick = function () {
         if (pad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature).'); return; }
@@ -2379,7 +2388,7 @@
       if (p.status === 'done') { alertDialog('Cette feuille est déjà signée.'); renderDashboard(); return; }
       var body = presenceRecapHTML(p) +
         '<h4 class="gen-h">Votre signature</h4><p class="ds-empty" style="margin:0 0 8px">Vérifiez le contenu ci-dessus, puis signez à la souris (ou au doigt), ou téléversez une image de votre signature.</p>' + sigPadHTML();
-      var m = buildFsModal('prsign-modal', 'Signer la feuille de présence', body, '<button class="btn btn-primary prs-send" type="button" style="padding:11px 22px">Envoyer ma signature →</button>');
+      var m = buildFsModal('prsign-modal', 'Signer la feuille de présence', body, '<button class="btn btn-primary prs-send" type="button" style="padding:11px 22px">Envoyer ma signature →</button>', CHAMPS_DOC);
       var pad = mountSignaturePad(m.querySelector('.sigpad'));
       m.querySelector('.prs-send').onclick = function () {
         if (pad.isEmpty()) { alertDialog('Veuillez signer (ou téléverser votre signature).'); return; }
@@ -2413,7 +2422,7 @@
         '<div class="gf-grid">' + hf.map(function (f) { return gi('fm-h-' + f.id, f.label, pre[f.id] || ''); }).join('') + '</div>';
       var footer = '<label class="gen-chan">Format <select id="fm-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +
         '<button class="btn btn-primary fm-gen" type="button" style="padding:11px 22px">' + libelleEnvoi('prive') + '</button>';
-      var m = buildFsModal('fm-modal', tpl.title || 'Document', headerHTML + qsItemsHTML(tpl.items || [], {}), footer);
+      var m = buildFsModal('fm-modal', tpl.title || 'Document', headerHTML + qsItemsHTML(tpl.items || [], {}), footer, CHAMPS_DOC_TITRE);
       wireQsConditional(m);
       var champsFm = function () {
         var header = {}; hf.forEach(function (f) { header[f.id] = val('fm-h-' + f.id); });
@@ -2486,7 +2495,7 @@
       qsFillState = { id: qsId, items: q.items || [], answers: Object.assign({}, q.answers || {}) };
       var recap = '<div class="qs-recap">' + (q.headerFields || []).map(function (f) { return '<span><b>' + esc(f.label) + ' :</b> ' + esc(q.header[f.id] || '—') + '</span>'; }).join('') + '</div>';
       var footer = '<button class="btn btn-primary qs-submit" type="button" style="padding:11px 22px">Envoyer votre réponse →</button>';
-      var m = buildFsModal('qsf-modal', q.title || 'Questionnaire', recap + qsItemsHTML(qsFillState.items, qsFillState.answers), footer);
+      var m = buildFsModal('qsf-modal', q.title || 'Questionnaire', recap + qsItemsHTML(qsFillState.items, qsFillState.answers), footer, CHAMPS_DOC_TITRE);
       wireQsConditional(m);
       m.querySelector('.qs-submit').onclick = function () {
         syncQsAnswers();

@@ -8,6 +8,11 @@
    - Le moteur traduit les nœuds texte + attributs (placeholder/title/aria-label/alt).
    - Tout élément sous [data-i18n-skip] n'est JAMAIS touché (questions du test de
      niveau + teaser : la langue TESTÉE ne change pas avec la langue du SITE).
+   - Zone [data-i18n-champs="<sélecteur>"] : à l'intérieur, les éléments qui
+     correspondent au sélecteur ne sont pas traduits (le reste l'est), sauf sous
+     [data-i18n-ok]. Sert aux fenêtres de document de l'espace documents : les
+     noms de champs, titres et questions restent en français, les consignes et
+     les boutons se traduisent (23/09/2026).
    - MutationObserver : le DOM injecté après coup (menus, modals, quiz, espace
      documents) est traduit aussi tant que la langue courante n'est pas le FR.
    - Persistance : localStorage 'ls-lang'. API : window.__lsI18N.set('en'|...).
@@ -23,7 +28,15 @@
   var pending = null;    // langue demandée dont le dictionnaire charge encore
   var SKIPTAG = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEXTAREA: 1 };
   var ATTRS = ['placeholder', 'title', 'aria-label', 'alt'];
-  function inSkip(el) { return !!(el && el.closest && el.closest('[data-i18n-skip]')); }
+  function inSkip(el) {
+    if (!el || !el.closest) return false;
+    if (el.closest('[data-i18n-skip]')) return true;
+    var zone = el.closest('[data-i18n-champs]'); if (!zone) return false;
+    var champ = null; try { champ = el.closest(zone.getAttribute('data-i18n-champs')); } catch (e) { return false; }
+    if (!champ || !zone.contains(champ)) return false;   // le champ doit être DANS la zone
+    var ok = el.closest('[data-i18n-ok]');
+    return !(ok && champ.contains(ok));                    // exception posée à l'intérieur d'un champ
+  }
 
   function trText(node) {
     var src = node.__lsSrc != null ? node.__lsSrc : node.nodeValue;
