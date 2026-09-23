@@ -515,6 +515,16 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Il contratto sarà rimosso dal canale privato e il formatore non potrà più firmarlo. Potrete inviarne uno nuovo.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Password dimenticata?",
+  /* ---- attestation de fin de stage : textes restés en français (23/09/2026) ---- */
+  "Le début est prérempli depuis les fiches. Complétez les objectifs, l'évaluation et les commentaires.": "L'inizio è precompilato dalle schede. Completa gli obiettivi, la valutazione e i commenti.",
+  "Formateur": "Formatore",
+  "Durée totale": "Durata totale",
+  "Dont (visio / e-learning / certification…)": "Di cui (videoconferenza / e-learning / certificazione…)",
+  "Représentant L&S": "Rappresentante L&S",
+  "Date de l'évaluation": "Data della valutazione",
+  "Commentaires du formateur": "Commenti del formatore",
+  "Votre signature": "La tua firma",
+  "Attestation de fin de stage": "Attestato di fine formazione",
   /* ---- zone libre des tests obligatoire (22/09/2026) ---- */
   "Les images ne sont pas reprises dans le document : tapez le contenu du test (exercices, consignes, corrigé) ou collez le lien de l'image, puis envoyez le document.": "Le immagini non vengono riportate nel documento: scrivi il contenuto del test (esercizi, consegne, correzione) o incolla il link dell'immagine, poi invia il documento.",
   "La zone libre est vide : ajoutez-y le contenu du test (exercices, consignes, corrigé ou lien), puis envoyez le document.": "La zona libera è vuota: aggiungi il contenuto del test (esercizi, consegne, correzione o link), poi invia il documento.",

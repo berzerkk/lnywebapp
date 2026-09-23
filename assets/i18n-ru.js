@@ -515,6 +515,16 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Договор будет удалён из приватного канала, и преподаватель больше не сможет его подписать. Вы сможете отправить новый.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Забыли пароль?",
+  /* ---- attestation de fin de stage : textes restés en français (23/09/2026) ---- */
+  "Le début est prérempli depuis les fiches. Complétez les objectifs, l'évaluation et les commentaires.": "Начало формы заполнено по данным карточек. Заполните цели, оценку и комментарии.",
+  "Formateur": "Преподаватель",
+  "Durée totale": "Общая продолжительность",
+  "Dont (visio / e-learning / certification…)": "В том числе (видеосвязь / e-learning / сертификация…)",
+  "Représentant L&S": "Представитель L&S",
+  "Date de l'évaluation": "Дата оценки",
+  "Commentaires du formateur": "Комментарии преподавателя",
+  "Votre signature": "Ваша подпись",
+  "Attestation de fin de stage": "Свидетельство об окончании обучения",
   /* ---- zone libre des tests obligatoire (22/09/2026) ---- */
   "Les images ne sont pas reprises dans le document : tapez le contenu du test (exercices, consignes, corrigé) ou collez le lien de l'image, puis envoyez le document.": "Изображения не переносятся в документ: введите содержание теста (упражнения, задания, ответы) или вставьте ссылку на изображение, затем отправьте документ.",
   "La zone libre est vide : ajoutez-y le contenu du test (exercices, consignes, corrigé ou lien), puis envoyez le document.": "Свободное поле пустое: добавьте содержание теста (упражнения, задания, ответы или ссылку), затем отправьте документ.",

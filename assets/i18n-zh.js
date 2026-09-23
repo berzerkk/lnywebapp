@@ -516,6 +516,16 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "合同将从私密频道中撤回，培训师将无法再签署。您可以重新发送一份新合同。",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "忘记密码？",
+  /* ---- attestation de fin de stage : textes restés en français (23/09/2026) ---- */
+  "Le début est prérempli depuis les fiches. Complétez les objectifs, l'évaluation et les commentaires.": "表单开头已根据档案自动填写。请填写目标、评估和评语。",
+  "Formateur": "培训师",
+  "Durée totale": "总时长",
+  "Dont (visio / e-learning / certification…)": "其中（视频 / 在线学习 / 认证…）",
+  "Représentant L&S": "L&S 代表",
+  "Date de l'évaluation": "评估日期",
+  "Commentaires du formateur": "培训师评语",
+  "Votre signature": "您的签名",
+  "Attestation de fin de stage": "结业证明",
   /* ---- zone libre des tests obligatoire (22/09/2026) ---- */
   "Les images ne sont pas reprises dans le document : tapez le contenu du test (exercices, consignes, corrigé) ou collez le lien de l'image, puis envoyez le document.": "图片不会保留在文档中：请输入测试内容（练习、说明、答案），或粘贴图片链接，然后发送文档。",
   "La zone libre est vide : ajoutez-y le contenu du test (exercices, consignes, corrigé ou lien), puis envoyez le document.": "自由区为空：请加入测试内容（练习、说明、答案或链接），然后发送文档。",

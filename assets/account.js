@@ -2017,7 +2017,7 @@
     var comps = '<h4 class="gen-h">Résultat de l\'évaluation des acquis</h4><p class="ds-empty" style="margin:0 0 8px">Une compétence par ligne, avec son niveau.</p><div class="att-comps" id="att-complist">' + ligneComp() + ligneComp() + ligneComp() + '</div><button type="button" class="btn-mini att-add" data-liste="att-complist" style="margin-top:8px">+ Ajouter une compétence</button>';
     var fin = '<h4 class="gen-h">Niveau &amp; commentaires</h4><div class="gf-grid">' + gi('att-niveau', 'Niveau atteint', '') + gi('att-certif', 'Certification', pre.certification) + gi('att-dateeval', "Date de l'évaluation", '') + gi('att-resultat', 'Résultat', '') + '</div>' +
       '<div class="gf-grid">' + ga('att-comments', 'Commentaires du formateur', '', 3) + '</div>' +
-      '<div class="gf-grid">' + gi('att-lieufait', 'Fait à', pre.lieuFait) + gi('att-datefait', 'Le', pre.dateFait) + '</div>';
+      '<div class="gf-grid">' + gi('att-lieufait', 'Fait à', pre.lieuFait) + gi('att-datefait', 'Date', pre.dateFait) + '</div>';
     // ⚠️ L'attestation ne se télécharge plus directement : elle part à l'apprenant pour signature.
     // Le formateur signe ici même, à l'envoi, comme pour la feuille de présence.
     var sigF = '<h4 class="gen-h">Votre signature</h4><p class="ds-empty" style="margin:0 0 8px">Signez à la souris (ou au doigt), ou téléversez une image de votre signature. L\'apprenant signera à son tour, puis le document se déposera dans le dossier.</p>' + sigPadHTML();
@@ -2079,7 +2079,7 @@
     var art6 = '<h4 class="gen-h">Article 6 — modalités financières</h4><div class="gf-grid">' +
       gi('ct-taux', 'Taux horaire HT par heure synchrone (ex : 25,00 €)', '') + gi('ct-montant', 'Montant total HT (ex : 1 000,00 €)', '') + '</div>' +
       '<div class="gf-grid">' + gi('ct-heuressync', 'Volume d\'heures synchrones (ex : 40h00)', '') + '<span></span></div>' +
-      '<div class="gf-grid">' + gi('ct-lieufait', 'Fait à', pre.lieuFait) + gi('ct-datefait', 'Le', pre.dateFait) + '</div>';
+      '<div class="gf-grid">' + gi('ct-lieufait', 'Fait à', pre.lieuFait) + gi('ct-datefait', 'Date', pre.dateFait) + '</div>';
     // Deux sorties : l'envoi au formateur pour signature (le circuit voulu) et le téléchargement
     // direct, conservé pour garder une copie ou relire avant d'envoyer.
     var footer = '<label class="gen-chan">Format <select id="ct-format"><option value="pdf">PDF</option><option value="word">Word (.docx)</option></select></label>' +
