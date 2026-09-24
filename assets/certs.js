@@ -151,7 +151,7 @@
     "Linguaskill":{
       eyebrow:"Certification · Anglais",
       name:"Linguaskill", fullname:"from Cambridge",
-      intro:"Centre de préparation au Linguaskill from Cambridge.",
+      intro:"Nous préparons au Linguaskill from Cambridge.",
       blocks:[
         {type:"stats",items:[{n:"2 h",l:"durée totale (test complet, modulable)"},{n:"Distanciel ou présentiel",l:"passage"},{n:"CECRL B1–C2",nw:true,l:"score sur 210"},{n:"2 ans",l:"validité"}]},
         {type:"cards",title:"Deux parcours",items:[
@@ -186,7 +186,7 @@
     "A2 Key":{
       eyebrow:"Certification · Anglais",
       name:"A2 Key", fullname:"Key English Test (KET)",
-      intro:"Centre de préparation aux examens Cambridge English. La première marche du parcours Cambridge : valider les bases de l'anglais du quotidien.",
+      intro:"Nous préparons aux examens Cambridge English. La première marche du parcours Cambridge : valider les bases de l'anglais du quotidien.",
       blocks:[
         {type:"stats",items:[{n:"≈ 1 h 50",l:"durée totale"},{n:"Présentiel",l:"passage · papier ou ordinateur"},{n:"CECRL A1–B1",nw:true,l:"score sur 150"},{n:"À vie",l:"validité"}]},
         {type:"cards",title:"Les 4 compétences évaluées",items:[
@@ -200,7 +200,7 @@
     "B1 Preliminary":{
       eyebrow:"Certification · Anglais",
       name:"B1 Preliminary", fullname:"Preliminary English Test (PET)",
-      intro:"Centre de préparation aux examens Cambridge English. L'examen du niveau intermédiaire : un anglais pratique pour voyager, travailler et étudier.",
+      intro:"Nous préparons aux examens Cambridge English. L'examen du niveau intermédiaire : un anglais pratique pour voyager, travailler et étudier.",
       blocks:[
         {type:"stats",items:[{n:"≈ 2 h 20",l:"durée totale"},{n:"Présentiel",l:"passage · papier ou ordinateur"},{n:"CECRL A2–B2",nw:true,l:"score sur 170"},{n:"À vie",l:"validité"}]},
         {type:"cards",title:"Les 4 compétences évaluées",items:[
@@ -214,7 +214,7 @@
     "B2 First":{
       eyebrow:"Certification · Anglais",
       name:"B2 First", fullname:"First Certificate in English (FCE)",
-      intro:"Centre de préparation aux examens Cambridge English. La certification Cambridge la plus répandue : un anglais opérationnel pour travailler ou étudier en milieu anglophone.",
+      intro:"Nous préparons aux examens Cambridge English. La certification Cambridge la plus répandue : un anglais opérationnel pour travailler ou étudier en milieu anglophone.",
       blocks:[
         {type:"stats",items:[{n:"≈ 3 h 30",l:"durée totale"},{n:"Présentiel",l:"passage · papier ou ordinateur"},{n:"CECRL B1–C1",nw:true,l:"score sur 190"},{n:"À vie",l:"validité"}]},
         {type:"cards",title:"Les 4 compétences évaluées",items:[
@@ -228,7 +228,7 @@
     "C1 Advanced":{
       eyebrow:"Certification · Anglais",
       name:"C1 Advanced", fullname:"Certificate in Advanced English (CAE)",
-      intro:"Centre de préparation aux examens Cambridge English. La référence des universités et des employeurs : un anglais de haut niveau pour les études supérieures et la carrière.",
+      intro:"Nous préparons aux examens Cambridge English. La référence des universités et des employeurs : un anglais de haut niveau pour les études supérieures et la carrière.",
       blocks:[
         {type:"stats",items:[{n:"≈ 4 h",l:"durée totale"},{n:"Présentiel",l:"passage · papier ou ordinateur"},{n:"CECRL B2–C2",nw:true,l:"score sur 210"},{n:"À vie",l:"validité"}]},
         {type:"cards",title:"Les 4 compétences évaluées",items:[
@@ -242,7 +242,7 @@
     "C2 Proficiency":{
       eyebrow:"Certification · Anglais",
       name:"C2 Proficiency", fullname:"Certificate of Proficiency in English (CPE)",
-      intro:"Centre de préparation aux examens Cambridge English. Le plus haut niveau Cambridge : une maîtrise de l'anglais proche de celle d'un locuteur natif.",
+      intro:"Nous préparons aux examens Cambridge English. Le plus haut niveau Cambridge : une maîtrise de l'anglais proche de celle d'un locuteur natif.",
       blocks:[
         {type:"stats",items:[{n:"≈ 4 h",l:"durée totale"},{n:"Présentiel",l:"passage · papier ou ordinateur"},{n:"CECRL C1–C2",nw:true,l:"score sur 230"},{n:"À vie",l:"validité"}]},
         {type:"cards",title:"Les 4 compétences évaluées",items:[
@@ -256,7 +256,7 @@
     "TKT":{
       eyebrow:"Certification · Enseignement de l'anglais",
       name:"TKT", fullname:"Teaching Knowledge Test",
-      intro:"Centre de préparation au TKT. La certification Cambridge des connaissances en pédagogie de l'anglais, pour enseignants en poste ou en devenir.",
+      intro:"Nous préparons au TKT. La certification Cambridge des connaissances en pédagogie de l'anglais, pour enseignants en poste ou en devenir.",
       blocks:[
         {type:"stats",items:[{n:"1 h 20",l:"par module"},{n:"Présentiel",l:"passage · sur papier"},{n:"Bandes 1 à 4",l:"anglais B1 minimum recommandé"},{n:"À vie",l:"validité · un certificat par module"}]},
         {type:"cards",title:"Les 3 modules — à passer dans l'ordre de son choix",items:[
@@ -270,7 +270,7 @@
     "CELTA":{
       eyebrow:"Qualification · Enseignement de l'anglais",
       name:"CELTA", fullname:"Certificate in Teaching English to Speakers of Other Languages",
-      intro:"Préparation au CELTA. La qualification initiale de référence pour enseigner l'anglais, délivrée par Cambridge et reconnue dans plus de 100 pays.",
+      intro:"Nous préparons au CELTA. La qualification initiale de référence pour enseigner l'anglais, délivrée par Cambridge et reconnue dans plus de 100 pays.",
       blocks:[
         {type:"stats",items:[{n:"4 à 5 semaines",l:"temps plein (≈ 120 h) · temps partiel possible"},{n:"Présentiel, en ligne ou mixte",l:"format"},{n:"Pass · Pass B · Pass A",l:"notation"},{n:"À vie",l:"validité"}]},
         {type:"cards",title:"L'évaluation — continue, sans examen final",items:[
