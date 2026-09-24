@@ -32,12 +32,16 @@ jobs:
           const fs = require('fs');
           const db = JSON.parse(fs.readFileSync('/app/data/db.json', 'utf8'));
           const j = (d) => new Date(d).toISOString().slice(0, 10);
-          const ri = (d) => /r.glement\s*int/i.test(d.name || '');
+          // un règlement = nom évocateur OU taille exacte de la version 2.0 corrigée (copies remplacées par empreinte)
+          const sansAccent = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+          const nomRI = (d) => /glement|nterieur|^ri\b/.test(sansAccent(d.name));
+          const ri = (d) => nomRI(d) || d.size === 591623;
           const docs = db.docs || [], groups = (db.groups || []).slice().sort((a, b) => a.date - b.date);
           const par = groups.map((g) => docs.filter((d) => d.group === g.id && ri(d)));
           let anc = 0; try { anc = fs.readdirSync('/app/data/ri-anciennes').length; } catch (e) {}
+          const nom = (d) => nomRI(d) ? d.name : '(nom masque, ' + String(d.name || '').length + ' car.)';
           console.log('RESUME dossiers=' + groups.length + ' avec2+=' + par.filter((l) => l.length >= 2).length + ' avec1=' + par.filter((l) => l.length === 1).length + ' sans=' + par.filter((l) => !l.length).length + ' anciennes_gardees=' + anc + ' docs_591623o=' + docs.filter((d) => d.size === 591623).length);
-          groups.forEach((g, i) => console.log('D' + (i + 1) + ' cree ' + j(g.date) + ' : ' + par[i].length + ' RI' + (par[i].length ? ' [' + par[i].map((d) => d.name + ' | ' + j(d.date) + ' | ' + d.size + ' o | ' + d.channel).join(' ; ') + ']' : '')));
+          groups.forEach((g, i) => console.log('D' + (i + 1) + ' cree ' + j(g.date) + ' : ' + par[i].length + ' RI' + (par[i].length ? ' [' + par[i].map((d) => nom(d) + ' | ' + j(d.date) + ' | ' + d.size + ' o | ' + d.channel + (d.fromAdmin ? ' | auto' : '')).join(' ; ') + ']' : '')));
           EOF
           echo "::notice title=diag-ri-env::os=$(uname -s) conteneurs=$(docker ps --format '{{.Names}}' | tr '\n' ',')"
           B64=$(base64 -w0 diag-ri.js)
