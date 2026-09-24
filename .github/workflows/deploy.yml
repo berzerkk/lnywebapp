@@ -19,3 +19,26 @@ jobs:
       - name: Rebuild and restart Docker containers
         run: |
           docker compose up -d --build
+
+      # Diagnostic en LECTURE SEULE, joué uniquement si le message du commit contient [diag-ri] :
+      # combien de règlements intérieurs par dossier (résumé sans nom ni e-mail, publié en annotation
+      # du run : le dépôt est public, rien de personnel ne doit sortir ici).
+      - name: Diagnostic reglements interieurs (lecture seule)
+        if: contains(github.event.head_commit.message, '[diag-ri]')
+        shell: bash
+        run: |
+          for i in $(seq 1 45); do docker logs --since 5m site-bmax 2>&1 | grep -q "L&S server" && break; sleep 2; done
+          cat > diag-ri.js <<'EOF'
+          const fs = require('fs');
+          const db = JSON.parse(fs.readFileSync('/app/data/db.json', 'utf8'));
+          const j = (d) => new Date(d).toISOString().slice(0, 10);
+          const ri = (d) => /r.glement\s*int/i.test(d.name || '');
+          const docs = db.docs || [], groups = (db.groups || []).slice().sort((a, b) => a.date - b.date);
+          const par = groups.map((g) => docs.filter((d) => d.group === g.id && ri(d)));
+          let anc = 0; try { anc = fs.readdirSync('/app/data/ri-anciennes').length; } catch (e) {}
+          console.log('RESUME dossiers=' + groups.length + ' avec2+=' + par.filter((l) => l.length >= 2).length + ' avec1=' + par.filter((l) => l.length === 1).length + ' sans=' + par.filter((l) => !l.length).length + ' anciennes_gardees=' + anc + ' docs_591623o=' + docs.filter((d) => d.size === 591623).length);
+          groups.forEach((g, i) => console.log('D' + (i + 1) + ' cree ' + j(g.date) + ' : ' + par[i].length + ' RI' + (par[i].length ? ' [' + par[i].map((d) => d.name + ' | ' + j(d.date) + ' | ' + d.size + ' o | ' + d.channel).join(' ; ') + ']' : '')));
+          EOF
+          OUT=$(docker exec -i site-bmax node - < diag-ri.js)
+          echo "$OUT"
+          echo "$OUT" | tr '\n' '~' | fold -w 3000 | head -n 8 | while IFS= read -r part; do echo "::notice title=diag-ri::$part"; done
