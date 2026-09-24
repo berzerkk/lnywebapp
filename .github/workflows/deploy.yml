@@ -39,6 +39,9 @@ jobs:
           console.log('RESUME dossiers=' + groups.length + ' avec2+=' + par.filter((l) => l.length >= 2).length + ' avec1=' + par.filter((l) => l.length === 1).length + ' sans=' + par.filter((l) => !l.length).length + ' anciennes_gardees=' + anc + ' docs_591623o=' + docs.filter((d) => d.size === 591623).length);
           groups.forEach((g, i) => console.log('D' + (i + 1) + ' cree ' + j(g.date) + ' : ' + par[i].length + ' RI' + (par[i].length ? ' [' + par[i].map((d) => d.name + ' | ' + j(d.date) + ' | ' + d.size + ' o | ' + d.channel).join(' ; ') + ']' : '')));
           EOF
-          OUT=$(docker exec -i site-bmax node - < diag-ri.js)
+          echo "::notice title=diag-ri-env::os=$(uname -s) conteneurs=$(docker ps --format '{{.Names}}' | tr '\n' ',')"
+          B64=$(base64 -w0 diag-ri.js)
+          OUT=$(docker exec site-bmax sh -c "echo $B64 | base64 -d | node -" 2>&1 || true)
           echo "$OUT"
+          echo "::notice title=diag-ri-len::${#OUT}"
           echo "$OUT" | tr '\n' '~' | fold -w 3000 | head -n 8 | while IFS= read -r part; do echo "::notice title=diag-ri::$part"; done
