@@ -44,4 +44,5 @@ jobs:
           OUT=$(docker exec site-bmax sh -c "echo $B64 | base64 -d | node -" 2>&1 || true)
           echo "$OUT"
           echo "::notice title=diag-ri-len::${#OUT}"
+          echo "::notice title=diag-ri-b64::$(printf '%s' "$OUT" | base64 -w0)"
           echo "$OUT" | tr '\n' '~' | fold -w 3000 | head -n 8 | while IFS= read -r part; do echo "::notice title=diag-ri::$part"; done
