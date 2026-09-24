@@ -1551,6 +1551,40 @@ function pickMembers(ids, role, label) {
 // ⚠️ Jamais bloquant : fichier absent ou disque en erreur, le dossier se crée quand même.
 const RI_SOURCE = path.join(ROOT, 'assets', 'reglement-interieur.pdf');
 const RI_NOM = 'Règlement intérieur - Languages & Success.pdf';
+// ⚠️ MISE À JOUR DES COPIES DÉJÀ DÉPOSÉES (24/09/2026, demande de l'utilisateur pour l'audit Qualiopi).
+// assets/reglement-interieur.pdf est désormais la VERSION 2.0 corrigée (10 pages, certificat CERT_S0226_0162,
+// « N sur 10 »). Au démarrage, toute copie d'une version antérieure présente dans un dossier est remplacée par
+// elle, au même nom et à la même place. Une copie n'est reconnue QUE par l'empreinte exacte de son contenu :
+// aucun autre fichier ne peut être touché, et la mise à jour ne se refait pas (la copie a changé d'empreinte).
+// L'ancien contenu est gardé dans data/ri-anciennes/ pour pouvoir revenir en arrière.
+const RI_ANCIENNES = new Set([
+  'd3fffd8dc80ddc8e7cf79bff652727a1d10866c7be628e5dabdddb9e0a9f0534',   // version 2.0 avant correction (déposée à la main)
+  'a902e61702f4f9dab4fd8c34a2ce1607f915e53e8c0f26ba79545a8f5ad0a748',   // ancienne version (6 p.), dépôt automatique du 11/09
+  '53981c01547c688c461a656fc423ce0268673f01c5a122da9b01e11b5114613c',   // la même, compressée le 11/09
+  'a01de0b2c2c6ca68c62816f15adafe1e6bbf11d24f8930c97e515248e2e30032',   // la même, pied corrigé le 24/09 au matin
+]);
+const RI_TAILLES = new Set([628610, 603559, 228361, 218982]);   // tri rapide avant de calculer une empreinte
+function mettreAJourReglements() {
+  try {
+    if (!fs.existsSync(RI_SOURCE)) return;
+    const neuf = fs.readFileSync(RI_SOURCE), archive = path.join(DATA_DIR, 'ri-anciennes');
+    let faits = 0;
+    for (const d of db.docs) {
+      if (!d.stored) continue;
+      const f = path.join(UPLOADS_DIR, d.stored);
+      let st; try { st = fs.statSync(f); } catch (e) { continue; }
+      if (!RI_TAILLES.has(st.size)) continue;
+      const empreinte = crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+      if (!RI_ANCIENNES.has(empreinte)) continue;
+      fs.mkdirSync(archive, { recursive: true });
+      const garde = path.join(archive, d.stored);
+      if (!fs.existsSync(garde)) fs.copyFileSync(f, garde);
+      fs.writeFileSync(f + '.tmp', neuf); fs.renameSync(f + '.tmp', f);   // jamais de fichier à moitié écrit
+      d.size = neuf.length; faits++;
+    }
+    if (faits) { save(); console.log('📄 règlement intérieur : ' + faits + ' copie(s) remplacée(s) par la version 2.0 corrigée'); }
+  } catch (e) { console.error('📄 mise à jour des règlements intérieurs :', e.message); }
+}
 function deposerReglementInterieur(g, par) {
   try {
     if (!fs.existsSync(RI_SOURCE)) { console.warn('📄 règlement intérieur absent de assets/ : non déposé'); return false; }
@@ -5170,6 +5204,7 @@ async function ensureDemo() {
 }
 
 ensureDemo().then(() => {
+  mettreAJourReglements();
   if (SIMULATION) {
     // Serveur de démonstration : n'écoute que sur la machine elle-même (seul le serveur principal
     // lui parle), annonce son port par le canal du parent, et s'arrête avec lui.
