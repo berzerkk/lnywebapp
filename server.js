@@ -4918,7 +4918,7 @@ const IA_CIBLES = [
 
 function artPage(a) {
   const url = SITE_URL_PUB + '/blog/' + a.slug;
-  const img = a.image ? (a.image.startsWith('http') ? a.image : SITE_URL_PUB + '/' + a.image.replace(/^\//, '')) : SITE_URL_PUB + '/assets/og-cover.png';
+  const img = a.image ? (a.image.startsWith('http') ? a.image : SITE_URL_PUB + '/' + a.image.replace(/^\//, '')) : SITE_URL_PUB + '/assets/og-cover.png?v=2';
   const desc = a.metaDescription || a.chapo || '';
   const faq = (a.faq || []).filter(q => q && q.q && q.r);
   const graphe = {
