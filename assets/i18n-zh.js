@@ -514,6 +514,11 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "合同将从私密频道中撤回，培训师将无法再签署。您可以重新发送一份新合同。",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "忘记密码？",
+  /* ---- simulation : bascule formatrice / apprenant (25/09/2026) ---- */
+  "Voir en tant qu'apprenant (Hugo PETIT)": "以学员身份查看（Hugo PETIT）",
+  "Voir en tant que formatrice (Sophie DUPONT)": "以培训师身份查看（Sophie DUPONT）",
+  "Changement de vue…": "正在切换视图…",
+  "Le changement de vue n'a pas abouti. Réessayez dans un instant.": "无法切换视图。请稍后再试。",
   /* ---- visite guidée du formateur : étape « L'onglet Tuto » (25/09/2026) ---- */
   "L'onglet Tuto": "「视频教程」标签页",
   "Dans la fenêtre Générer un document, l'onglet Tuto rassemble neuf courtes vidéos : une introduction, puis une vidéo par document.": "在「生成文档」窗口中，「视频教程」标签页汇集了九段短视频：一段介绍，然后每个文档一段视频。",

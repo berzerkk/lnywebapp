@@ -513,6 +513,11 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Договор будет удалён из приватного канала, и преподаватель больше не сможет его подписать. Вы сможете отправить новый.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Забыли пароль?",
+  /* ---- simulation : bascule formatrice / apprenant (25/09/2026) ---- */
+  "Voir en tant qu'apprenant (Hugo PETIT)": "Смотреть как слушатель (Hugo PETIT)",
+  "Voir en tant que formatrice (Sophie DUPONT)": "Смотреть как преподаватель (Sophie DUPONT)",
+  "Changement de vue…": "Переключение вида…",
+  "Le changement de vue n'a pas abouti. Réessayez dans un instant.": "Не удалось переключить вид. Повторите попытку через некоторое время.",
   /* ---- visite guidée du formateur : étape « L'onglet Tuto » (25/09/2026) ---- */
   "L'onglet Tuto": "Вкладка «Видеоуроки»",
   "Dans la fenêtre Générer un document, l'onglet Tuto rassemble neuf courtes vidéos : une introduction, puis une vidéo par document.": "В окне «Создать документ» вкладка «Видеоуроки» собирает девять коротких видео: вводное, затем по одному на каждый документ.",

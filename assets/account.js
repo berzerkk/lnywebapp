@@ -396,11 +396,38 @@
 
   // ---- mode simulation (21/09/2026) ------------------------------------------
   // Bandeau permanent pendant la démo : personne ne doit pouvoir confondre la démo et le vrai site.
+  // Personne affichée dans la démo : la formatrice Sophie DUPONT, ou Hugo PETIT, apprenant de son
+  // dossier vide (25/09/2026). ME vient du serveur de démo : c'est lui qui dit qui l'on est.
+  function simPersonne() { return (ME && ME.role === 'eleve') ? 'hugo' : 'formatrice'; }
   function simBandeauHTML() {
+    var versHugo = simPersonne() !== 'hugo';
     return '<div class="sim-bandeau" role="status"><div class="sim-msg"><b class="sim-titre">🎭 Mode simulation</b>' +
       '<span class="sim-txt">Données fictives : rien de ce que vous faites ici ne touche les vrais dossiers ni n\'envoie d\'e-mail.</span></div>' +
-      '<div class="sim-acts"><button type="button" class="btn btn-ghost sim-recommencer">Recommencer la démo</button>' +
+      '<div class="sim-acts"><button type="button" class="btn btn-ghost sim-vue" data-vers="' + (versHugo ? 'hugo' : 'formatrice') + '">' +
+      (versHugo ? 'Voir en tant qu\'apprenant (Hugo PETIT)' : 'Voir en tant que formatrice (Sophie DUPONT)') + '</button>' +
+      '<button type="button" class="btn btn-ghost sim-recommencer">Recommencer la démo</button>' +
       '<button type="button" class="btn btn-primary sim-quitter">Quitter la simulation</button></div></div>';
+  }
+  // Changer de vue dans la MÊME démo (formatrice ↔ apprenant) : mêmes dossiers, mêmes échanges,
+  // seule la personne change. Ce qu'on vient de faire d'un côté se voit donc de l'autre.
+  // ⚠️ Avec le jeton RÉEL de l'administrateur, comme entrerSimulation (voir ci-dessous).
+  function basculerSimulation(bt, personne) {
+    var vrai = null; try { vrai = localStorage.getItem(TKEY); } catch (e) { }
+    if (!vrai) { quitterSimulation(); return; }
+    var libelle = bt.textContent; bt.disabled = true; bt.textContent = 'Changement de vue…';
+    var echec = 'Le changement de vue n\'a pas abouti. Réessayez dans un instant.';
+    fetch('/api/admin/simulation', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + vrai }, body: JSON.stringify({ personne: personne, basculer: true }) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, data: j }; }); })
+      .then(function (r) {
+        if (r.data && r.data.simulationFinie) { finDeSimulation(); return; }   // la démo s'est arrêtée entre-temps
+        if (!r.ok || !r.data.token) throw new Error(r.data.error || echec);
+        try { sessionStorage.setItem(SKEY, r.data.token); } catch (e) { throw new Error(echec); }
+        location.reload();
+      })
+      .catch(function (e) {
+        bt.disabled = false; bt.textContent = libelle;
+        alertDialog(e instanceof TypeError ? echec : (e.message || echec));
+      });
   }
   // ⚠️ Toujours avec le jeton RÉEL de l'administrateur (localStorage) : en simulation, token()
   // rendrait celui de la démo, et la demande partirait au serveur de démonstration.
@@ -413,7 +440,8 @@
     // cloche, interrogée toutes les 20 s, recevrait « simulation terminée » dans l'intervalle. Le
     // premier jet renvoyait alors l'onglet vers le VRAI espace administrateur, devant les formateurs.
     if (enSimulation()) { simEnTransition = true; if (notifTimer) { clearInterval(notifTimer); notifTimer = null; } }
-    fetch('/api/admin/simulation', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + vrai }, body: JSON.stringify({ recommencer: !!recommencer }) })
+    // « Recommencer » et « Relancer » gardent la personne affichée : on repart de zéro, pas d'ailleurs
+    fetch('/api/admin/simulation', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + vrai }, body: JSON.stringify({ recommencer: !!recommencer, personne: enSimulation() ? simPersonne() : 'formatrice' }) })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, data: j }; }); })
       .then(function (r) {
         if (!r.ok || !r.data.token) throw new Error(r.data.error || echec);
@@ -688,6 +716,7 @@
     var pb = el.querySelector('.ds-pwd'); if (pb) pb.onclick = function () { openPasswordModal(); };
     var sb = el.querySelector('.ds-sim'); if (sb) sb.onclick = function () { entrerSimulation(sb, false); };
     var sq = el.querySelector('.sim-quitter'); if (sq) sq.onclick = function () { quitterSimulation(); };
+    var sv = el.querySelector('.sim-vue'); if (sv) sv.onclick = function () { basculerSimulation(sv, sv.getAttribute('data-vers')); };
     var sr = el.querySelector('.sim-recommencer'); if (sr) sr.onclick = function () {
       confirmDialog({ title: 'Recommencer la démo ?', message: 'Tout ce qui a été fait pendant la simulation sera effacé, et la démo repartira de son état de départ.',
         confirm: 'Recommencer', onConfirm: function () { entrerSimulation(sr, true); } });

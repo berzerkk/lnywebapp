@@ -535,6 +535,11 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "The agreement will be removed from the private channel and the trainer will no longer be able to sign it. You can send a new one.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Forgotten your password?",
+  /* ---- simulation : bascule formatrice / apprenant (25/09/2026) ---- */
+  "Voir en tant qu'apprenant (Hugo PETIT)": "View as the learner (Hugo PETIT)",
+  "Voir en tant que formatrice (Sophie DUPONT)": "View as the trainer (Sophie DUPONT)",
+  "Changement de vue…": "Switching view…",
+  "Le changement de vue n'a pas abouti. Réessayez dans un instant.": "The view could not be switched. Try again in a moment.",
   /* ---- visite guidée du formateur : étape « L'onglet Tuto » (25/09/2026) ---- */
   "L'onglet Tuto": "The Tutorials tab",
   "Dans la fenêtre Générer un document, l'onglet Tuto rassemble neuf courtes vidéos : une introduction, puis une vidéo par document.": "In the Generate a document window, the Tutorials tab gathers nine short videos: an introduction, then one video per document.",

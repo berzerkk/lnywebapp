@@ -1439,11 +1439,30 @@ if (SIMULATION) {
     res.status(400).json({ error: 'Action impossible.' });
   });
 }
+// Les personnes dont l'administration peut prendre la place dans la démo : la formatrice (entrée par
+// défaut) et Hugo PETIT, l'apprenant de son dossier vide (25/09/2026, demande de l'utilisateur :
+// montrer aussi l'espace d'un apprenant, dont Sophie est la seule formatrice).
+// ⚠️ LISTE BLANCHE : SIM_PERSONNES[clé reçue] irait chercher n'importe quoi (« constructor »…).
+const SIM_VUES = { formatrice: SIM_PERSONNES.formatrice.id, hugo: SIM_PERSONNES.hugo.id };
 if (!SIMULATION) app.post('/api/admin/simulation', auth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
+  const b = req.body || {};
+  const id = (typeof b.personne === 'string' && Object.prototype.hasOwnProperty.call(SIM_VUES, b.personne)) ? SIM_VUES[b.personne] : SIM_VUES.formatrice;
+  const jetonVue = () => 'sim.' + jwt.sign({ id }, simulation.secret, { expiresIn: '12h' });
+  // ⚠️ CHANGER DE VUE n'est pas ENTRER : ni démarrage, ni notifications remises à leur état de départ.
+  // Sinon la notification que la formatrice vient de provoquer (un questionnaire envoyé à Hugo, un
+  // message) disparaîtrait au moment précis où l'on bascule pour la montrer côté apprenant.
+  if (b.basculer) {
+    if (simulation.demarrage) { try { await simulation.demarrage; } catch (e) { } }
+    // démo arrêtée entre-temps (3 h sans activité, mise à jour du site) : l'onglet affiche alors
+    // l'écran « démonstration terminée », jamais le vrai espace (409 et non 410, voir plus haut)
+    if (!simulationVivante()) return res.status(409).json({ error: 'Cette simulation est terminée.', simulationFinie: true });
+    simulation.derniere = Date.now();
+    return res.json({ token: jetonVue() });
+  }
   try {
-    await demarrerSimulation(!!(req.body || {}).recommencer);
-    res.json({ token: 'sim.' + jwt.sign({ id: SIM_PERSONNES.formatrice.id }, simulation.secret, { expiresIn: '12h' }) });
+    await demarrerSimulation(!!b.recommencer);
+    res.json({ token: jetonVue() });
   } catch (e) {
     console.error('🎭 simulation :', e.message);
     res.status(500).json({ error: 'La simulation n\'a pas pu démarrer. Réessayez dans un instant.' });

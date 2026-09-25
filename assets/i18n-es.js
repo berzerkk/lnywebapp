@@ -513,6 +513,11 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "El contrato se retirará del canal privado y el formador ya no podrá firmarlo. Podrá enviar uno nuevo.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "¿Ha olvidado su contraseña?",
+  /* ---- simulation : bascule formatrice / apprenant (25/09/2026) ---- */
+  "Voir en tant qu'apprenant (Hugo PETIT)": "Ver como alumno (Hugo PETIT)",
+  "Voir en tant que formatrice (Sophie DUPONT)": "Ver como formadora (Sophie DUPONT)",
+  "Changement de vue…": "Cambiando de vista…",
+  "Le changement de vue n'a pas abouti. Réessayez dans un instant.": "No se ha podido cambiar de vista. Inténtelo de nuevo en un momento.",
   /* ---- visite guidée du formateur : étape « L'onglet Tuto » (25/09/2026) ---- */
   "L'onglet Tuto": "La pestaña Tutoriales",
   "Dans la fenêtre Générer un document, l'onglet Tuto rassemble neuf courtes vidéos : une introduction, puis une vidéo par document.": "En la ventana Generar un documento, la pestaña Tutoriales reúne nueve vídeos cortos: una introducción y luego un vídeo por documento.",
