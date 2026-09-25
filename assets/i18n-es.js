@@ -513,6 +513,19 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "El contrato se retirará del canal privado y el formador ya no podrá firmarlo. Podrá enviar uno nuevo.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "¿Ha olvidado su contraseña?",
+  /* ---- administration : encart « Sauvegardes » (25/09/2026) ---- */
+  "Sauvegardes": "Copias de seguridad",
+  "Sauvegarde automatique :": "Copia de seguridad automática:",
+  "Désactivée : les clés Backblaze manquent dans la configuration du serveur.": "Desactivada: faltan las claves de Backblaze en la configuración del servidor.",
+  "Aucune sauvegarde réussie pour l'instant.": "Todavía no hay ninguna copia de seguridad correcta.",
+  "Dernier essai en échec :": "Último intento fallido:",
+  "Dernière copie téléchargée :": "Última copia descargada:",
+  "Aucune copie téléchargée pour l'instant.": "Todavía no se ha descargado ninguna copia.",
+  "Télécharger une copie des données": "Descargar una copia de los datos",
+  "Elle contient les données des apprenants et les secrets du site : rangez-la sur un support protégé.": "Contiene los datos de los alumnos y los secretos del sitio: guárdela en un soporte protegido.",
+  "Préparation de la copie…": "Preparando la copia…",
+  "La copie n'a pas pu être préparée. Réessayez dans un instant.": "No se ha podido preparar la copia. Inténtelo de nuevo en un momento.",
+  "Une copie est déjà en préparation. Réessayez dans un instant.": "Ya se está preparando una copia. Inténtelo de nuevo en un momento.",
   /* ---- simulation : bascule formatrice / apprenant (25/09/2026) ---- */
   "Voir en tant qu'apprenant (Hugo PETIT)": "Ver como alumno (Hugo PETIT)",
   "Voir en tant que formatrice (Sophie DUPONT)": "Ver como formadora (Sophie DUPONT)",

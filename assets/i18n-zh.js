@@ -514,6 +514,19 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "合同将从私密频道中撤回，培训师将无法再签署。您可以重新发送一份新合同。",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "忘记密码？",
+  /* ---- administration : encart « Sauvegardes » (25/09/2026) ---- */
+  "Sauvegardes": "备份",
+  "Sauvegarde automatique :": "自动备份：",
+  "Désactivée : les clés Backblaze manquent dans la configuration du serveur.": "已停用：服务器配置中缺少 Backblaze 密钥。",
+  "Aucune sauvegarde réussie pour l'instant.": "暂无成功的备份。",
+  "Dernier essai en échec :": "最近一次尝试失败：",
+  "Dernière copie téléchargée :": "最近一次下载的副本：",
+  "Aucune copie téléchargée pour l'instant.": "尚未下载任何副本。",
+  "Télécharger une copie des données": "下载数据副本",
+  "Elle contient les données des apprenants et les secrets du site : rangez-la sur un support protégé.": "其中包含学员数据和网站密钥：请存放在受保护的存储设备上。",
+  "Préparation de la copie…": "正在准备副本…",
+  "La copie n'a pas pu être préparée. Réessayez dans un instant.": "无法准备副本。请稍后再试。",
+  "Une copie est déjà en préparation. Réessayez dans un instant.": "副本正在准备中。请稍后再试。",
   /* ---- simulation : bascule formatrice / apprenant (25/09/2026) ---- */
   "Voir en tant qu'apprenant (Hugo PETIT)": "以学员身份查看（Hugo PETIT）",
   "Voir en tant que formatrice (Sophie DUPONT)": "以培训师身份查看（Sophie DUPONT）",

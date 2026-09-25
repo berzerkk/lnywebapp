@@ -1255,7 +1255,7 @@
     var users = a.users || [], groups = a.groups || [], docs = a.docs || [];
     var q = norm(adminQuery);
     function chip(key, label, count) { return '<button class="adm-chip' + (adminShow[key] ? ' on' : '') + '" type="button" data-k="' + key + '">' + label + ' (' + count + ')</button>'; }
-    var bar = '<div class="ds-card-h"><h3>Administration — vue globale</h3></div>' +
+    var bar = '<div class="ds-card-h"><h3>Administration — vue globale</h3></div>' + sauvegardesHTML(a.sauvegardes) +
       '<div class="adm-bar"><div class="adm-toggle">' + chip('dossiers', 'Dossiers', groups.length) + chip('comptes', 'Comptes', users.length) + chip('fichiers', 'Fichiers', docs.length) +
       '</div><input id="adm-search" class="adm-search" placeholder="Filtrer par nom, e-mail, fichier…" value="' + esc(adminQuery) + '" />' +
       '<button class="btn-mini adm-new" type="button">+ Créer un compte</button>' +
@@ -1314,7 +1314,58 @@
     if (!adminShow.dossiers && !adminShow.comptes && !adminShow.fichiers) sections = '<p class="ds-empty">Sélectionnez au moins une catégorie à afficher.</p>';
     return '<div class="ds-card admin-card">' + bar + '<div class="adm-body">' + sections + '</div></div>';
   }
+  // ---- admin : sauvegardes (25/09/2026) ----------------------------------------------------------
+  // Un arrêt de la sauvegarde automatique doit se VOIR : sans clés Backblaze, le serveur ne sauvegarde
+  // plus et n'envoie aucune alerte, cet encart est alors le seul à le dire. Seuils : elle tourne à 8,
+  // 12, 16 et 20 h, donc jusqu'à 12 h d'écart la nuit ; au-delà de 24 h c'est un retard, de 48 h une
+  // panne (c'est aussi le seuil de l'alerte par e-mail).
+  function sauvegardesHTML(s) {
+    if (!s) return '';
+    var auto, cls = 'ok';
+    if (!s.automatique) { cls = 'alerte'; auto = 'Désactivée : les clés Backblaze manquent dans la configuration du serveur.'; }
+    else if (!s.derniere) { cls = 'alerte'; auto = 'Aucune sauvegarde réussie pour l\'instant.'; }
+    else {
+      var age = Date.now() - s.derniere;
+      cls = age > 48 * 3600000 ? 'alerte' : (age > 24 * 3600000 ? 'retard' : 'ok');
+      auto = 'Dernière réussie ' + depuis(s.derniere) + ', le ' + fmtDate(s.derniere) + '.';
+    }
+    var echec = (s.automatique && s.statut && !s.statut.ok && (!s.derniere || (s.statut.date || 0) > s.derniere))
+      ? '<span class="adm-save-l alerte"><span>Dernier essai en échec :</span> <b>' + esc(s.statut.erreur || '') + '</b></span>' : '';
+    var c = (s.copies || [])[0];
+    return '<div class="adm-save"><div class="adm-save-txt"><b class="adm-save-t"><span aria-hidden="true">🗄</span> Sauvegardes</b>' +
+      '<span class="adm-save-l ' + cls + '"><span>Sauvegarde automatique :</span> <b>' + esc(auto) + '</b></span>' + echec +
+      (c ? '<span class="adm-save-l"><span>Dernière copie téléchargée :</span> <b>' + esc(depuis(c.date) + ', le ' + fmtDate(c.date) + ' par ' + c.par) + '</b></span>'
+        : '<span class="adm-save-l">Aucune copie téléchargée pour l\'instant.</span>') + '</div>' +
+      '<div class="adm-save-act"><button class="btn-mini adm-copie" type="button"><span aria-hidden="true">⬇</span> Télécharger une copie des données</button>' +
+      '<small class="adm-save-note">Elle contient les données des apprenants et les secrets du site : rangez-la sur un support protégé.</small></div></div>';
+  }
+  // Copie des données du site, à ranger sur le SSD. ⚠️ Par fetch, et non par un lien « ?token= » :
+  // le jeton de session finirait dans l'historique du navigateur, et cette archive est la pièce la
+  // plus sensible du site. L'archive tient en mémoire le temps de l'enregistrer.
+  function telechargerCopie(bt) {
+    var html = bt.innerHTML; bt.disabled = true; bt.textContent = 'Préparation de la copie…';
+    var echec = 'La copie n\'a pas pu être préparée. Réessayez dans un instant.';
+    fetch('/api/admin/copie-donnees', { headers: { Authorization: 'Bearer ' + token() } })
+      .then(function (r) {
+        if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.error || echec); });
+        var m = /filename="([^"]+)"/.exec(r.headers.get('Content-Disposition') || '');
+        return r.blob().then(function (b) { return { blob: b, nom: m ? m[1] : 'ls-data-copie.tar.gz' }; });
+      })
+      .then(function (x) {
+        var url = URL.createObjectURL(x.blob), a = document.createElement('a');
+        a.href = url; a.download = x.nom; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+        bt.disabled = false; bt.innerHTML = html;
+        // « Dernière copie téléchargée » se met à jour
+        api('/api/admin/overview').then(function (o) { if (o.ok) { ADMIN_OVERVIEW = o.data; rerenderAdmin(false); } });
+      })
+      .catch(function (e) {
+        bt.disabled = false; bt.innerHTML = html;
+        alertDialog(e instanceof TypeError ? echec : (e.message || echec));
+      });
+  }
   function wireAdmin() {
+    var cp = document.querySelector('.adm-copie'); if (cp) cp.onclick = function () { telechargerCopie(cp); };
     document.querySelectorAll('.adm-chip').forEach(function (t) { t.onclick = function () { var k = t.getAttribute('data-k'); adminShow[k] = !adminShow[k]; rerenderAdmin(false); }; });
     var s = document.getElementById('adm-search'); if (s) s.oninput = function () { adminQuery = s.value; rerenderAdmin(true); };
     var nb = document.querySelector('.adm-new'); if (nb) nb.onclick = openCreateAccount;

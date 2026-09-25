@@ -513,6 +513,19 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Договор будет удалён из приватного канала, и преподаватель больше не сможет его подписать. Вы сможете отправить новый.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Забыли пароль?",
+  /* ---- administration : encart « Sauvegardes » (25/09/2026) ---- */
+  "Sauvegardes": "Резервные копии",
+  "Sauvegarde automatique :": "Автоматическое резервное копирование:",
+  "Désactivée : les clés Backblaze manquent dans la configuration du serveur.": "Отключено: в конфигурации сервера нет ключей Backblaze.",
+  "Aucune sauvegarde réussie pour l'instant.": "Пока нет ни одной успешной резервной копии.",
+  "Dernier essai en échec :": "Последняя попытка не удалась:",
+  "Dernière copie téléchargée :": "Последняя скачанная копия:",
+  "Aucune copie téléchargée pour l'instant.": "Копия ещё не скачивалась.",
+  "Télécharger une copie des données": "Скачать копию данных",
+  "Elle contient les données des apprenants et les secrets du site : rangez-la sur un support protégé.": "Она содержит данные слушателей и секретные ключи сайта: храните её на защищённом носителе.",
+  "Préparation de la copie…": "Подготовка копии…",
+  "La copie n'a pas pu être préparée. Réessayez dans un instant.": "Не удалось подготовить копию. Повторите попытку через некоторое время.",
+  "Une copie est déjà en préparation. Réessayez dans un instant.": "Копия уже готовится. Повторите попытку через некоторое время.",
   /* ---- simulation : bascule formatrice / apprenant (25/09/2026) ---- */
   "Voir en tant qu'apprenant (Hugo PETIT)": "Смотреть как слушатель (Hugo PETIT)",
   "Voir en tant que formatrice (Sophie DUPONT)": "Смотреть как преподаватель (Sophie DUPONT)",

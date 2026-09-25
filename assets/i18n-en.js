@@ -535,6 +535,19 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "The agreement will be removed from the private channel and the trainer will no longer be able to sign it. You can send a new one.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Forgotten your password?",
+  /* ---- administration : encart « Sauvegardes » (25/09/2026) ---- */
+  "Sauvegardes": "Backups",
+  "Sauvegarde automatique :": "Automatic backup:",
+  "Désactivée : les clés Backblaze manquent dans la configuration du serveur.": "Disabled: the Backblaze keys are missing from the server configuration.",
+  "Aucune sauvegarde réussie pour l'instant.": "No successful backup yet.",
+  "Dernier essai en échec :": "Last attempt failed:",
+  "Dernière copie téléchargée :": "Last copy downloaded:",
+  "Aucune copie téléchargée pour l'instant.": "No copy downloaded yet.",
+  "Télécharger une copie des données": "Download a copy of the data",
+  "Elle contient les données des apprenants et les secrets du site : rangez-la sur un support protégé.": "It contains the learners' data and the site's secrets: store it on a protected drive.",
+  "Préparation de la copie…": "Preparing the copy…",
+  "La copie n'a pas pu être préparée. Réessayez dans un instant.": "The copy could not be prepared. Try again in a moment.",
+  "Une copie est déjà en préparation. Réessayez dans un instant.": "A copy is already being prepared. Try again in a moment.",
   /* ---- simulation : bascule formatrice / apprenant (25/09/2026) ---- */
   "Voir en tant qu'apprenant (Hugo PETIT)": "View as the learner (Hugo PETIT)",
   "Voir en tant que formatrice (Sophie DUPONT)": "View as the trainer (Sophie DUPONT)",
