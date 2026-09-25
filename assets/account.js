@@ -939,17 +939,135 @@
     if (document.getElementById('tpl-modal')) return;
     var m = document.createElement('div'); m.id = 'tpl-modal'; m.className = 'notif-modal';
     m.innerHTML = '<div class="nm-backdrop"></div><div class="nm-card"><div class="nm-head"><h3>Générer un document</h3><button class="nm-close" id="tpl-close" aria-label="Fermer">&times;</button></div>' +
-      '<div class="tpl-tabs"><button class="tpl-tab on" data-pane="new">Générer un nouveau document</button><button class="tpl-tab" data-pane="hist">Historique des documents</button></div>' +
+      '<div class="tpl-tabs"><button class="tpl-tab on" data-pane="new">Générer un nouveau document</button><button class="tpl-tab" data-pane="hist">Historique des documents</button><button class="tpl-tab" data-pane="tuto">Tuto</button></div>' +
       '<div class="nm-body" id="tpl-body"></div></div>';
     document.body.appendChild(m);
     m.querySelector('#tpl-close').onclick = closeTplModal;
     m.querySelector('.nm-backdrop').onclick = closeTplModal;
     m.querySelectorAll('.tpl-tab').forEach(function (t) { t.onclick = function () { renderTplPane(t.getAttribute('data-pane')); }; });
+    // onglet « Tuto » : lecteur inséré au clic ; refermer une vidéo retire son lecteur (le son s'arrête).
+    // ⚠️ « toggle » ne remonte pas : on l'écoute en phase de capture.
+    var corps = m.querySelector('#tpl-body');
+    corps.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('.tuto-play'); if (b) lancerTuto(b.closest('.tuto-lecteur')); });
+    corps.addEventListener('toggle', function (e) { if (e.target.classList && e.target.classList.contains('tuto-item') && !e.target.open) arreterTuto(e.target); }, true);
+  }
+
+  // ---- Onglet « Tuto » de « Générer un document » (25/09/2026, demande de l'utilisateur) -----------
+  // Les 9 vidéos de la chaîne YouTube « Languages & Success », chacune suivie de son texte (document Word
+  // « L&S Présentation LMS » de l'utilisateur, légèrement corrigé : fautes de frappe, et trois points que le
+  // site a changés depuis l'enregistrement — zone libre des tests obligatoire, « Date » sous « Fait à »,
+  // format PDF/Word en bas à droite).
+  // ⚠️ AUCUNE requête vers YouTube tant qu'on ne lance pas une vidéo : les images d'aperçu sont hébergées
+  // sur le site (assets/tuto/<id>.jpg, 640 × 360), et le lecteur youtube-nocookie.com n'est inséré qu'au
+  // clic sur « Lancer la vidéo ». Refermer la vidéo, changer d'onglet ou fermer la fenêtre retire le lecteur.
+  // Titres et textes restent en français (data-i18n-skip), comme les vidéos ; seules les commandes se traduisent.
+  var TUTO_VIDEOS = [
+    { id: 'N7O-e-aYXqE', titre: 'Intro - Tuto espace document', doc: 'Introduction', texte: [
+      "Tous les documents se génèrent depuis un dossier : vous ouvrez le dossier de l'apprenant, vous cliquez sur « Générer un document » et vous choisissez le modèle. À gauche, le formulaire. À droite, l'aperçu du vrai document, qui se met à jour pendant que vous tapez : ce que vous voyez à droite, c'est exactement ce qui partira. Vous pouvez zoomer et faire défiler les pages.",
+      "Les informations de l'apprenant sont préremplies depuis sa fiche : son nom, sa société, l'intitulé de la formation, la langue, les dates. Si un champ arrive vide ou s'il est incorrect, c'est que la fiche est incomplète ou mal renseignée : signalez-le à l'administration."] },
+    { id: 'TyhlTS0PBIg', titre: '1 - Interactive Worksheet', doc: '1. Interactive Worksheet',
+      quand: "après chaque séance de cours. C'est le résumé du cours pour l'apprenant.",
+      aQui: "à l'apprenant, dans la **discussion commune**.", texte: [
+      "L'Interactive Worksheet, c'est votre compte rendu de cours. Vous le complétez après chaque séance, et l'apprenant retrouve tout ce que vous avez travaillé ensemble.",
+      "En haut, l'en-tête : intitulé de la formation, langue, société, votre nom et celui de l'apprenant, les téléphones et les e-mails. Tout est prérempli, vous n'y touchez pas, sauf erreur.",
+      "Ensuite, quatre cases de notes générales, valables pour l'intégralité de la formation : Vocabulaire, Structure, Communication, Autre. Vous les remplissez après le premier cours, puis vous n'y touchez plus.",
+      "Puis les séances. Cliquez sur « Ajouter une séance » et remplissez : la date et la durée du cours que vous venez de faire (pas les cours suivants !), les objectifs de la séance, la liste des mots vus, la structure et la grammaire travaillées, la prononciation, les erreurs à éviter, et ce qu'on prépare pour la prochaine fois. Ce que vous écrivez apparaît dans l'aperçu. Votre nom apparaît automatiquement.",
+      "Pour corriger une séance, cliquez sur le crayon, puis corrigez directement : ce que vous modifiez s'intègre immédiatement dans l'aperçu, à droite de votre écran.",
+      { important: "Point important : le brouillon est enregistré dans le dossier. La fois suivante, vous retrouvez toutes vos séances et vous ajoutez simplement la nouvelle en cliquant sur « Ajouter une séance ». Le document s'enrichit au fil de la formation." },
+      "Il faut au moins une séance remplie pour envoyer. Vérifiez que vous êtes sur l'onglet « Discussion commune », choisissez PDF ou Word (en bas à droite) et cliquez sur « Envoyer dans la discussion commune ». L'apprenant le verra à sa prochaine connexion, avec une notification dans son espace."] },
+    { id: 'rNekjIEuxxg', titre: '2 - QS mi formation', doc: '2. Questionnaire de satisfaction en cours de formation',
+      quand: "à mi-parcours, environ à la moitié des heures.",
+      aQui: "à l'apprenant, qui le remplit lui-même.", texte: [
+      "Ce questionnaire, ce n'est pas vous qui le remplissez : c'est l'apprenant. Vous ne faites que le lui envoyer.",
+      "Vous n'avez que l'en-tête à vérifier : nom de l'apprenant, société, langue, intitulé de la formation, votre nom et la date. Tout est prérempli depuis la fiche. La date, c'est la date d'envoi : mettez celle du jour.",
+      "Cliquez sur « Envoyer à l'apprenant ». Il reçoit un e-mail et une notification, il répond aux questions depuis son espace, et une fois validé, le questionnaire rempli arrive en PDF dans la discussion commune du dossier. Vous êtes prévenu quand il a répondu. Vous n'avez rien d'autre à faire."] },
+    { id: 'IO23cWEtOzw', titre: '3 - QS fin formation', doc: '3. Questionnaire de fin de formation',
+      quand: "en fin de formation, en même temps que le test final.",
+      aQui: "à l'apprenant, qui le remplit lui-même.", texte: [
+      "Même principe que le questionnaire de mi-parcours : c'est l'apprenant qui répond, vous l'envoyez.",
+      "Vérifiez l'en-tête (nom de l'apprenant, société, langue, intitulé, votre nom, la date du jour), puis cliquez sur « Envoyer à l'apprenant ». Il reçoit un e-mail, il répond depuis son espace, et le PDF rempli revient dans la discussion commune.",
+      "Envoyez-le à la fin de la formation, pas avant : c'est son bilan."] },
+    { id: 'nnLlO1BztkI', titre: '4 - Attestation de fin', doc: '4. Attestation de fin de stage',
+      quand: "à la toute fin de la formation, une fois le test final passé et le résultat connu.",
+      aQui: "à l'apprenant, pour signature. Vous signez en premier, lui ensuite.", texte: [
+      "L'attestation de fin de stage est un document officiel, signé par l'administration, par vous et par l'apprenant. C'est vous qui la préparez.",
+      "L'en-tête est prérempli : nom de l'apprenant, société, intitulé, votre nom, date de début et date de fin, durée totale, la ligne « Dont » qui détaille les heures, le lieu, et le représentant, Antonin HATTABE. Vérifiez les dates et la durée : elles doivent correspondre à ce qui a réellement été fait.",
+      "Ensuite, les objectifs de la formation : une ligne par objectif (ils doivent correspondre aux objectifs inscrits dans l'Interactive Worksheet). Trois lignes sont proposées, vous pouvez en ajouter ou en retirer. Une ligne laissée vide n'apparaît pas.",
+      "Puis l'évaluation des acquis : une ligne par compétence, avec le niveau à côté : Acquis, En cours d'acquisition ou Non acquis. Là aussi, ajoutez ou retirez des lignes. Ce tableau apparaît toujours sur le document, même vide : remplissez-le.",
+      "En bas : le niveau atteint, la certification (préremplie si elle figure dans la fiche), la date de l'évaluation, le résultat. Si vous ne le connaissez pas encore, laissez-le vide. Puis vos commentaires. « Fait à » et « Date » sont préremplis : Nice et la date du jour.",
+      "Enfin, votre signature : tracez-la à la souris ou au doigt, ou téléversez une image. Sans signature, l'envoi est refusé.",
+      "Cliquez sur « Envoyer à l'apprenant pour signature ». Il reçoit un e-mail, il relit le document en entier, il signe, et l'attestation finale, avec les deux signatures et le tampon, arrive dans la discussion commune. Vous recevez un e-mail quand c'est signé."] },
+    { id: 'Jo-zgE7Zufk', titre: '5 - Test mi parcours', doc: '5. Test de mi-parcours de formation',
+      quand: "à mi-formation.",
+      aQui: "dans la « Discussion commune » si l'apprenant doit voir son résultat, dans le canal privé si c'est pour l'administration seulement.", texte: [
+      "Ce document sert à consigner le résultat du test de mi-parcours et votre appréciation.",
+      "L'en-tête est prérempli : nom de l'apprenant, société, langue, intitulé, votre nom, la date. Mettez la date du test.",
+      "Ensuite, deux champs à remplir : « Résultat », où vous notez le score ou le niveau obtenu, et « Appréciation formateur », où vous rédigez votre analyse en quelques phrases.",
+      "En dessous, une zone libre avec mise en forme : gras, listes, tableaux, et même des QCM. Elle est obligatoire : c'est là que vous mettez le contenu du test (les exercices, les corrections, ou un lien : une adresse en https:// devient un lien cliquable). Cette zone apparaît sur le document sans titre, juste après l'appréciation.",
+      "Choisissez PDF ou Word, et regardez le bouton : il vous dit dans quel onglet le document va partir. Sur « Discussion commune », l'apprenant le voit. Sur « Privé », il ne le voit pas. Choisissez l'onglet avant de cliquer."] },
+    { id: '06w_3TV45Ik', titre: '6 - Test fin de formation', doc: '6. Test de fin de formation',
+      quand: "lors du dernier cours, en même temps que le questionnaire de fin de formation.",
+      aQui: "comme le test de mi-parcours : discussion commune ou canal privé.", texte: [
+      "C'est exactement le même formulaire que le test de mi-parcours, mais pour le test final.",
+      "En-tête prérempli, date du test, puis le résultat, votre appréciation et la zone libre, obligatoire ici aussi, avec les exercices ou les corrections.",
+      "Faites-le avant l'attestation : le résultat que vous notez ici, c'est celui que vous reporterez dans l'attestation de fin de stage si aucune certification n'est prévue. Envoyez-le dans l'onglet voulu, commun ou privé."] },
+    { id: 'W-grit3_Tl0', titre: '7 - QS formateur', doc: '7. Fiche satisfaction formateur',
+      quand: "à la fin de la formation.",
+      aQui: "à l'administration uniquement. Cette fiche part toujours dans le canal privé, l'apprenant ne la voit jamais.", texte: [
+      "La fiche satisfaction formateur, c'est votre bilan à vous, pour l'administration. L'apprenant ne la voit pas : elle part automatiquement dans le canal privé, quel que soit l'onglet ouvert.",
+      "L'en-tête : votre nom, la langue, le nom de l'apprenant, l'intitulé, la date. Tout est prérempli.",
+      "Ensuite, sept questions en trois parties. En amont de la formation : l'apprenant avait-il les prérequis, avez-vous eu les documents nécessaires. Déroulement : y a-t-il eu des problèmes de connexion, des adaptations à faire. Bilan : la formation correspondait-elle aux besoins, s'est-elle déroulée comme prévu. Pour chaque question, vous cochez : Oui tout à fait, Partiellement, Pas vraiment, ou Non, pas du tout.",
+      "La dernière question est ouverte : quelles améliorations pourrions-nous apporter. Cochez Oui ou Non, et écrivez vos remarques dans le commentaire. C'est là que vos retours nous sont le plus utiles.",
+      "Cliquez sur « Envoyer dans le canal privé »."] },
+    { id: 'su50BD748cY', titre: '8 - Feuille de présence', doc: '8. Feuille de présence',
+      quand: "à la fin de chaque mois de cours, ou à la fin d'un bloc de séances. Le champ « Mois » vous guide.",
+      aQui: "à l'apprenant, pour signature.", texte: [
+      "La feuille de présence est une pièce justificative : elle doit être signée par vous et par l'apprenant.",
+      "Première étape : en haut du formulaire, sélectionnez le type de feuille : « Présentiel / Distanciel » pour vos cours, ou « E-learning » pour le suivi d'assiduité sur la plateforme ; celle-là est signée par l'administration, pas par vous.",
+      "L'en-tête est prérempli : le mois, la langue, votre nom, la formation, l'apprenant, la durée prévue, la société dans « Compte », le lieu, la référence de proposition et la ville. Vérifiez le mois.",
+      "Pour une feuille Présentiel / Distanciel, vous ajoutez vos séances une par une : le créneau, c'est la ligne de la grille sur laquelle la séance se place (prenez-les dans l'ordre) ; puis la date, le jour, l'heure de début, l'heure de fin et la durée. Chaque séance doit avoir un créneau différent. « Ajouter une séance » pour la suivante.",
+      "Pour une feuille E-learning, vous n'avez que trois champs : le nombre d'heures prévues, le nombre d'heures de connexion réalisées, et la date du rapport.",
+      "Ensuite, votre signature, à la souris, au doigt ou en image. Sauf pour l'E-learning, où vous ne signez pas : la signature de l'administration est apposée automatiquement.",
+      "Cliquez sur « Envoyer à l'apprenant pour signature ». Il reçoit un e-mail, il signe depuis son espace, et la feuille signée des deux côtés arrive dans la discussion commune. Vous recevez un e-mail. Tant qu'il n'a pas signé, vous pouvez encore modifier la feuille depuis le dossier."] }
+  ];
+  function tutoGras(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
+  function tutoFacadeHTML(id) {
+    return '<img src="/assets/tuto/' + id + '.jpg" alt="" loading="lazy" width="640" height="360" />' +
+      '<button type="button" class="tuto-play" aria-label="Lancer la vidéo"><span aria-hidden="true">▶</span> Lancer la vidéo</button>';
+  }
+  function tutoHTML() {
+    return '<p class="tuto-intro">Neuf vidéos courtes pour prendre en main l\'espace documents : une introduction, puis une vidéo par document, chacune suivie de son texte.</p>' +
+      '<p class="tuto-note">Les vidéos sont hébergées sur YouTube : rien n\'est chargé depuis YouTube avant que vous ne lanciez une vidéo.</p>' +
+      '<div class="tuto-list">' + TUTO_VIDEOS.map(function (v, i) {
+        var texte = (v.quand ? '<p><b>Quand :</b> ' + tutoGras(v.quand) + '</p>' : '') + (v.aQui ? '<p><b>À qui :</b> ' + tutoGras(v.aQui) + '</p>' : '') +
+          v.texte.map(function (p) { return typeof p === 'string' ? '<p>' + tutoGras(p) + '</p>' : '<p class="tuto-important">' + tutoGras(p.important) + '</p>'; }).join('');
+        return '<details class="tuto-item"' + (i === 0 ? ' open' : '') + '>' +
+          '<summary><img class="tuto-mini" src="/assets/tuto/' + v.id + '.jpg" alt="" loading="lazy" width="96" height="54" />' +
+          '<span class="tuto-titre" data-i18n-skip>' + esc(v.titre) + '</span><span class="tuto-chev" aria-hidden="true">▾</span></summary>' +
+          '<div class="tuto-corps"><div class="tuto-lecteur" data-v="' + v.id + '">' + tutoFacadeHTML(v.id) + '</div>' +
+          '<a class="tuto-yt" href="https://youtu.be/' + v.id + '" target="_blank" rel="noopener">Regarder sur YouTube ↗</a>' +
+          '<div class="tuto-texte" data-i18n-skip><h5>' + esc(v.doc) + '</h5>' + texte + '</div></div></details>';
+      }).join('') + '</div>';
+  }
+  function lancerTuto(box) {
+    if (!box || box.classList.contains('lance')) return;
+    var id = box.getAttribute('data-v'), v = TUTO_VIDEOS.filter(function (x) { return x.id === id; })[0];
+    if (!v) return;
+    box.classList.add('lance');
+    box.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0" title="' + esc(v.titre) + '" ' +
+      'allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+  }
+  // retire tout lecteur ouvert sous `racine` et remet l'image d'aperçu : c'est ce qui arrête le son
+  function arreterTuto(racine) {
+    if (!racine) return;
+    racine.querySelectorAll('.tuto-lecteur.lance').forEach(function (box) { box.classList.remove('lance'); box.innerHTML = tutoFacadeHTML(box.getAttribute('data-v')); });
   }
   function renderTplPane(pane) {
     var m = document.getElementById('tpl-modal'); if (!m) return;
     m.querySelectorAll('.tpl-tab').forEach(function (t) { t.classList.toggle('on', t.getAttribute('data-pane') === pane); });
+    m.querySelector('.nm-card').classList.toggle('tuto-large', pane === 'tuto');   // vidéos et texte : fenêtre plus large
     var body = document.getElementById('tpl-body');
+    if (pane === 'tuto') { body.innerHTML = tutoHTML(); body.scrollTop = 0; return; }
     if (pane === 'new') {
       body.innerHTML = genTargetsHTML() + '<p class="ds-empty" style="margin:0 0 12px">Choisissez le document à générer :</p><ul class="tpl-list">' +
         '<li class="tpl-item" data-tpl="interactive"><span class="tpl-ic">📄</span><span class="c-name">1 - Interactive Worksheet<small>Résumé de cours à partager à l\'apprenant</small></span><span class="tpl-go">→</span></li>' +
@@ -984,7 +1102,7 @@
       });
     }
   }
-  function closeTplModal() { var m = document.getElementById('tpl-modal'); if (m) { m.classList.remove('open'); document.body.style.overflow = ''; } }
+  function closeTplModal() { var m = document.getElementById('tpl-modal'); if (m) { arreterTuto(m); m.classList.remove('open'); document.body.style.overflow = ''; } }
   // ré-ouvre le bon générateur depuis l'historique (worksheet = duplique depuis snapshot, autres = nouveau formulaire prérempli)
   function reopenFromHistory(x) {
     var t = x.tpl || x.kind;

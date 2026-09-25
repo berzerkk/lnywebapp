@@ -514,6 +514,12 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "合同将从私密频道中撤回，培训师将无法再签署。您可以重新发送一份新合同。",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "忘记密码？",
+  /* ---- onglet « Tuto » de « Générer un document » (25/09/2026) ; titres et textes des vidéos en français ---- */
+  "Tuto": "视频教程",
+  "Neuf vidéos courtes pour prendre en main l'espace documents : une introduction, puis une vidéo par document, chacune suivie de son texte.": "九段短视频，帮助您上手文档空间：一段介绍，然后每个文档一段视频，每段视频下方附有文字说明。",
+  "Les vidéos sont hébergées sur YouTube : rien n'est chargé depuis YouTube avant que vous ne lanciez une vidéo.": "视频托管在 YouTube 上：在您播放视频之前，不会从 YouTube 加载任何内容。",
+  "Lancer la vidéo": "播放视频",
+  "Regarder sur YouTube ↗": "在 YouTube 上观看 ↗",
   /* ---- fenêtres de document : consignes, boutons et messages (23/09/2026) ; les champs restent en français ---- */
   "Supprimer": "删除",
   "Information": "提示",

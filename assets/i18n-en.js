@@ -535,6 +535,12 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "The agreement will be removed from the private channel and the trainer will no longer be able to sign it. You can send a new one.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Forgotten your password?",
+  /* ---- onglet « Tuto » de « Générer un document » (25/09/2026) ; titres et textes des vidéos en français ---- */
+  "Tuto": "Tutorials",
+  "Neuf vidéos courtes pour prendre en main l'espace documents : une introduction, puis une vidéo par document, chacune suivie de son texte.": "Nine short videos to get started with the document portal: an introduction, then one video per document, each followed by its text.",
+  "Les vidéos sont hébergées sur YouTube : rien n'est chargé depuis YouTube avant que vous ne lanciez une vidéo.": "The videos are hosted on YouTube: nothing is loaded from YouTube until you start a video.",
+  "Lancer la vidéo": "Play the video",
+  "Regarder sur YouTube ↗": "Watch on YouTube ↗",
   /* ---- fenêtres de document : consignes, boutons et messages (23/09/2026) ; les champs restent en français ---- */
   "Supprimer": "Delete",
   "Information": "Information",

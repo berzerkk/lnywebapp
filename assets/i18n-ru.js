@@ -513,6 +513,12 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Договор будет удалён из приватного канала, и преподаватель больше не сможет его подписать. Вы сможете отправить новый.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Забыли пароль?",
+  /* ---- onglet « Tuto » de « Générer un document » (25/09/2026) ; titres et textes des vidéos en français ---- */
+  "Tuto": "Видеоуроки",
+  "Neuf vidéos courtes pour prendre en main l'espace documents : une introduction, puis une vidéo par document, chacune suivie de son texte.": "Девять коротких видео, чтобы освоить раздел документов: вводное видео, затем по одному видео на каждый документ, под каждым — его текст.",
+  "Les vidéos sont hébergées sur YouTube : rien n'est chargé depuis YouTube avant que vous ne lanciez une vidéo.": "Видео размещены на YouTube: с YouTube ничего не загружается, пока вы не запустите видео.",
+  "Lancer la vidéo": "Запустить видео",
+  "Regarder sur YouTube ↗": "Смотреть на YouTube ↗",
   /* ---- fenêtres de document : consignes, boutons et messages (23/09/2026) ; les champs restent en français ---- */
   "Supprimer": "Удалить",
   "Information": "Информация",
