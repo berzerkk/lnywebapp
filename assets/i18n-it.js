@@ -513,19 +513,6 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Il contratto sarà rimosso dal canale privato e il formatore non potrà più firmarlo. Potrete inviarne uno nuovo.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Password dimenticata?",
-  /* ---- administration : encart « Sauvegardes » (25/09/2026) ---- */
-  "Sauvegardes": "Backup",
-  "Sauvegarde automatique :": "Backup automatico:",
-  "Désactivée : les clés Backblaze manquent dans la configuration du serveur.": "Disattivato: nella configurazione del server mancano le chiavi Backblaze.",
-  "Aucune sauvegarde réussie pour l'instant.": "Ancora nessun backup riuscito.",
-  "Dernier essai en échec :": "Ultimo tentativo non riuscito:",
-  "Dernière copie téléchargée :": "Ultima copia scaricata:",
-  "Aucune copie téléchargée pour l'instant.": "Ancora nessuna copia scaricata.",
-  "Télécharger une copie des données": "Scarica una copia dei dati",
-  "Elle contient les données des apprenants et les secrets du site : rangez-la sur un support protégé.": "Contiene i dati degli allievi e i segreti del sito: conservala su un supporto protetto.",
-  "Préparation de la copie…": "Preparazione della copia…",
-  "La copie n'a pas pu être préparée. Réessayez dans un instant.": "Impossibile preparare la copia. Riprova tra un istante.",
-  "Une copie est déjà en préparation. Réessayez dans un instant.": "Una copia è già in preparazione. Riprova tra un istante.",
   /* ---- simulation : bascule formatrice / apprenant (25/09/2026) ---- */
   "Voir en tant qu'apprenant (Hugo PETIT)": "Vedi come allievo (Hugo PETIT)",
   "Voir en tant que formatrice (Sophie DUPONT)": "Vedi come formatrice (Sophie DUPONT)",

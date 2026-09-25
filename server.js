@@ -137,11 +137,12 @@ if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
 // ⚠️ Toute NOUVELLE collection doit figurer ici : normalizeDB la crée alors toute seule sur les
 // bases déjà en service, production comprise. Oubliée, elle vaut undefined au premier accès.
-const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], attestations: [], contrats: [], contratRefs: [], logins: [], copiesTelechargees: [], demoSeeded: false, articles: [], secret: crypto.randomBytes(32).toString('hex') });
+const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], attestations: [], contrats: [], contratRefs: [], logins: [], demoSeeded: false, articles: [], secret: crypto.randomBytes(32).toString('hex') });
 // ⚠️ db.docVersions (compteur de versions PAR GÉNÉRATION) est abandonné depuis le 16/09/2026 : la
 // version d'un document est celle de son modèle (VERSIONS_MODELES). On retire le champ des bases
 // existantes pour qu'aucun code ne soit tenté de le relire.
-function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys(def)) { if (d[k] == null) d[k] = def[k]; } delete d.docVersions; return migrateGroups(d); }
+function normalizeDB(d) { const def = DB_DEFAULTS(); for (const k of Object.keys(def)) { if (d[k] == null) d[k] = def[k]; } delete d.docVersions; delete d.copiesTelechargees; return migrateGroups(d); }
+// (copiesTelechargees : trace du bouton de copie des données, retiré le 25/09/2026 à la demande de l'utilisateur)
 // MIGRATION (27/07/2026) : un dossier passe de { prof, eleve } (une seule personne de chaque côté)
 // à { profs: [...], eleves: [...] }. Les bases existantes (dont la prod) sont converties au chargement ;
 // les anciens champs sont retirés pour qu'aucun code ne puisse en dépendre par accident.
@@ -1408,51 +1409,6 @@ app.post('/api/admin/backup-run', auth, async (req, res) => {
   try { const st = await runOffsiteBackup('manuel', !!(req.body || {}).force); res.json({ ok: !!st.ok, status: st }); }
   finally { offsiteRunning = false; }
 });
-// ---- copie des données à télécharger (25/09/2026, demande de l'utilisateur) ------------------
-// Une copie HORS SERVEUR que l'administration range elle-même, sur son SSD : la même archive que
-// celles envoyées à Backblaze (db.json + uploads, hors sauvegardes locales), donc la même procédure
-// de restauration (RESTORE.md). ⚠️ Elle contient les données personnelles des apprenants, les
-// hachages des mots de passe et la clé de session du site : administration seulement, et chaque
-// téléchargement est noté (date, personne) et affiché dans la vue d'administration.
-// ⚠️ L'archive est construite ENTIÈRE avant l'envoi, avec sa taille annoncée : un envoi coupé en
-// route est alors reconnu par le navigateur, au lieu de laisser une archive tronquée qui aurait
-// l'air complète. Une seule copie à la fois (une construction lit tout data/).
-let copieEnCours = false;
-app.get('/api/admin/copie-donnees', auth, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
-  if (copieEnCours) return res.status(409).json({ error: 'Une copie est déjà en préparation. Réessayez dans un instant.' });
-  copieEnCours = true;
-  // nom en heure de Paris (le conteneur est en UTC) : c'est l'heure que l'administration a en tête
-  const p = {}; new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-    .formatToParts(new Date()).forEach(x => { p[x.type] = x.value; });
-  const nom = 'ls-data-' + p.year + '-' + p.month + '-' + p.day + '-' + p.hour + 'h' + p.minute + '-copie.tar.gz';
-  const tmp = path.join(os.tmpdir(), 'ls-copie-' + crypto.randomBytes(6).toString('hex') + '.tar.gz');
-  let libere = false;
-  const liberer = () => { if (libere) return; libere = true; copieEnCours = false; fs.unlink(tmp, () => { }); };
-  try {
-    await buildDataArchive(tmp);
-    const taille = fs.statSync(tmp).size;
-    res.set({ 'Content-Type': 'application/gzip', 'Content-Length': String(taille), 'Content-Disposition': 'attachment; filename="' + nom + '"' });
-    const rs = fs.createReadStream(tmp);
-    res.on('finish', () => {
-      // envoyée en entier : on la note (les 20 dernières), c'est ce que la vue d'administration affiche
-      db.copiesTelechargees = (db.copiesTelechargees || []).concat({ date: Date.now(), par: req.user.id }).slice(-20);
-      save();
-      console.log('🗄 copie des données téléchargée par ' + fullName(req.user.id) + ' (' + Math.round(taille / 1024) + ' ko)');
-    });
-    // réponse terminée OU abandonnée (onglet fermé) : on ferme la lecture, et le fichier temporaire
-    // n'est effacé qu'une fois le fichier réellement fermé (sous Windows, un fichier ouvert ne
-    // s'efface pas)
-    res.on('close', () => rs.destroy());
-    rs.on('close', liberer);
-    rs.on('error', (e) => { console.error('🗄 copie des données :', e.message); res.destroy(); });
-    rs.pipe(res);
-  } catch (e) {
-    liberer();
-    console.error('🗄 copie des données :', e.message);
-    if (!res.headersSent) res.status(500).json({ error: 'La copie n\'a pas pu être préparée. Réessayez dans un instant.' });
-  }
-});
 // historique de connexions (admin) — global ou filtré par compte (?user=<id>)
 app.get('/api/admin/logins', auth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs.' });
@@ -2011,15 +1967,7 @@ app.get('/api/admin/overview', auth, (req, res) => {
     envois: (u.envois || []).map(e => ({ date: e.date, type: e.type, etat: e.etat, reponse: e.reponse || null, erreur: e.erreur || null })),
     lastSeen: u.lastSeen || null
   }));
-  // état des sauvegardes (25/09/2026) : un arrêt de la sauvegarde automatique doit se VOIR. Sans clés
-  // Backblaze, le serveur ne sauvegarde plus et n'envoie aucune alerte : seul cet affichage le dit.
-  const st = db.backupStatus || null;
-  const sauvegardes = {
-    automatique: !!OFFSITE, mode: OFFSITE ? OFFSITE.mode : null, derniere: db.lastOffsiteBackup || null,
-    statut: st ? { ok: !!st.ok, date: st.date || null, erreur: st.ok ? null : (st.error || null) } : null,
-    copies: (db.copiesTelechargees || []).slice(-5).reverse().map(c => ({ date: c.date, par: fullName(c.par) }))
-  };
-  res.json({ users, groups, docs, sauvegardes });
+  res.json({ users, groups, docs });
 });
 
 // ---- génération de documents : Interactive Worksheet -----------------------

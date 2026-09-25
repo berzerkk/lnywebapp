@@ -806,23 +806,6 @@ footer a:hover{color:#fff8ef}
 @media(max-width:560px){.admin-users li{align-items:flex-start}.admin-users li .c-name{flex:1 1 calc(100% - 58px)}.admin-users li .c-name small{overflow-wrap:normal}}
 .adm-contacts{color:var(--accent)!important;margin-top:2px}
 .adm-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
-/* Sauvegardes (25/09/2026) : état de la sauvegarde automatique + copie à télécharger. Couleurs de la
-   charte : vert des questionnaires remplis, ambre, rouge des alertes. */
-.adm-save{display:flex;align-items:center;justify-content:space-between;gap:12px 18px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
-.adm-save-txt{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 320px}
-.adm-save-t{font-size:14px;color:var(--ink)}
-.adm-save-l{font-size:13px;line-height:1.45;color:var(--ink-soft);overflow-wrap:anywhere}
-.adm-save-l b{font-weight:600;color:var(--ink)}
-.adm-save-l.ok b{color:#1f7a5a}
-.adm-save-l.retard b{color:#8a6a34}
-.adm-save-l.alerte b{color:#a8331f}
-.adm-save-act{display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-width:330px}
-.adm-save-note{font-size:11.5px;line-height:1.4;color:var(--ink-soft);text-align:right}
-@media (max-width:620px){
-  .adm-save-act{align-items:stretch;max-width:none;width:100%}
-  .adm-save-act .btn-mini{min-height:44px;white-space:normal}
-  .adm-save-note{text-align:left}
-}
 .adm-toggle{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:4px}
 .adm-tab{border:0;background:none;font:inherit;font-weight:600;font-size:13px;color:var(--ink-soft);padding:7px 14px;border-radius:999px;cursor:pointer;transition:.15s}
 .adm-tab.on{background:var(--accent);color:#fff}
