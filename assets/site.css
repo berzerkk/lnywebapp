@@ -1058,7 +1058,9 @@ footer a:hover{color:#fff8ef}
 .gen-chan{margin-right:auto;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:8px}
 .gen-chan select{font:inherit;font-size:13.5px;padding:7px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg-card)}
 /* modale plein écran (génération) */
-.gen-full{max-width:980px;width:calc(100vw - 32px);height:calc(100vh - 32px);max-height:calc(100vh - 32px);margin:16px auto}
+/* dvh (répété après vh, ignoré des navigateurs qui ne le connaissent pas) : sur iPhone, 100vh compte aussi
+   la place de la barre de Safari ; le bas de la fenêtre, où sont les boutons d'envoi, passait dessous */
+.gen-full{max-width:980px;width:calc(100vw - 32px);height:calc(100vh - 32px);height:calc(100dvh - 32px);max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);margin:16px auto}
 .gen-full .nm-body{flex:1}
 /* ---- Aperçu en direct du document (21/09/2026) : formulaire à gauche, vrai PDF à droite ---- */
 .gen-full.avec-apercu{max-width:1560px}

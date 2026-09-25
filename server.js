@@ -612,10 +612,14 @@ const pubFull = (u) => u ? Object.assign(pub(u), { profile: u.profile || {} }) :
 // ⚠️ Le champ vit au premier niveau du user, JAMAIS dans `profile` : cleanProfile reconstruit
 // `profile` par liste blanche à chaque PATCH /api/users/:id, le drapeau y serait effacé au premier
 // enregistrement de fiche par l'admin — et `profile` est exposé aux tiers par pubFull.
-// ⚠️ N'incrémenter TUTO_VERSION que si la visite doit être revue par TOUT LE MONDE (refonte de
-// l'interface) : tous les formateurs et apprenants la reverraient à leur connexion suivante.
-const TUTO_VERSION = 1;
-const tutoAVoir = (u) => !!u && u.role !== 'admin' && +(u.tutoVu || 0) < TUTO_VERSION;
+// ⚠️ La version se compte PAR RÔLE : avancer celle d'un rôle relance la visite UNE fois chez tous
+// les comptes de ce rôle (à leur connexion suivante), et chez eux seulement. Ne l'avancer que si
+// la visite de ce rôle a changé au point de devoir être revue.
+//   prof 2 (25/09/2026) : étape « L'onglet Tuto » ajoutée, visite rejouée une fois chez tous les
+//   formateurs à la demande de l'utilisateur. eleve 1 : inchangée depuis la mise en service.
+const TUTO_VERSIONS = { prof: 2, eleve: 1 };
+const tutoVersion = (u) => TUTO_VERSIONS[u && u.role] || 1;
+const tutoAVoir = (u) => !!u && u.role !== 'admin' && +(u.tutoVu || 0) < tutoVersion(u);
 // Vue de SOI-MÊME. ⚠️ pubFull sert AUSSI à sérialiser les AUTRES membres d'un dossier (groupView)
 // et tous les comptes (/api/admin/overview) : ce qui ne regarde que la personne elle-même se pose
 // ici, jamais dans pub/pubFull — sinon un formateur saurait si son apprenant a vu la visite.
@@ -1455,8 +1459,9 @@ app.post('/api/tuto/vu', auth, (req, res) => {
   // Le client annonce donc qui il croit être, et on refuse si la session a changé sous ses pieds.
   if (req.body && req.body.user && req.body.user !== req.user.id) return res.status(409).json({ error: 'Session changée.' });
   if (req.user.role === 'admin') return res.json({ ok: true });                 // sans objet
-  if (+(req.user.tutoVu || 0) >= TUTO_VERSION) return res.json({ ok: true });   // déjà fait : pas de save() inutile
-  req.user.tutoVu = TUTO_VERSION;   // req.user EST l'objet vivant de db.users (auth → realUser)
+  const v = tutoVersion(req.user);
+  if (+(req.user.tutoVu || 0) >= v) return res.json({ ok: true });   // déjà fait : pas de save() inutile
+  req.user.tutoVu = v;   // req.user EST l'objet vivant de db.users (auth → realUser)
   save();
   res.json({ ok: true });
 });
