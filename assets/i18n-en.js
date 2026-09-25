@@ -535,6 +535,10 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "The agreement will be removed from the private channel and the trainer will no longer be able to sign it. You can send a new one.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Forgotten your password?",
+  /* ---- visite guidée du formateur : étape « L'onglet Tuto » (25/09/2026) ---- */
+  "L'onglet Tuto": "The Tutorials tab",
+  "Dans la fenêtre Générer un document, l'onglet Tuto rassemble neuf courtes vidéos : une introduction, puis une vidéo par document.": "In the Generate a document window, the Tutorials tab gathers nine short videos: an introduction, then one video per document.",
+  "Chaque vidéo est suivie de son texte. Revenez-y dès que vous avez un doute.": "Each video is followed by its text. Come back to it whenever you are unsure.",
   /* ---- onglet « Tuto » de « Générer un document » (25/09/2026) ; titres et textes des vidéos en français ---- */
   "Tuto": "Tutorials",
   "Neuf vidéos courtes pour prendre en main l'espace documents : une introduction, puis une vidéo par document, chacune suivie de son texte.": "Nine short videos to get started with the document portal: an introduction, then one video per document, each followed by its text.",

@@ -514,6 +514,10 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "合同将从私密频道中撤回，培训师将无法再签署。您可以重新发送一份新合同。",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "忘记密码？",
+  /* ---- visite guidée du formateur : étape « L'onglet Tuto » (25/09/2026) ---- */
+  "L'onglet Tuto": "「视频教程」标签页",
+  "Dans la fenêtre Générer un document, l'onglet Tuto rassemble neuf courtes vidéos : une introduction, puis une vidéo par document.": "在「生成文档」窗口中，「视频教程」标签页汇集了九段短视频：一段介绍，然后每个文档一段视频。",
+  "Chaque vidéo est suivie de son texte. Revenez-y dès que vous avez un doute.": "每段视频下方附有文字说明。有疑问时，随时回来查看。",
   /* ---- onglet « Tuto » de « Générer un document » (25/09/2026) ; titres et textes des vidéos en français ---- */
   "Tuto": "视频教程",
   "Neuf vidéos courtes pour prendre en main l'espace documents : une introduction, puis une vidéo par document, chacune suivie de son texte.": "九段短视频，帮助您上手文档空间：一段介绍，然后每个文档一段视频，每段视频下方附有文字说明。",

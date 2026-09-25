@@ -2689,6 +2689,13 @@
       'À droite, l\'aperçu du document se met à jour pendant que vous tapez. Le bouton d\'envoi dépose le document dans l\'onglet ouvert du dossier.',
       'Les informations de l\'apprenant viennent de sa fiche. Un champ vide veut dire que la fiche est incomplète : demandez à l\'administration de la remplir.'
     ] },
+    // ⚠️ `ouvrirModeles` : la fenêtre « Générer un document » est ouverte POUR DE VRAI, sur le dossier
+    // d'exemple, le temps de l'étape (tutoModeles) ; `fixe` : l'ancre vit dans une fenêtre en
+    // position fixe, faire défiler la page ne la rapprocherait pas.
+    { ancre: '#tpl-modal .tpl-tab[data-pane="tuto"]', ouvrirDossier: true, ouvrirModeles: true, fixe: true, titre: 'L\'onglet Tuto', paras: [
+      'Dans la fenêtre Générer un document, l\'onglet Tuto rassemble neuf courtes vidéos : une introduction, puis une vidéo par document.',
+      'Chaque vidéo est suivie de son texte. Revenez-y dès que vous avez un doute.'
+    ] },
     { ancre: 'centre', titre: 'Questionnaires et feuilles de présence', paras: [
       'Ces deux-là partent chez l\'apprenant pour être remplis ou signés : il reçoit une notification et un e-mail.',
       'Une fois rempli ou signé, le document revient tout seul dans la discussion commune.'
@@ -3017,7 +3024,7 @@
     TUTO_R0 = avant ? { top: avant.r.top, left: avant.r.left, width: avant.r.width, height: avant.r.height } : null;
     TUTO_Y0 = window.scrollY;
     TUTO_Y1 = TUTO_Y0;
-    var t = (e && e.ancre !== 'centre') ? document.querySelector(e.ancre) : null;
+    var t = (e && e.ancre !== 'centre' && !e.fixe) ? document.querySelector(e.ancre) : null;
     // ⚠️ PAS de centrage vertical : centrer la cible ne laisse qu'une demi-fenêtre de chaque côté
     // et la carte s'y retrouve écrasée. On pose la cible HAUT et la carte prend toute la place
     // en dessous ; si la cible est trop grande, on la pose bas et la carte passe au-dessus.
@@ -3068,7 +3075,25 @@
     // le texte est déjà à l'écran ; le dossier d'exemple est monté en mémoire, donc la peinture
     // est synchrone : on peut mesurer l'ancre juste après
     if (e.ouvrirDossier) tutoDemoOn();
+    tutoModeles(!!e.ouvrirModeles);
     tutoPlacer();
+  }
+
+  // Étape « L'onglet Tuto » : la fenêtre des modèles est ouverte sur le dossier d'exemple (l'onglet
+  // « Nouveau document » se dessine sans aucun appel au serveur), puis refermée dès qu'on quitte
+  // l'étape ou la visite. Sa fenêtre s'ouvre en 0,35 s d'animation : on replace le projecteur et la
+  // carte une fois qu'elle est posée.
+  var TUTO_MODELES = false, TUTO_MOD_T = null;
+  function tutoModeles(ouvrir) {
+    if (TUTO_MOD_T) { clearTimeout(TUTO_MOD_T); TUTO_MOD_T = null; }
+    if (!ouvrir) { if (TUTO_MODELES) { TUTO_MODELES = false; closeTplModal(); } return; }
+    var m = document.getElementById('tpl-modal');
+    if (!(TUTO_MODELES && m && m.classList.contains('open'))) { openTemplatePicker(); TUTO_MODELES = true; }
+    TUTO_MOD_T = setTimeout(function () {
+      TUTO_MOD_T = null;
+      var e = TUTO_ETAPES[TUTO_I];
+      if (tutoEl() && tutoEl().classList.contains('open') && e && e.ouvrirModeles) tutoPlacer(true);
+    }, 420);
   }
 
   function tutoBoutons() {
@@ -3153,7 +3178,9 @@
     // est PARTAGÉ entre les onglets. Un second onglet qui se connecte sous un autre compte ferait
     // sinon enregistrer « visite vue » chez cette autre personne.
     if (ME && ME.tutoAVoir) { var moi = ME.id; ME.tutoAVoir = false; apiJSON('/api/tuto/vu', 'POST', { user: moi }); }
-    // le dossier d'exemple disparaît avec la visite, et le sondage des notifications repart
+    // la fenêtre des modèles ouverte par l'étape « L'onglet Tuto » se referme d'abord, puis le
+    // dossier d'exemple disparaît avec la visite, et le sondage des notifications repart
+    tutoModeles(false);
     tutoDemoOff();
     if (token() && ME) startNotifPoll();
     var r = TUTO_RETOUR; TUTO_RETOUR = null;

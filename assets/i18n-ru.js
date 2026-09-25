@@ -513,6 +513,10 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Le contrat sera retiré du canal privé et le formateur ne pourra plus le signer. Vous pourrez en renvoyer un nouveau.": "Договор будет удалён из приватного канала, и преподаватель больше не сможет его подписать. Вы сможете отправить новый.",
   /* ---- mot de passe oublie ---- */
   "Mot de passe oublié ?": "Забыли пароль?",
+  /* ---- visite guidée du formateur : étape « L'onglet Tuto » (25/09/2026) ---- */
+  "L'onglet Tuto": "Вкладка «Видеоуроки»",
+  "Dans la fenêtre Générer un document, l'onglet Tuto rassemble neuf courtes vidéos : une introduction, puis une vidéo par document.": "В окне «Создать документ» вкладка «Видеоуроки» собирает девять коротких видео: вводное, затем по одному на каждый документ.",
+  "Chaque vidéo est suivie de son texte. Revenez-y dès que vous avez un doute.": "Под каждым видео — его текст. Возвращайтесь сюда, если что-то неясно.",
   /* ---- onglet « Tuto » de « Générer un document » (25/09/2026) ; titres et textes des vidéos en français ---- */
   "Tuto": "Видеоуроки",
   "Neuf vidéos courtes pour prendre en main l'espace documents : une introduction, puis une vidéo par document, chacune suivie de son texte.": "Девять коротких видео, чтобы освоить раздел документов: вводное видео, затем по одному видео на каждый документ, под каждым — его текст.",
