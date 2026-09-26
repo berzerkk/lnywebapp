@@ -689,6 +689,9 @@ const gProfUsers = (g) => gProfs(g).map(realUser).filter(Boolean);
 function groupsForUser(u) { return u.role === 'admin' ? db.groups.slice() : db.groups.filter(g => gMembers(g).includes(u.id)); }
 function isMember(g, u) { return !!g && (u.role === 'admin' || gMembers(g).includes(u.id)); }
 function canChannel(g, u, ch) { if (!isMember(g, u)) return false; return ch === 'prive' ? (u.role === 'prof' || u.role === 'admin') : true; }
+// ⚠️ Un formateur RETIRÉ d'un dossier ne garde plus la main sur ce qu'il y avait envoyé (26/09/2026) :
+// les routes update / cancel / sign vérifient l'appartenance ACTUELLE, pas seulement l'auteur.
+const MSG_PLUS_MEMBRE = 'Vous ne faites plus partie de ce dossier.';
 // ⚠️⚠️ UN CONTRAT DE SOUS-TRAITANCE NE REGARDE QUE L'ADMINISTRATION ET LE FORMATEUR QUI LE SIGNE
 // (26/09/2026). Il vit dans le canal privé, que TOUS les formateurs d'un dossier partagent : dans un
 // dossier à deux formateurs, chacun pouvait lire le contrat de l'autre, avec son SIRET, son NDA, son
@@ -699,7 +702,11 @@ function canChannel(g, u, ch) { if (!isMember(g, u)) return false; return ch ===
 // par un non-admin — `openContratModal` est réservé à l'administration). Contrat introuvable = caché (sauf admin).
 function contratCache(c, u) { if (!u) return true; return u.role !== 'admin' && (!c || c.prof !== u.id); }   // pas d'utilisateur = caché (fermé par défaut)
 // un document du dossier qui est le PDF signé d'un contrat caché à `u`
-function docCache(d, u) { const c = db.contrats.find(x => x.docId === d.id); return !!c && contratCache(c, u); }
+function docCache(d, u) {
+  if (!u) return true;
+  if (d.pour && u.role !== 'admin' && d.pour !== u.id) return true;   // document RÉSERVÉ à un formateur (voir POST /api/documents)
+  const c = db.contrats.find(x => x.docId === d.id); return !!c && contratCache(c, u);
+}
 // `me` = qui regarde. Tout le monde voit QUI est dans le dossier ; la FICHE d'une personne (téléphone,
 // société, heures, dates, SIRET, NDA, adresse, date de naissance…) ne va qu'à qui en a besoin :
 // l'administration voit toutes les fiches ; un formateur voit la sienne et celle de l'APPRENANT du
@@ -1917,17 +1924,47 @@ const upload = multer({
   storage: multer.diskStorage({ destination: (req, file, cb) => cb(null, UPLOADS_DIR), filename: (req, file, cb) => cb(null, crypto.randomUUID() + path.extname(file.originalname || '')) }),
   limits: { fileSize: 25 * 1024 * 1024 }
 });
-const docPub = (d) => ({ id: d.id, name: d.name, size: d.size, type: d.type, from: d.from, fromAdmin: !!d.fromAdmin, fromName: d.fromAdmin ? 'Administration L&S' : fullName(d.from), channel: d.channel, group: d.group, date: d.date });
+const docPub = (d) => ({ id: d.id, pour: d.pour || null, pourNom: d.pour ? fullName(d.pour) : null, name: d.name, size: d.size, type: d.type, from: d.from, fromAdmin: !!d.fromAdmin, fromName: d.fromAdmin ? 'Administration L&S' : fullName(d.from), channel: d.channel, group: d.group, date: d.date });
 
-app.post('/api/documents', auth, upload.single('file'), (req, res) => {
+// ⚠️ Une erreur de multer (fichier > 25 Mo, envoi interrompu) sortait en 500 HTML brut : le client
+// affichait « réessayez » pour un fichier qui ne passera jamais. On répond en JSON, avec la cause.
+function uploadDoc(req, res, next) {
+  upload.single('file')(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Fichier trop volumineux : 25 Mo au maximum.' });
+    console.error('upload :', err.message);
+    res.status(400).json({ error: 'Le fichier n\'a pas pu être reçu. Réessayez.' });
+  });
+}
+app.post('/api/documents', auth, uploadDoc, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Aucun fichier.' });
   const g = groupById(req.body.group);
   const ch = req.body.channel === 'prive' ? 'prive' : 'commun';
   if (!canChannel(g, req.user, ch)) return res.status(403).json({ error: 'Accès refusé.' });
   const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+  // ⚠️ DOCUMENT RÉSERVÉ À UN FORMATEUR (26/09/2026). Dans le canal privé d'un dossier à PLUSIEURS
+  // formateurs, un document peut ne concerner qu'un seul d'entre eux (son contrat téléchargé puis
+  // redéposé à la main, une facture…) : `pour` = identifiant d'un formateur du dossier, et seuls lui
+  // et l'administration le voient (docCache). L'administration désigne qui elle veut ; un formateur
+  // ne peut réserver qu'à lui-même (« L'administration et moi seulement »).
+  let pour = String(req.body.pour || '').trim() || null;
+  if (pour) {
+    if (ch !== 'prive' || !gProfs(g).includes(pour)) return res.status(400).json({ error: 'Formateur inconnu dans ce dossier.' });
+    if (req.user.role !== 'admin' && pour !== req.user.id) return res.status(403).json({ error: 'Vous ne pouvez réserver un document qu\'à vous-même.' });
+  }
+  // filet : un contrat de sous-traitance déposé SANS destinataire dans le privé d'un dossier à plusieurs
+  // formateurs serait lisible par les collègues, exactement ce qu'on veut éviter. L'administration doit
+  // dire pour qui ; un formateur qui dépose un contrat dépose le sien, réservé à lui et à l'administration.
+  if (!pour && ch === 'prive' && gProfs(g).length > 1 && /contrat de sous-traitance/i.test(originalName)) {
+    if (req.user.role === 'admin') { try { fs.unlinkSync(req.file.path); } catch (e) { } return res.status(400).json({ error: 'Ce contrat concerne quel formateur ? Choisissez-le dans « Visible par » avant d\'envoyer.' }); }
+    pour = req.user.id;
+  }
   const doc = { id: crypto.randomUUID(), group: g.id, channel: ch, from: req.user.id, fromAdmin: req.user.role === 'admin', name: originalName, size: req.file.size, type: req.file.mimetype, stored: req.file.filename, date: Date.now() };
+  if (pour) doc.pour = pour;
   db.docs.push(doc);
-  notifyChannel(g, ch, req.user, `${senderDisplay(req.user)} a partagé un document ${ch === 'prive' ? '(privé) ' : ''}: ${originalName}`);
+  const texteNotif = `${senderDisplay(req.user)} a partagé un document ${ch === 'prive' ? '(privé) ' : ''}: ${originalName}`;
+  if (pour) [pour].concat(db.users.filter(u => u.role === 'admin').map(u => u.id)).filter(id => id !== req.user.id).forEach(id => notify(id, texteNotif, g.id, ch));   // réservé : le formateur concerné et l'administration seulement
+  else notifyChannel(g, ch, req.user, texteNotif);
   save();
   res.json({ doc: docPub(doc) });
 });
@@ -3627,6 +3664,7 @@ app.post('/api/qs/:id/submit', auth, async (req, res) => {
 app.post('/api/qs/:id/cancel', auth, (req, res) => {
   const qs = db.qs.find(x => x.id === req.params.id);
   if (!qs) return res.status(404).json({ error: 'Questionnaire introuvable.' });
+  if (!isMember(groupById(qs.group), req.user)) return res.status(403).json({ error: MSG_PLUS_MEMBRE });
   if (req.user.id !== qs.by && req.user.role !== 'admin') return res.status(403).json({ error: 'Seul l\'envoyeur peut annuler.' });
   if (qs.status === 'done') return res.status(400).json({ error: 'Déjà rempli par l\'apprenant : annulation impossible.' });
   const g = groupById(qs.group);
@@ -4092,6 +4130,7 @@ app.get('/api/presence/:id', auth, (req, res) => {
 app.post('/api/presence/:id/update', auth, (req, res) => {
   const p = db.presences.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'Feuille introuvable.' });
+  if (!isMember(groupById(p.group), req.user)) return res.status(403).json({ error: MSG_PLUS_MEMBRE });
   if (p.status === 'done') return res.status(400).json({ error: 'Feuille déjà signée : modification impossible.' });
   if (req.user.id !== p.by && req.user.role !== 'admin') return res.status(403).json({ error: 'Seul l\'envoyeur peut modifier cette feuille.' });
   const { type, fields, formateurSig } = req.body || {};
@@ -4153,6 +4192,7 @@ app.post('/api/presence/:id/sign', auth, async (req, res) => {
 app.post('/api/presence/:id/cancel', auth, (req, res) => {
   const p = db.presences.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'Feuille introuvable.' });
+  if (!isMember(groupById(p.group), req.user)) return res.status(403).json({ error: MSG_PLUS_MEMBRE });
   if (req.user.id !== p.by && req.user.role !== 'admin') return res.status(403).json({ error: 'Seul l\'envoyeur peut annuler.' });
   if (p.status === 'done') return res.status(400).json({ error: 'Déjà signée par l\'apprenant : annulation impossible.' });
   const g = groupById(p.group);
@@ -4220,6 +4260,7 @@ app.get('/api/attestation/:id', auth, (req, res) => {
 app.post('/api/attestation/:id/update', auth, (req, res) => {
   const a = db.attestations.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ error: 'Attestation introuvable.' });
+  if (!isMember(groupById(a.group), req.user)) return res.status(403).json({ error: MSG_PLUS_MEMBRE });
   if (req.user.id !== a.by && req.user.role !== 'admin') return res.status(403).json({ error: 'Seul l\'envoyeur peut modifier.' });
   if (a.status === 'done') return res.status(400).json({ error: 'Déjà signée : modification impossible.' });
   const { fields, formateurSig } = req.body || {};
@@ -4264,6 +4305,7 @@ app.post('/api/attestation/:id/sign', auth, async (req, res) => {
 app.post('/api/attestation/:id/cancel', auth, (req, res) => {
   const a = db.attestations.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ error: 'Attestation introuvable.' });
+  if (!isMember(groupById(a.group), req.user)) return res.status(403).json({ error: MSG_PLUS_MEMBRE });
   if (req.user.id !== a.by && req.user.role !== 'admin') return res.status(403).json({ error: 'Seul l\'envoyeur peut annuler.' });
   if (a.status === 'done') return res.status(400).json({ error: 'Déjà signée : annulation impossible.' });
   const g = groupById(a.group);
@@ -4363,6 +4405,7 @@ app.post('/api/contrat/:id/sign', auth, async (req, res) => {
   // ⚠️ SEUL le formateur désigné signe : ni un autre formateur du dossier, ni l'administration.
   // Un contrat est un engagement personnel, on ne signe pas à la place de quelqu'un.
   if (req.user.id !== c.prof) return res.status(403).json({ error: 'Seul le formateur concerné peut signer ce contrat.' });
+  if (!gProfs(g).includes(req.user.id)) return res.status(403).json({ error: MSG_PLUS_MEMBRE });   // retiré du dossier depuis l'envoi
   if (c.status === 'done') return res.status(400).json({ error: 'Contrat déjà signé.' });
   const sig = (req.body || {}).sig;
   if (!sigImg(sig)) return res.status(400).json({ error: 'Signature manquante.' });
@@ -4804,7 +4847,16 @@ function effacerImageBlog(id) {
     }
   } catch (e) {}
 }
-app.post('/api/blog/articles/:id/image', auth, uploadImgBlog.single('image'), (req, res) => {
+// même traitement des erreurs de multer que pour les documents (image de couverture > 10 Mo → 413 JSON)
+function uploadImg(req, res, next) {
+  uploadImgBlog.single('image')(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Image trop volumineuse : 10 Mo au maximum.' });
+    console.error('image blog :', err.message);
+    res.status(400).json({ error: 'L\'image n\'a pas pu être reçue. Réessayez.' });
+  });
+}
+app.post('/api/blog/articles/:id/image', auth, uploadImg, (req, res) => {
   if (!adminSeul(req, res)) return;
   const a = db.articles.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ error: 'Article introuvable.' });

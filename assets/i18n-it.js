@@ -768,4 +768,16 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Message introuvable.": "Messaggio non trovato.",
   "Message vide.": "Messaggio vuoto.",
   "Message trop long.": "Messaggio troppo lungo.",
+  /* ---- document réservé à un formateur, formateur retiré d'un dossier (26/09/2026) ---- */
+  "Visible par": "Visibile a",
+  "Tous les formateurs du dossier": "Tutti i formatori della pratica",
+  "L'administration et moi seulement": "Solo l'amministrazione e io",
+  "réservé à": "riservato a",
+  "réservé à vous": "riservato a te",
+  "Vous ne faites plus partie de ce dossier.": "Non fai più parte di questa pratica.",
+  "Formateur inconnu dans ce dossier.": "Formatore sconosciuto in questa pratica.",
+  "Vous ne pouvez réserver un document qu'à vous-même.": "Puoi riservare un documento solo a te stesso.",
+  "Ce contrat concerne quel formateur ? Choisissez-le dans « Visible par » avant d'envoyer.": "A quale formatore si riferisce questo contratto? Sceglilo in « Visibile a » prima di inviare.",
+  "Fichier trop volumineux : 25 Mo au maximum.": "File troppo grande: massimo 25 MB.",
+  "Le fichier n'a pas pu être reçu. Réessayez.": "Impossibile ricevere il file. Riprova.",
 });

@@ -790,4 +790,16 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Message introuvable.": "Message not found.",
   "Message vide.": "Empty message.",
   "Message trop long.": "Message too long.",
+  /* ---- document réservé à un formateur, formateur retiré d'un dossier (26/09/2026) ---- */
+  "Visible par": "Visible to",
+  "Tous les formateurs du dossier": "All the folder's trainers",
+  "L'administration et moi seulement": "The administration and me only",
+  "réservé à": "reserved for",
+  "réservé à vous": "reserved for you",
+  "Vous ne faites plus partie de ce dossier.": "You are no longer part of this folder.",
+  "Formateur inconnu dans ce dossier.": "Unknown trainer in this folder.",
+  "Vous ne pouvez réserver un document qu'à vous-même.": "You can only reserve a document for yourself.",
+  "Ce contrat concerne quel formateur ? Choisissez-le dans « Visible par » avant d'envoyer.": "Which trainer is this contract for? Choose them under \"Visible to\" before sending.",
+  "Fichier trop volumineux : 25 Mo au maximum.": "File too large: 25 MB maximum.",
+  "Le fichier n'a pas pu être reçu. Réessayez.": "The file could not be received. Please try again.",
 });

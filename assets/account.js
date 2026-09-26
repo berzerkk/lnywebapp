@@ -622,9 +622,23 @@
       }).join('') : '<p class="ds-empty" style="text-align:center;padding:24px 0">Aucun message. Démarrez la conversation.</p>') +
       '</div><form class="chat-form" id="chat-form"><input id="chat-input" placeholder="Écrire un message…" autocomplete="off" required /><button class="btn-mini" type="submit">Envoyer</button></form></div>';
   }
+  // ---- document RÉSERVÉ à un formateur (26/09/2026) --------------------------------------------
+  // Dans le canal privé d'un dossier à PLUSIEURS formateurs, un document peut ne concerner que l'un
+  // d'eux (son contrat, une facture) : le choix « Visible par » est envoyé avec le fichier (`pour`),
+  // et seuls ce formateur et l'administration le voient. L'administration choisit le formateur ;
+  // un formateur ne peut réserver qu'à lui-même. Ailleurs (canal commun, un seul formateur), rien ne s'affiche.
+  function docPourHTML() {
+    if (channel !== 'prive' || ME.role === 'eleve') return '';
+    var P = gProfs(CUR_GROUP); if (P.length < 2) return '';
+    var opts = '<option value="">Tous les formateurs du dossier</option>' +
+      (ME.role === 'admin' ? P.map(function (u) { return '<option value="' + esc(u.id) + '">' + esc(fullName(u)) + '</option>'; }).join('')
+        : '<option value="' + esc(ME.id) + '">L\'administration et moi seulement</option>');
+    return '<label class="gf doc-pour-choix"><span>Visible par</span><select id="doc-pour">' + opts + '</select></label>';
+  }
   function docsBlock(docs) {
     return '<label class="upload-zone"><input type="file" id="doc-input" multiple hidden /><span class="uz-ic">⬆</span>' +
       '<span><b>Envoyer un document</b><br><small>Cliquez ou déposez un fichier (max 25 Mo) — il ira dans le canal sélectionné</small></span></label>' +
+      docPourHTML() +
       // ⚠️ La liste est BORNÉE et défile (demande de l'utilisateur : elle mangeait toute la page
       // dès qu'un dossier était bien rempli). Le serveur renvoie les documents du plus récent au
       // plus ancien, donc les 3 derniers sont ceux qu'on voit sans rien faire.
@@ -635,7 +649,8 @@
         (docs.length > 3 ? '<small>les plus récents en premier — faites défiler pour voir les autres</small>' : '') + '</div>' +
         '<div class="docs-scroll"><ul class="docs">' + docs.map(function (d) {
         var mine = (ME.role === 'admin') ? d.fromAdmin : (!d.fromAdmin && d.from === ME.id);
-        return '<li><span class="doc-ic">📄</span><span class="doc-meta"><b>' + esc(d.name) + '</b><small>' + fmtSize(d.size) + ' · ' + (mine ? 'envoyé par vous' : 'de ' + esc(d.fromName)) + ' · ' + fmtDate(d.date) + '</small></span>' +
+        return '<li><span class="doc-ic">📄</span><span class="doc-meta"><b>' + esc(d.name) + '</b><small>' + fmtSize(d.size) + ' · ' + (mine ? 'envoyé par vous' : 'de ' + esc(d.fromName)) + ' · ' + fmtDate(d.date) +
+          (d.pour ? ' · <span class="doc-pour">' + (d.pour === ME.id ? '<span>réservé à vous</span>' : '<span>réservé à</span> ' + esc(d.pourNom || '')) + '</span>' : '') + '</small></span>' +
           '<a class="btn-mini" href="/api/documents/' + d.id + '/download?token=' + encodeURIComponent(token()) + '">Télécharger</a>' +
           // l'expéditeur (formateur) et l'administration peuvent retirer un document envoyé
           ((mine && ME.role !== 'eleve') || ME.role === 'admin'
@@ -1240,8 +1255,16 @@
     files = Array.prototype.slice.call(files || []);
     if (!files.length) return;
     var done = 0;
+    var sel = document.getElementById('doc-pour'), pourChoisi = sel ? sel.value : '';
     files.forEach(function (file) {
-      var fd = new FormData(); fd.append('group', selected); fd.append('channel', channel); fd.append('file', file);
+      var pour = pourChoisi;
+      // contrat de sous-traitance déposé par l'administration sans choix : on reconnaît le formateur
+      // à son nom dans le nom du fichier (celui que le site donne au contrat téléchargé)
+      if (!pour && sel && ME.role === 'admin' && /contrat de sous-traitance/i.test(file.name)) {
+        var nom = file.name.toLowerCase(), u = gProfs(CUR_GROUP).filter(function (x) { return nom.indexOf(fullName(x).toLowerCase()) !== -1; })[0];
+        if (u) pour = u.id;
+      }
+      var fd = new FormData(); fd.append('group', selected); fd.append('channel', channel); if (pour) fd.append('pour', pour); fd.append('file', file);
       fetch('/api/documents', { method: 'POST', headers: { Authorization: 'Bearer ' + token() }, body: fd })
         .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }).catch(function () { return { ok: r.ok, data: {} }; }); })
         .then(function (r) { if (!r.ok) alertDialog((r.data && r.data.error) || ('« ' + file.name + ' » n\'a pas été envoyé. Réessayez.')); })

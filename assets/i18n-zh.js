@@ -769,4 +769,16 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Message introuvable.": "未找到该消息。",
   "Message vide.": "消息为空。",
   "Message trop long.": "消息过长。",
+  /* ---- document réservé à un formateur, formateur retiré d'un dossier (26/09/2026) ---- */
+  "Visible par": "可见对象",
+  "Tous les formateurs du dossier": "档案夹中的所有培训师",
+  "L'administration et moi seulement": "仅管理员和我",
+  "réservé à": "仅限",
+  "réservé à vous": "仅限您",
+  "Vous ne faites plus partie de ce dossier.": "您已不再属于此档案夹。",
+  "Formateur inconnu dans ce dossier.": "此档案夹中没有该培训师。",
+  "Vous ne pouvez réserver un document qu'à vous-même.": "您只能将文档限定给自己。",
+  "Ce contrat concerne quel formateur ? Choisissez-le dans « Visible par » avant d'envoyer.": "此合同涉及哪位培训师？发送前请在「可见对象」中选择。",
+  "Fichier trop volumineux : 25 Mo au maximum.": "文件过大：最多 25 MB。",
+  "Le fichier n'a pas pu être reçu. Réessayez.": "无法接收文件，请重试。",
 });

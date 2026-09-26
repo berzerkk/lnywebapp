@@ -768,4 +768,16 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Message introuvable.": "Сообщение не найдено.",
   "Message vide.": "Пустое сообщение.",
   "Message trop long.": "Слишком длинное сообщение.",
+  /* ---- document réservé à un formateur, formateur retiré d'un dossier (26/09/2026) ---- */
+  "Visible par": "Кому виден",
+  "Tous les formateurs du dossier": "Всем преподавателям досье",
+  "L'administration et moi seulement": "Только администрации и мне",
+  "réservé à": "только для",
+  "réservé à vous": "только для вас",
+  "Vous ne faites plus partie de ce dossier.": "Вы больше не участвуете в этом досье.",
+  "Formateur inconnu dans ce dossier.": "Преподаватель не найден в этом досье.",
+  "Vous ne pouvez réserver un document qu'à vous-même.": "Вы можете закрепить документ только за собой.",
+  "Ce contrat concerne quel formateur ? Choisissez-le dans « Visible par » avant d'envoyer.": "Какого преподавателя касается этот договор? Выберите его в поле « Кому виден » перед отправкой.",
+  "Fichier trop volumineux : 25 Mo au maximum.": "Файл слишком большой: не более 25 МБ.",
+  "Le fichier n'a pas pu être reçu. Réessayez.": "Не удалось получить файл. Попробуйте ещё раз.",
 });
