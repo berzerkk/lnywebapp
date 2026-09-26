@@ -269,9 +269,14 @@ function composerMail(to, subject, text, html, opts) {
     ? 'Vous pouvez répondre directement à cet e-mail : votre réponse partira à ' + opts.replyTo + '.'
     : MAIL_NOREPLY;
   const avecMention = brut.indexOf(mention) >= 0 ? brut : (brut + '\n\n---\n' + mention);
+  // ⚠️ La version HTML porte la même logique (26/09/2026) : l'encadré du cadre disait « Merci de ne pas
+  // répondre » à l'e-mail de contact, dont la version texte disait au contraire qu'on peut répondre.
+  const htmlFinal = (html && opts && opts.replyTo)
+    ? html.replace(/<strong>Message automatique\.<\/strong>[^<]*/, '<strong>Vous pouvez répondre directement à cet e-mail :</strong> votre réponse partira à ' + mailEsc(opts.replyTo) + '.')
+    : html;
   // Auto-Submitted et X-Auto-Response-Suppress : ils évitent les réponses d'absence et les
   // accusés de réception automatiques, qui n'iraient de toute façon dans aucune boîte lue.
-  const msg = { from: MAIL.from, to, subject, text: avecMention, html,
+  const msg = { from: MAIL.from, to, subject, text: avecMention, html: htmlFinal,
     headers: { 'Auto-Submitted': 'auto-generated', 'X-Auto-Response-Suppress': 'All' } };
   if (html && html.indexOf('cid:lslogo') !== -1 && fs.existsSync(MAIL_LOGO)) msg.attachments = [{ filename: 'ls-logo.png', path: MAIL_LOGO, cid: 'lslogo' }];
   return msg;
