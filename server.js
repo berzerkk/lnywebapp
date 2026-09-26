@@ -137,7 +137,7 @@ if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
 // ⚠️ Toute NOUVELLE collection doit figurer ici : normalizeDB la crée alors toute seule sur les
 // bases déjà en service, production comprise. Oubliée, elle vaut undefined au premier accès.
-const DB_DEFAULTS = () => ({ users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], attestations: [], contrats: [], contratRefs: [], logins: [], demoSeeded: false, articles: [], secret: crypto.randomBytes(32).toString('hex') });
+const DB_DEFAULTS = () => ({ jetonsRevoques: {}, users: [], groups: [], docs: [], messages: [], notifs: [], worksheets: [], docgens: [], qs: [], presences: [], attestations: [], contrats: [], contratRefs: [], logins: [], demoSeeded: false, articles: [], secret: crypto.randomBytes(32).toString('hex') });
 // ⚠️ db.docVersions (compteur de versions PAR GÉNÉRATION) est abandonné depuis le 16/09/2026 : la
 // version d'un document est celle de son modèle (VERSIONS_MODELES). On retire le champ des bases
 // existantes pour qu'aucun code ne soit tenté de le relire.
@@ -993,13 +993,33 @@ app.use((req, res, next) => {
 });
 
 // ---- auth ------------------------------------------------------------------
-function sign(user) { return jwt.sign({ id: user.id }, db.secret, { expiresIn: '30d' }); }
+// ⚠️ `jti` aléatoire : sans lui, deux jetons émis la même seconde pour la même personne sont IDENTIQUES
+// (même contenu, `iat` à la seconde), et déconnecter l'un déconnectait l'autre (trouvé au banc, 26/09/2026).
+function sign(user) { return jwt.sign({ id: user.id, jti: crypto.randomBytes(8).toString('hex') }, db.secret, { expiresIn: '30d' }); }
+// ⚠️ DÉCONNEXION CÔTÉ SERVEUR, « cet appareil seulement » (26/09/2026, choix de l'utilisateur). Un jeton
+// vit 30 jours ; jusqu'ici « Se déconnecter » ne l'effaçait que du navigateur, et un jeton copié (les
+// liens de téléchargement le portent dans l'adresse, donc dans l'historique d'un poste partagé) restait
+// valable. POST /api/logout inscrit l'EMPREINTE du jeton présenté dans `db.jetonsRevoques` (sha256 →
+// date à laquelle il aurait expiré) : lui seul meurt, les autres appareils de la même personne restent
+// connectés. Les entrées sont purgées passée cette date. ⚠️ TOUTE vérification de jeton passe par
+// `utilisateurDuJeton` (auth, userDepuisRequete, userSiConnecte, téléchargement) : un nouveau chemin
+// qui appellerait jwt.verify directement ignorerait la révocation.
+const empreinteJeton = (t) => crypto.createHash('sha256').update(String(t)).digest('hex');
+function purgerJetonsRevoques() { const now = Date.now(); for (const k of Object.keys(db.jetonsRevoques || {})) if (!(db.jetonsRevoques[k] > now)) delete db.jetonsRevoques[k]; }
+function utilisateurDuJeton(t) {
+  if (!t) return null;
+  try {
+    const d = jwt.verify(t, db.secret);
+    if (db.jetonsRevoques && db.jetonsRevoques[empreinteJeton(t)]) return null;   // déconnecté
+    return realUser(d.id) || null;
+  } catch (e) { return null; }
+}
 function auth(req, res, next) {
   const h = req.headers.authorization || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Non authentifié.' });
   try {
-    const u = realUser(jwt.verify(token, db.secret).id);
+    const u = utilisateurDuJeton(token);
     if (!u) return res.status(401).json({ error: 'Session invalide.' });
     // ⚠️ DERNIÈRE ACTIVITÉ. L'historique des connexions ne voit que les LOGINS : quelqu'un qui
     // reste connecté (le jeton vit 30 jours) n'y réapparaît jamais, et on ne sait plus s'il
@@ -1017,6 +1037,17 @@ function auth(req, res, next) {
 // (POST /api/admin/users ci-dessous). Les comptes démo restent seedés côté serveur.
 app.post('/api/signup', (req, res) => {
   res.status(403).json({ error: 'Les inscriptions se font par l\'administration Languages & Success.' });
+});
+// déconnexion : le jeton présenté (et lui seul) cesse d'être accepté, voir utilisateurDuJeton
+app.post('/api/logout', auth, (req, res) => {
+  const t = (req.headers.authorization || '').slice(7);
+  let exp = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  try { const d = jwt.decode(t); if (d && d.exp) exp = d.exp * 1000; } catch (e) { }
+  if (!db.jetonsRevoques) db.jetonsRevoques = {};
+  purgerJetonsRevoques();
+  db.jetonsRevoques[empreinteJeton(t)] = exp;
+  save();
+  res.json({ ok: true });
 });
 // création d'un compte (apprenant ou formateur) PAR un admin + e-mail de bienvenue
 app.post('/api/admin/users', auth, async (req, res) => {
@@ -1998,8 +2029,7 @@ app.get('/api/documents', auth, (req, res) => {
 app.get('/api/documents/:id/download', (req, res) => {
   const h = req.headers.authorization || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : (req.query.token || null);
-  let uid = null; if (token) { try { uid = jwt.verify(token, db.secret).id; } catch (e) {} }
-  const u = realUser(uid);
+  const u = utilisateurDuJeton(token);   // signature, expiration et révocation (déconnexion)
   if (!u) return res.status(401).end();
   const doc = db.docs.find(d => d.id === req.params.id);
   if (!doc) return res.status(404).end();
@@ -2016,8 +2046,7 @@ app.get('/api/documents/:id/download', (req, res) => {
 function userDepuisRequete(req) {
   const h = req.headers.authorization || '';
   const t = h.startsWith('Bearer ') ? h.slice(7) : (req.query.token || null);
-  if (!t) return null;
-  try { return realUser(jwt.verify(t, db.secret).id) || null; } catch (e) { return null; }
+  return utilisateurDuJeton(t);
 }
 function envoyerWord(res, buf, nom) {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -4747,8 +4776,7 @@ function artPub(a) {
 function userSiConnecte(req) {
   const h = req.headers.authorization || '';
   const t = h.startsWith('Bearer ') ? h.slice(7) : (req.query && req.query.token) || '';
-  if (!t) return null;
-  try { const d = jwt.verify(t, db.secret); return realUser(d.id) || null; } catch (e) { return null; }
+  return utilisateurDuJeton(t);
 }
 function adminSeul(req, res) {
   if (!req.user || req.user.role !== 'admin') { res.status(403).json({ error: 'Réservé à l\'administration.' }); return false; }

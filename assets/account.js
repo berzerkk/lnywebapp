@@ -133,9 +133,19 @@
     }
   }
   function closeMobileMenu() { var m = document.getElementById('mobile-menu'), b = document.getElementById('nav-backdrop'); if (m) m.classList.remove('open'); if (b) b.classList.remove('open'); document.body.classList.remove('menu-open'); }
+  // ⚠️ Le serveur est prévenu AVANT que le jeton soit oublié : lui seul peut le rendre inutilisable
+  // (30 jours de validité sinon, même copié depuis l'historique d'un poste partagé). Seul CE jeton
+  // meurt, les autres appareils de la personne restent connectés. keepalive : la requête part même
+  // si la page change juste après ; un échec réseau ne bloque jamais la déconnexion locale.
+  function fermerSessionServeur() {
+    var t = null; try { t = localStorage.getItem(TKEY); } catch (e) { }
+    if (!t) return;
+    try { fetch('/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + t }, keepalive: true }).catch(function () { }); } catch (e) { }
+  }
   function logout() {
     // en simulation, « Se déconnecter » ramène à l'espace administrateur : la vraie session n'est pas fermée
     if (enSimulation()) { quitterSimulation(); return; }
+    fermerSessionServeur();
     setToken(null); ME = null; NOTIFS = []; selected = null; if (notifTimer) { clearInterval(notifTimer); notifTimer = null; } renderHeader(); if (app()) renderAuth(); }
 
   // ---- modale notifications ----------------------------------------------
@@ -251,7 +261,7 @@
         wrap.querySelector('.act-back').onclick = function () { location.replace(location.pathname + location.search); };
         return;
       }
-      setToken(null);   // le lien vaut pour SON destinataire : on ferme la session en cours (poste partagé)
+      fermerSessionServeur(); setToken(null);   // le lien vaut pour SON destinataire : on ferme la session en cours (poste partagé), côté serveur aussi
       renderHeader();
       wrap.innerHTML = '<div class="auth-tabs"><button class="auth-tab on" type="button">Bienvenue ' + esc(r.data.prenom) + '</button></div>' +
         '<form class="form auth-form" id="act-form" style="max-width:none">' +
@@ -336,7 +346,7 @@
         wrap.querySelector('.act-back').onclick = function () { location.replace(location.pathname + location.search); };
         return;
       }
-      setToken(null);   // poste partagé : le lien vaut pour SON destinataire
+      fermerSessionServeur(); setToken(null);   // poste partagé : le lien vaut pour SON destinataire, la session en cours est fermée côté serveur aussi
       renderHeader();
       wrap.innerHTML = '<div class="auth-tabs"><button class="auth-tab on" type="button">Bonjour ' + esc(r.data.prenom) + '</button></div>' +
         '<form class="form auth-form" id="rst-form" style="max-width:none">' +
