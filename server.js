@@ -689,10 +689,32 @@ const gProfUsers = (g) => gProfs(g).map(realUser).filter(Boolean);
 function groupsForUser(u) { return u.role === 'admin' ? db.groups.slice() : db.groups.filter(g => gMembers(g).includes(u.id)); }
 function isMember(g, u) { return !!g && (u.role === 'admin' || gMembers(g).includes(u.id)); }
 function canChannel(g, u, ch) { if (!isMember(g, u)) return false; return ch === 'prive' ? (u.role === 'prof' || u.role === 'admin') : true; }
-// `me` = qui regarde. Un apprenant voit QUI est dans le dossier, mais pas la FICHE des autres
-// (téléphone, société, heures, dates, SIRET du formateur…) : donnée personnelle d'un tiers.
+// ⚠️⚠️ UN CONTRAT DE SOUS-TRAITANCE NE REGARDE QUE L'ADMINISTRATION ET LE FORMATEUR QUI LE SIGNE
+// (26/09/2026). Il vit dans le canal privé, que TOUS les formateurs d'un dossier partagent : dans un
+// dossier à deux formateurs, chacun pouvait lire le contrat de l'autre, avec son SIRET, son NDA, son
+// adresse, sa date de naissance, sa nationalité, sa rémunération et, une fois signé, sa signature
+// manuscrite. La carte du canal, la fiche, l'aperçu et le PDF signé ne vont donc plus qu'à ces deux-là ;
+// la notification de signature et la ligne d'historique, elles, ne vont qu'à l'ADMINISTRATION (l'historique
+// ne stocke ni l'identifiant du contrat ni celui du signataire, et n'était de toute façon pas exploitable
+// par un non-admin — `openContratModal` est réservé à l'administration). Contrat introuvable = caché (sauf admin).
+function contratCache(c, u) { if (!u) return true; return u.role !== 'admin' && (!c || c.prof !== u.id); }   // pas d'utilisateur = caché (fermé par défaut)
+// un document du dossier qui est le PDF signé d'un contrat caché à `u`
+function docCache(d, u) { const c = db.contrats.find(x => x.docId === d.id); return !!c && contratCache(c, u); }
+// `me` = qui regarde. Tout le monde voit QUI est dans le dossier ; la FICHE d'une personne (téléphone,
+// société, heures, dates, SIRET, NDA, adresse, date de naissance…) ne va qu'à qui en a besoin :
+// l'administration voit toutes les fiches ; un formateur voit la sienne et celle de l'APPRENANT du
+// dossier (le préremplissage des documents s'en sert), JAMAIS celle d'un autre formateur ; un
+// apprenant ne voit que la sienne. ⚠️ Jusqu'au 26/09/2026, un formateur recevait la fiche complète de
+// ses co-formateurs (rien ne l'affichait, mais la réponse la contenait) : aucun écran de formateur ne
+// lit la fiche d'un collègue (vérifié : seul le contrat, réservé à l'administration, lit une fiche de
+// formateur ; la worksheet se préremplit côté serveur, par wsBlank).
 function groupView(g, me) {
-  const view = (id) => (me && me.role === 'eleve' && id !== me.id) ? pub(realUser(id)) : pubFull(realUser(id));
+  const view = (id) => {
+    const u = realUser(id);
+    if (!u) return null;
+    if (me && (me.role === 'admin' || id === me.id || (me.role === 'prof' && id === g.eleve && u.role === 'eleve'))) return pubFull(u);
+    return pub(u);
+  };
   return {
     id: g.id,
     profs: gProfs(g).map(view).filter(Boolean),
@@ -720,8 +742,8 @@ const app = express();
 // ---- MODE SIMULATION : un espace documents de démonstration, dans un AUTRE processus -------------
 // (21/09/2026, demande de l'utilisateur : présenter à ses formateurs leur interface, sans rien toucher)
 // ⚠️⚠️ POURQUOI UN AUTRE PROCESSUS, et non des comptes « démo » glissés dans la vraie base :
-// (1) n'importe quel compte connecté peut lister TOUS les utilisateurs (GET /api/users) — un
-// compte de démo y aurait vu les vrais apprenants ; (2) l'administration est membre de TOUS les
+// (1) n'importe quel compte connecté pouvait lister TOUS les utilisateurs (GET /api/users, supprimée
+// le 26/09/2026) — un compte de démo y aurait vu les vrais apprenants ; (2) l'administration est membre de TOUS les
 // dossiers, chaque vue d'administration aurait dû filtrer la démo, et le moindre oubli l'aurait
 // mêlée aux vrais dossiers ; (3) remettre la démo à zéro aurait voulu dire SUPPRIMER des dossiers
 // dans la base de production. Ici la démo a sa propre base, dans un dossier temporaire : elle ne
@@ -922,20 +944,44 @@ app.use(express.json({ limit: '2mb' })); // marge pour les signatures (data URL 
 // ⚠️ Ce qui doit rester public : les pages .html, assets/, blog/img/ (visuels des articles),
 // robots.txt, et les scripts de la racine que les pages chargent (ls-engine.js, test-data.js,
 // morph.js et les animations en réserve). Toute nouvelle ressource servie doit être vérifiée ici.
+// ⚠️ Motifs INSENSIBLES À LA CASSE : sur un système de fichiers qui l'ignore (Windows, macOS de
+// développement), /Data/db.json ou /Server.js servent le même fichier que la forme minuscule.
 const PRIVE = [
-  /^\/(data|node_modules)(\/|$)/,                                  // base, fichiers déposés, dépendances
-  /^\/(server|process-logos)\.js$/,                                // code serveur et outils de build
-  /^\/lib(\/|$)/,                                                  // modules du serveur
-  /^\/package(-lock)?\.json$/,
-  /^\/blog\/(outils|articles-sources)(\/|$)/,                      // outillage : identifiants en clair
-  /^\/blog\/(posts-linkedin\.js|sujets\.md)$/,                     // notes internes
-  /^\/versions(\/|$)/,                                             // animations archivées
+  /^\/(data|node_modules)(\/|$)/i,                                 // base, fichiers déposés, dépendances
+  /^\/(server|process-logos)\.js$/i,                              // code serveur et outils de build
+  /^\/lib(\/|$)/i,                                                 // modules du serveur
+  /^\/package(-lock)?\.json$/i,
+  /^\/blog\/(outils|articles-sources)(\/|$)/i,                    // outillage : identifiants en clair
+  /^\/blog\/(posts-linkedin\.js|sujets\.md)$/i,                   // notes internes
+  /^\/versions(\/|$)/i,                                            // animations archivées
   /^\/\./,                                                         // .github, .gitignore, .dockerignore, .env…
   /^\/(Dockerfile|docker-compose\.ya?ml)$/i,
   /\.md$/i,                                                        // CLAUDE.md, RESTORE.md : mots de passe et procédures
 ];
+// ⚠️⚠️ LE FILTRE DOIT VOIR LE MÊME CHEMIN QUE CELUI QU'express.static SERVIRA (faille confirmée le
+// 26/09/2026). Le filtre lisait `req.path` BRUT (encodage pourcent intact), alors que serve-static
+// DÉCODE puis normalise avant d'ouvrir le fichier : /%64ata/db.json, /data%2fdb.json, //data/db.json,
+// /assets/../data/db.json et /DATA/db.json passaient à côté des motifs et servaient quand même
+// data/db.json (secret des jetons JWT, hachages bcrypt, config SMTP), server.js, l'outillage de
+// blog/outils… `cheminServi` reproduit la résolution de serve-static (décodage UNE fois,
+// backslashes en séparateurs, `.`/`..`/`//` réduits) pour tester le motif sur la vraie cible.
+function cheminServi(reqPath) {
+  if (reqPath.indexOf('%00') !== -1) return null;                 // octet nul encodé
+  let p;
+  try { p = decodeURIComponent(reqPath); } catch (e) { return null; }  // %-encodage invalide → refus
+  if (p.indexOf('\0') !== -1) return null;                        // octet nul
+  p = p.replace(/\\/g, '/');                                      // Windows : \ = séparateur de fichiers
+  p = path.posix.normalize(p).replace(/\/{2,}/g, '/');            // résout . .. et réduit les //
+  if (!p.startsWith('/')) p = '/' + p;                            // reste ancré à la racine
+  // ⚠️ Windows ouvre « fichier::$DATA » (flux ADS) comme « fichier », et ignore les points et
+  // espaces de fin : on tronque chaque segment au premier « : » et on retire ces caractères, pour
+  // tester la cible que le système de fichiers ouvrirait vraiment. Sans effet sur un nom légitime.
+  p = p.split('/').map(s => s.split(':')[0].replace(/[. ]+$/, '')).join('/');
+  return p;
+}
 app.use((req, res, next) => {
-  if (PRIVE.some(r => r.test(req.path))) return res.status(404).end();
+  const p = cheminServi(req.path);
+  if (p === null || PRIVE.some(r => r.test(p))) return res.status(404).end();
   next();
 });
 
@@ -1024,7 +1070,7 @@ const INVITATION = {
       { titre: '2. Ce qui vous attend dans votre espace', puces: [
         '**Un dossier par apprenant.** L\'administration le crée et vous y ajoute : il apparaît alors dans « Mes dossiers », avec les documents et la messagerie de l\'apprenant.',
         '**Deux canaux par dossier.** La « Discussion commune » est partagée avec l\'apprenant. Le canal « Privé » est réservé aux formateurs et à l\'administration : l\'apprenant n\'y voit rien. C\'est par là que vous nous transmettez vos documents, et que vous recevrez votre contrat de sous-traitance à signer en ligne.',
-        '**Des modèles prêts à l\'emploi.** Le bouton « Générer un document » propose worksheet, questionnaires, tests, attestation, Level Test et feuilles de présence, préremplis avec la fiche de l\'apprenant.',
+        '**Des modèles prêts à l\'emploi.** Le bouton « Générer un document » propose worksheet, questionnaires, tests, attestation et feuilles de présence, préremplis avec la fiche de l\'apprenant.',
         '**Des signatures sans papier.** Questionnaires, feuilles de présence et attestation de fin de formation partent directement chez l\'apprenant, qui les remplit ou les signe en ligne. Le document finalisé revient tout seul dans le dossier, et un e-mail vous prévient.',
         '**La cloche**, en haut de la page, signale chaque nouveau message et chaque nouveau document.',
       ] },
@@ -1485,11 +1531,10 @@ app.post('/api/tuto/vu', auth, (req, res) => {
   save();
   res.json({ ok: true });
 });
-app.get('/api/users', auth, (req, res) => {
-  let list = db.users.filter(u => u.id !== req.user.id);
-  if (req.user.role !== 'admin') list = list.filter(u => u.role !== 'admin'); // non-admins ne voient pas les admins
-  res.json({ users: list.map(pub) });
-});
+// ⚠️ PLUS DE GET /api/users (supprimée le 26/09/2026). Elle renvoyait à N'IMPORTE QUEL compte connecté,
+// apprenant compris, le nom et l'ADRESSE E-MAIL de tous les formateurs et de tous les apprenants. Plus
+// rien ne l'appelait depuis le 30/07/2026 (fin de la recherche « Ajouter un apprenant ») ; l'administration
+// a /api/admin/overview. Elle répond désormais 404, comme toute adresse /api inconnue. Ne pas la rétablir.
 
 // ---- dossiers --------------------------------------------------------------
 app.get('/api/groups', auth, (req, res) => {
@@ -1788,7 +1833,10 @@ app.get('/api/messages', auth, (req, res) => {
   const g = groupById(req.query.group);
   const ch = req.query.channel === 'prive' ? 'prive' : 'commun';
   if (!canChannel(g, req.user, ch)) return res.status(403).json({ error: 'Accès refusé.' });
-  const msgs = db.messages.filter(m => m.group === g.id && m.channel === ch).sort((a, b) => a.date - b.date)
+  const msgs = db.messages.filter(m => m.group === g.id && m.channel === ch)
+    // la carte d'un contrat ne s'affiche qu'à l'administration et au formateur qui le signe (voir contratCache)
+    .filter(m => m.kind !== 'contrat' || !contratCache(db.contrats.find(x => x.id === m.contratId), req.user))
+    .sort((a, b) => a.date - b.date)
     .map(m => {
       const o = { id: m.id, from: m.from, fromAdmin: !!m.fromAdmin, fromName: m.fromAdmin ? 'Administration L&S' : fullName(m.from), text: m.text, date: m.date, kind: m.kind || 'text' };
       if (m.kind === 'qs') { const q = db.qs.find(x => x.id === m.qsId); o.qs = { id: m.qsId, type: m.qsType, title: (QS_TEMPLATES[m.qsType] || {}).title || 'Questionnaire', status: q ? q.status : 'pending', docId: q ? q.docId : null }; }
@@ -1859,7 +1907,7 @@ app.get('/api/documents', auth, (req, res) => {
   const g = groupById(req.query.group);
   const ch = req.query.channel === 'prive' ? 'prive' : 'commun';
   if (!canChannel(g, req.user, ch)) return res.status(403).json({ error: 'Accès refusé.' });
-  res.json({ docs: db.docs.filter(d => d.group === g.id && d.channel === ch).sort((a, b) => b.date - a.date).map(docPub) });
+  res.json({ docs: db.docs.filter(d => d.group === g.id && d.channel === ch && !docCache(d, req.user)).sort((a, b) => b.date - a.date).map(docPub) });
 });
 app.get('/api/documents/:id/download', (req, res) => {
   const h = req.headers.authorization || '';
@@ -1869,7 +1917,7 @@ app.get('/api/documents/:id/download', (req, res) => {
   if (!u) return res.status(401).end();
   const doc = db.docs.find(d => d.id === req.params.id);
   if (!doc) return res.status(404).end();
-  if (!canChannel(groupById(doc.group), u, doc.channel)) return res.status(403).end();
+  if (!canChannel(groupById(doc.group), u, doc.channel) || docCache(doc, u)) return res.status(403).end();
   res.download(path.join(UPLOADS_DIR, doc.stored), safeFile(doc.name));
 });
 
@@ -2420,7 +2468,9 @@ app.post('/api/worksheet/generate', auth, async (req, res) => {
 app.get('/api/worksheet/history', auth, (req, res) => {
   const g = groupById(req.query.group);
   if (!canEditWs(g, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
-  const history = db.docgens.filter(x => x.group === g.id).sort((a, b) => b.date - a.date)
+  // les contrats n'y figurent que pour l'administration : ils ne se refont que par elle, et leur ligne
+  // nomme le formateur signataire (voir contratCache)
+  const history = db.docgens.filter(x => x.group === g.id && (req.user.role === 'admin' || x.kind !== 'contrat')).sort((a, b) => b.date - a.date)
     .map(x => ({ id: x.id, kind: x.kind || 'interactive', tpl: x.tpl || x.kind || 'interactive', title: x.title || 'Interactive Worksheet', format: x.format, date: x.date, byName: x.byName, apprenant: x.apprenant, sessionCount: x.sessionCount, snapshot: x.snapshot }));
   res.json({ history });
 });
@@ -4235,8 +4285,9 @@ app.get('/api/contrat/:id', auth, (req, res) => {
   const c = db.contrats.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ error: 'Contrat introuvable.' });
   // ⚠️ canChannel 'prive' et non isMember : l'apprenant est membre du dossier mais n'a AUCUN
-  // accès au canal privé, donc aucun droit de lire ce contrat.
-  if (!canChannel(groupById(c.group), req.user, 'prive')) return res.status(403).json({ error: 'Accès refusé.' });
+  // accès au canal privé, donc aucun droit de lire ce contrat. Et contratCache : un AUTRE formateur
+  // du dossier n'a pas à lire la fiche ni la rémunération de son collègue.
+  if (!canChannel(groupById(c.group), req.user, 'prive') || contratCache(c, req.user)) return res.status(403).json({ error: 'Accès refusé.' });
   res.json({ contrat: { id: c.id, title: 'Contrat de sous-traitance', status: c.status, docId: c.docId, prof: c.prof, ref: c.ref || '', fields: c.fields || {} } });
 });
 // aperçu du contrat AVANT signature : le formateur doit pouvoir lire ce qu'il signe.
@@ -4247,7 +4298,7 @@ app.get('/api/contrat/:id/apercu', async (req, res) => {
   if (!u) return res.status(401).json({ error: 'Non authentifié.' });
   const c = db.contrats.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ error: 'Contrat introuvable.' });
-  if (!canChannel(groupById(c.group), u, 'prive')) return res.status(403).json({ error: 'Accès refusé.' });
+  if (!canChannel(groupById(c.group), u, 'prive') || contratCache(c, u)) return res.status(403).json({ error: 'Accès refusé.' });
   try {
     const buf = await buildContratPdf(Object.assign({}, c.fields, { sousTraitantSig: c.profSig }), u, versionModele('contrat'));
     const name = safeFile('Contrat de sous-traitance') + ' - ' + safeFile((c.fields && c.fields.stnom) || 'formateur') + '.pdf';
@@ -4275,9 +4326,12 @@ app.post('/api/contrat/:id/sign', auth, async (req, res) => {
   signaturesEnCours.delete(c.id);
   c.profSig = sig; c.status = 'done'; c.signedAt = Date.now(); c.docId = doc.id;
   recordDocgen(g, adminU, { kind: 'contrat', tpl: 'contrat', title: 'Contrat de sous-traitance', format: 'pdf', apprenant: (c.fields && c.fields.stnom) || 'formateur' });
-  // ⚠️ canal PRIVÉ : notifyChannel n'y prévient que les formateurs du dossier et les admins.
+  // ⚠️ l'administration SEULEMENT, et non notifyChannel (tous les formateurs du dossier) : le contrat
+  // d'un formateur ne regarde pas ses collègues (voir contratCache). Canal 'prive' : la notification
+  // s'éteint quand l'administration ouvre le canal privé du dossier.
   const ce = contratEnClair(g, c);
-  notifyChannel(g, 'prive', req.user, `${senderDisplay(req.user)} a signé le contrat de sous-traitance${ce.pourQui} — document déposé dans le canal privé.`);
+  db.users.filter(u => u.role === 'admin' && u.id !== req.user.id)
+    .forEach(a => notify(a.id, `${senderDisplay(req.user)} a signé le contrat de sous-traitance${ce.pourQui} — document déposé dans le canal privé.`, g.id, 'prive'));
   if (adminU && adminU.id !== req.user.id) {
     const urlS = SITE_URL + '/espace-documents.html';
     const phrase = senderDisplay(req.user) + ' a signé le contrat de sous-traitance' + (ce.apprenant ? ' pour la formation de ' + ce.apprenant : '') + '.';
