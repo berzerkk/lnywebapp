@@ -1834,11 +1834,12 @@ app.get('/api/messages', auth, (req, res) => {
   const ch = req.query.channel === 'prive' ? 'prive' : 'commun';
   if (!canChannel(g, req.user, ch)) return res.status(403).json({ error: 'Accès refusé.' });
   const msgs = db.messages.filter(m => m.group === g.id && m.channel === ch)
+    .filter(m => !m.supprime)   // un message supprimé n'est plus servi à personne (l'administration le lit dans l'historique)
     // la carte d'un contrat ne s'affiche qu'à l'administration et au formateur qui le signe (voir contratCache)
     .filter(m => m.kind !== 'contrat' || !contratCache(db.contrats.find(x => x.id === m.contratId), req.user))
     .sort((a, b) => a.date - b.date)
     .map(m => {
-      const o = { id: m.id, from: m.from, fromAdmin: !!m.fromAdmin, fromName: m.fromAdmin ? 'Administration L&S' : fullName(m.from), text: m.text, date: m.date, kind: m.kind || 'text' };
+      const o = { id: m.id, from: m.from, fromAdmin: !!m.fromAdmin, fromName: m.fromAdmin ? 'Administration L&S' : fullName(m.from), text: m.text, date: m.date, kind: m.kind || 'text', modifie: m.modifie || null };
       if (m.kind === 'qs') { const q = db.qs.find(x => x.id === m.qsId); o.qs = { id: m.qsId, type: m.qsType, title: (QS_TEMPLATES[m.qsType] || {}).title || 'Questionnaire', status: q ? q.status : 'pending', docId: q ? q.docId : null }; }
       if (m.kind === 'presence') { const p = db.presences.find(x => x.id === m.presenceId); o.presence = { id: m.presenceId, type: p ? p.type : null, title: (PRESENCE_TEMPLATES[p && p.type] || {}).title || 'Feuille de présence', status: p ? p.status : 'pending', docId: p ? p.docId : null }; }
       // ⚠️ Un kind non hydraté ici arrive au client avec un objet vide : la carte s'affiche sans
@@ -1861,6 +1862,54 @@ app.post('/api/messages', auth, (req, res) => {
   notifyChannel(g, ch, req.user, `${senderDisplay(req.user)} a écrit ${ch === 'prive' ? '(privé) ' : ''}dans un dossier : ${msg.slice(0, 70)}`);
   save();
   res.json({ ok: true });
+});
+// ---- modifier / supprimer un message (26/09/2026, demande de l'utilisateur) ------------------
+// Seul l'AUTEUR d'un message peut le modifier ou le supprimer (l'administration : ses propres
+// messages, partagés entre comptes admin) ; les cartes (questionnaire, présence, attestation,
+// contrat) ont leurs propres commandes. RIEN N'EST EFFACÉ : un message supprimé reste en base avec
+// `supprime` (il n'est plus servi à personne), un message modifié garde chaque version dans
+// `historique` et porte `modifie` (la mention « modifié » est visible de tous). Seule
+// l'administration lit cet historique, par la route /api/messages/historique.
+function messageDeLAuteur(req, res, verbe) {
+  const m = db.messages.find(x => x.id === req.params.id);
+  if (!m || m.supprime) { res.status(404).json({ error: 'Message introuvable.' }); return null; }
+  if (m.kind && m.kind !== 'text') { res.status(400).json({ error: 'Ce message ne peut pas être modifié.' }); return null; }
+  if (!canChannel(groupById(m.group), req.user, m.channel)) { res.status(403).json({ error: 'Accès refusé.' }); return null; }
+  const mien = req.user.role === 'admin' ? !!m.fromAdmin : (!m.fromAdmin && m.from === req.user.id);
+  if (!mien) { res.status(403).json({ error: 'Seul l\'auteur d\'un message peut le ' + verbe + '.' }); return null; }
+  return m;
+}
+app.patch('/api/messages/:id', auth, (req, res) => {
+  const m = messageDeLAuteur(req, res, 'modifier'); if (!m) return;
+  const txt = String((req.body || {}).text || '').trim();
+  if (!txt) return res.status(400).json({ error: 'Message vide.' });
+  if (txt.length > 4000) return res.status(400).json({ error: 'Message trop long.' });
+  if (txt === m.text) return res.json({ ok: true });
+  m.historique = (m.historique || []).concat([{ avant: m.text, apres: txt, par: req.user.id, date: Date.now() }]);
+  m.text = txt; m.modifie = Date.now();
+  save();
+  res.json({ ok: true });
+});
+app.delete('/api/messages/:id', auth, (req, res) => {
+  const m = messageDeLAuteur(req, res, 'supprimer'); if (!m) return;
+  m.supprime = { par: req.user.id, date: Date.now() };
+  save();
+  res.json({ ok: true });
+});
+// historique des modifications et suppressions d'un dossier (les deux canaux) : ADMINISTRATION SEULEMENT
+app.get('/api/messages/historique', auth, (req, res) => {
+  if (!adminSeul(req, res)) return;
+  const g = groupById(req.query.group);
+  if (!g) return res.status(404).json({ error: 'Dossier introuvable.' });
+  const auteur = (m) => m.fromAdmin ? 'Administration L&S' : fullName(m.from);
+  const ev = [];
+  for (const m of db.messages) {
+    if (m.group !== g.id) continue;
+    (m.historique || []).forEach(h => ev.push({ type: 'modification', channel: m.channel, auteur: auteur(m), envoye: m.date, date: h.date, avant: h.avant, apres: h.apres }));
+    if (m.supprime) ev.push({ type: 'suppression', channel: m.channel, auteur: auteur(m), envoye: m.date, date: m.supprime.date, avant: m.text });
+  }
+  ev.sort((a, b) => b.date - a.date);
+  res.json({ evenements: ev });
 });
 
 // ---- documents (par dossier + canal) ---------------------------------------

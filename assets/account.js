@@ -615,7 +615,10 @@
         if (m.kind === 'attestation') return attestationMsgHTML(m);
         if (m.kind === 'contrat') return contratMsgHTML(m);
         var mine = (ME.role === 'admin') ? m.fromAdmin : (!m.fromAdmin && m.from === ME.id);
-        return '<div class="msg ' + (mine ? 'me' : 'them') + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') + '<span class="bubble">' + esc(m.text) + '</span><time>' + fmtTime(m.date) + '</time></div>';
+        CHAT_TEXTES[m.id] = m.text;   // pour préremplir l'éditeur sans relire le serveur
+        return '<div class="msg ' + (mine ? 'me' : 'them') + '" data-id="' + esc(m.id) + '">' + (mine ? '' : '<span class="msg-from">' + esc(m.fromName) + '</span>') + '<span class="bubble">' + esc(m.text) + '</span>' +
+          '<span class="msg-meta"><time>' + fmtTime(m.date) + '</time>' + (m.modifie ? '<span class="msg-note">modifié</span>' : '') +
+          (mine ? '<span class="msg-acts"><button type="button" class="msg-edit" data-id="' + esc(m.id) + '">Modifier</button><button type="button" class="msg-del" data-id="' + esc(m.id) + '">Supprimer</button></span>' : '') + '</span></div>';
       }).join('') : '<p class="ds-empty" style="text-align:center;padding:24px 0">Aucun message. Démarrez la conversation.</p>') +
       '</div><form class="chat-form" id="chat-form"><input id="chat-input" placeholder="Écrire un message…" autocomplete="off" required /><button class="btn-mini" type="submit">Envoyer</button></form></div>';
   }
@@ -646,7 +649,8 @@
     var canPrive = (ME.role === 'prof' || ME.role === 'admin');
     // l'administration modifie la composition SANS quitter le dossier (le même bouton existe
     // aussi sur chaque dossier de la vue globale, en bas de page)
-    var acts = (ME.role === 'admin' ? '<button class="btn-mini ghost grp-edit-btn" type="button" title="Ajouter ou retirer des formateurs de ce dossier">👥 Formateurs</button>' : '') +
+    var acts = (ME.role === 'admin' ? '<button class="btn-mini ghost grp-edit-btn" type="button" title="Ajouter ou retirer des formateurs de ce dossier">👥 Formateurs</button>' +
+      '<button class="btn-mini ghost msg-hist-btn" type="button" title="Modifications et suppressions de messages dans ce dossier">🕐 Historique des messages</button>' : '') +
       (ME.role !== 'eleve' ? '<button class="btn-mini gen-btn">📄 Générer un document</button>' : '');
     return '<div class="ds-card"><div class="ds-card-h"><h3>Dossier — ' + esc(groupTitle(g)) + '</h3>' +
       (acts ? '<div class="ds-card-acts">' + acts + '</div>' : '') + '</div>' + membersChips(g) +
@@ -757,6 +761,7 @@
     });
     var gb = el.querySelector('.gen-btn'); if (gb) gb.onclick = openTemplatePicker;
     var geb = el.querySelector('.grp-edit-btn'); if (geb && selG) geb.onclick = function () { openEditGroup(selG); };
+    var mhb = el.querySelector('.msg-hist-btn'); if (mhb) mhb.onclick = function () { openMessagesHistorique(); };
     if (selG) { wireChat(); wireUpload(); }
     if (overview) wireAdmin();
     renderHeader();
@@ -1157,6 +1162,8 @@
     document.querySelectorAll('.ct-sign-btn').forEach(function (b) { b.onclick = function () { openSignatureModal('contrat', b.getAttribute('data-ct')); }; });
     document.querySelectorAll('.at-cancel-btn').forEach(function (b) { b.onclick = function () { cancelRequest('attestation', b.getAttribute('data-at')); }; });
     document.querySelectorAll('.ct-cancel-btn').forEach(function (b) { b.onclick = function () { cancelRequest('contrat', b.getAttribute('data-ct')); }; });
+    document.querySelectorAll('.msg-edit').forEach(function (b) { b.onclick = function () { editerMessage(b.getAttribute('data-id')); }; });
+    document.querySelectorAll('.msg-del').forEach(function (b) { b.onclick = function () { supprimerMessage(b.getAttribute('data-id')); }; });
     var f = document.getElementById('chat-form'); if (!f) return;
     f.onsubmit = function (e) {
       e.preventDefault();
@@ -1172,6 +1179,61 @@
         renderDashboard();
       });
     };
+  }
+  // ---- messagerie : modifier / supprimer un message (26/09/2026, demande de l'utilisateur) --------
+  // Seul l'AUTEUR d'un message a les deux commandes (l'administration : ses propres messages). Un
+  // message modifié porte la mention « modifié » pour tout le monde ; un message supprimé disparaît
+  // pour tout le monde. Le serveur garde chaque version et chaque suppression : seule l'administration
+  // les lit, par le bouton « 🕐 Historique des messages » du dossier (openMessagesHistorique).
+  var CHAT_TEXTES = {};   // id → texte courant, rempli par chatHTML
+  function editerMessage(id) {
+    var el = document.querySelector('.msg[data-id="' + id + '"]'); if (!el) return;
+    if (document.querySelector('.msg-edit-box')) return;   // un seul éditeur à la fois
+    var txt = CHAT_TEXTES[id] || '';
+    el.innerHTML = '<div class="msg-edit-box"><textarea class="msg-editor" rows="3" maxlength="4000"></textarea>' +
+      '<div class="msg-edit-acts"><button type="button" class="btn-mini ghost msg-cancel">Annuler</button><button type="button" class="btn-mini msg-save">Enregistrer</button></div></div>';
+    var ta = el.querySelector('.msg-editor'); ta.value = txt; ta.focus(); ta.setSelectionRange(txt.length, txt.length);
+    el.querySelector('.msg-cancel').onclick = function () { renderDashboard(); };
+    ta.onkeydown = function (e) { if (e.key === 'Escape') { e.preventDefault(); renderDashboard(); } };
+    el.querySelector('.msg-save').onclick = function () {
+      var v = ta.value.trim(); if (!v) { ta.focus(); return; }
+      if (v === txt) { renderDashboard(); return; }
+      var b = el.querySelector('.msg-save'); b.disabled = true;
+      apiJSON('/api/messages/' + encodeURIComponent(id), 'PATCH', { text: v }).then(function (r) {
+        if (!r.ok) { b.disabled = false; alertDialog((r.data && r.data.error) || 'Le message n\'a pas pu être modifié. Réessayez.'); return; }
+        renderDashboard();
+      });
+    };
+  }
+  function supprimerMessage(id) {
+    confirmDialog({
+      title: 'Supprimer ce message ?',
+      message: 'Il disparaîtra de la discussion pour tout le monde. L\'administration en garde une trace.',
+      confirm: 'Supprimer', cancel: 'Annuler',
+      onConfirm: function () {
+        api('/api/messages/' + encodeURIComponent(id), { method: 'DELETE' }).then(function (r) {
+          if (!r.ok) { alertDialog((r.data && r.data.error) || 'Le message n\'a pas pu être supprimé. Réessayez.'); return; }
+          renderDashboard();
+        });
+      }
+    });
+  }
+  // administration : toutes les modifications et suppressions de messages du dossier ouvert (les deux canaux)
+  function openMessagesHistorique() {
+    var m = buildFsModal('mh-modal', 'Historique des messages',
+      '<p class="ds-empty" style="margin:0 0 12px">Modifications et suppressions de messages dans ce dossier. Le texte d\'origine est conservé.</p><div id="mh-holder"><p class="ds-empty">Chargement…</p></div>', '');
+    api('/api/messages/historique?group=' + encodeURIComponent(selected)).then(function (r) {
+      var holder = m.querySelector('#mh-holder'); if (!holder) return;
+      var list = (r.ok && r.data.evenements) || [];
+      holder.innerHTML = list.length ? '<ul class="notif-list mh-list">' + list.map(function (e) {
+        var type = e.type === 'suppression' ? '<span class="mh-type mh-sup">Supprimé</span>' : '<span class="mh-type mh-mod">Modifié</span>';
+        var canal = '<span class="mh-canal">' + (e.channel === 'prive' ? 'Privé' : 'Discussion commune') + '</span>';
+        var corps = e.type === 'suppression'
+          ? '<div class="mh-txt"><span class="mh-lbl">Texte supprimé :</span>' + esc(e.avant) + '</div>'
+          : '<div class="mh-txt"><span class="mh-lbl">Avant la modification :</span>' + esc(e.avant) + '</div><div class="mh-txt"><span class="mh-lbl">Après la modification :</span>' + esc(e.apres) + '</div>';
+        return '<li class="mh-item"><div class="mh-head">' + type + canal + '<b>' + esc(e.auteur) + '</b><small><span>Message envoyé le</span> ' + esc(fmtDate(e.envoye)) + '</small><time>' + esc(fmtDate(e.date)) + '</time></div>' + corps + '</li>';
+      }).join('') + '</ul>' : '<p class="ds-empty">Aucune modification ni suppression dans ce dossier.</p>';
+    });
   }
   // Envoi d'une liste de fichiers, quelle qu'en soit l'origine : le sélecteur ou un dépôt.
   function envoyerFichiers(files) {

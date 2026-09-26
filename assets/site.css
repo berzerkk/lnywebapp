@@ -994,6 +994,33 @@ footer a:hover{color:#fff8ef}
 .chat-form input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
 .chat-form .btn-mini{border-radius:999px}
 .msg-from{font-size:11px;font-weight:600;color:var(--accent);margin-bottom:2px}
+/* messagerie : mention « modifié », commandes Modifier / Supprimer, éditeur en place (26/09/2026) */
+.msg-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:3px;font-size:10.5px;color:var(--ink-soft)}
+.msg-meta time{margin-top:0}
+.msg.me .msg-meta{justify-content:flex-end}
+.msg-note{font-style:italic}
+.msg-note::before{content:"· "}
+.msg-acts{display:inline-flex;gap:10px}
+.msg-acts button{appearance:none;-webkit-appearance:none;background:none;border:0;padding:6px 2px;margin:-6px 0;font:inherit;font-size:10.5px;line-height:1;color:var(--accent);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+.msg-acts button:hover{color:#a85c44}
+.msg-edit-box{width:min(560px,78vw);display:flex;flex-direction:column;gap:8px}
+.msg-editor{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--accent);border-radius:12px;font:inherit;font-size:14.5px;line-height:1.4;resize:vertical;background:var(--bg);color:var(--ink)}
+.msg-edit-acts{display:flex;gap:8px;justify-content:flex-end}
+/* historique des messages (administration) */
+.mh-list li{flex-direction:column;align-items:stretch;gap:6px}
+.mh-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px}
+.mh-head small{color:var(--ink-soft)}
+.mh-head time{margin-left:auto;font-size:11px;color:var(--ink-soft)}
+.mh-type{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px}
+.mh-mod{background:color-mix(in oklab,var(--accent) 14%,#fff);color:var(--accent)}
+.mh-sup{background:#f6e3e0;color:#9d3b2b}
+.mh-canal{font-size:11px;color:var(--ink-soft)}
+.mh-txt{font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.mh-lbl{display:block;font-size:10.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+@media (max-width:620px){
+  .msg-acts button{font-size:12.5px;padding:12px 6px;margin:-12px 0}   /* zone tactile ≈ 40 px, sans déplacer le texte */
+  .msg-edit-box{width:100%}
+}
 .grp-members{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
 .mchip{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink-soft)}
 /* récapitulatif de la feuille de présence, affiché avant signature */
