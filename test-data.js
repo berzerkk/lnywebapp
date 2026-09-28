@@ -1,6 +1,6 @@
 /* ============================================================================
    L&S — Banques de questions du test de niveau, une par langue.
-   10 questions par langue, graduées A1 -> C2.
+   15 questions par langue, graduées A1 -> C2.
    { t: énoncé, o: [4 options], a: index de la bonne réponse, e: explication (FR) }
    Utilisé par index.html (1re question du teaser) et test-de-niveau.html.
    ============================================================================ */

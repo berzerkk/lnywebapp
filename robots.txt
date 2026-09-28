@@ -2,8 +2,9 @@
 User-agent: *
 Allow: /
 
-# Espace privé et brouillons d'articles : accessibles par leur adresse, jamais indexés
-Disallow: /espace-documents.html
+# L'espace documents n'est PAS bloqué ici : il porte <meta name="robots" content="noindex">, qui le tient
+# hors des moteurs de recherche, mais qu'un robot ne peut lire que s'il a le droit d'ouvrir la page.
+# Le bloquer ici empêchait aussi LinkedIn et X (qui respectent ce fichier) d'afficher l'aperçu de son lien.
 Disallow: /blog/brouillons/
 Disallow: /data/
 

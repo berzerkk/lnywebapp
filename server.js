@@ -5104,9 +5104,60 @@ const IA_CIBLES = [
   { nom: 'Grok', base: 'https://grok.com/?q=', vb: '0 0 34 33', svg: '<path d="M13.2371 21.0407L24.3186 12.8506C24.8619 12.4491 25.6384 12.6057 25.8973 13.2294C27.2597 16.5185 26.651 20.4712 23.9403 23.1851C21.2297 25.8989 17.4581 26.4941 14.0108 25.1386L10.2449 26.8843C15.6463 30.5806 22.2053 29.6665 26.304 25.5601C29.5551 22.3051 30.562 17.8683 29.6205 13.8673L29.629 13.8758C28.2637 7.99809 29.9647 5.64871 33.449 0.844576C33.5314 0.730667 33.6139 0.616757 33.6964 0.5L29.1113 5.09055V5.07631L13.2343 21.0436" fill="currentColor"/><path d="M10.9503 23.0313C7.07343 19.3235 7.74185 13.5853 11.0498 10.2763C13.4959 7.82722 17.5036 6.82767 21.0021 8.2971L24.7595 6.55998C24.0826 6.07017 23.215 5.54334 22.2195 5.17313C17.7198 3.31926 12.3326 4.24192 8.67479 7.90126C5.15635 11.4239 4.0499 16.8403 5.94992 21.4622C7.36924 24.9165 5.04257 27.3598 2.69884 29.826C1.86829 30.7002 1.0349 31.5745 0.36364 32.5L10.9474 23.0341" fill="currentColor"/>' },
 ];
 
+// Largeur et hauteur d'une image de couverture, lues dans l'EN-TÊTE du fichier (PNG, JPEG, WebP) pour les
+// balises og:image:width/height. Une photo téléversée depuis le site n'est pas redimensionnée : sa taille
+// n'est connue qu'en la lisant. Mémorisées par fichier et date de modification (remplacer l'image la relit).
+// Image d'une autre adresse (http…), fichier absent ou format non reconnu → null, et rien n'est annoncé.
+const dimsLues = new Map();
+function dimsCouverture(a) {
+  let f;
+  if (!a.image) f = path.join(__dirname, 'assets', 'og-cover.png');
+  else if (a.image.startsWith('http')) return null;
+  else {
+    const p = a.image.split('?')[0];
+    f = p.startsWith('/blog-img/') ? path.join(BLOG_IMG_DIR, path.basename(p)) : path.join(__dirname, p.replace(/^\/+/, ''));
+    // jamais hors du site ni du dossier des couvertures (« ../ ») ; path.relative et non une comparaison de
+    // texte, qui échoue dès que les séparateurs diffèrent (« / » contre « \ » sous Windows)
+    const dans = (dossier) => { const r = path.relative(path.resolve(dossier), path.resolve(f)); return !!r && !r.startsWith('..') && !path.isAbsolute(r); };
+    if (!dans(__dirname) && !dans(BLOG_IMG_DIR)) return null;
+  }
+  let fd;
+  try {
+    const st = fs.statSync(f), cle = f + '|' + st.mtimeMs;
+    if (dimsLues.has(cle)) return dimsLues.get(cle);
+    fd = fs.openSync(f, 'r');
+    const lire = (pos, n) => { const t = Buffer.alloc(n); return t.subarray(0, fs.readSync(fd, t, 0, n, pos)); };
+    const b = lire(0, 32);
+    let d = null;
+    if (b.length >= 24 && b.readUInt32BE(0) === 0x89504e47) d = { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+    else if (b.length >= 4 && b[0] === 0xff && b[1] === 0xd8) {
+      // JPEG : le premier segment SOFn porte la taille. On y va de segment en segment, par bonds dans le
+      // fichier : les métadonnées peuvent le repousser TRÈS loin (le certificat d'origine C2PA d'une image
+      // générée par IA pèse plusieurs Mo : taille trouvée à 2,2 Mo du début sur une photo du blog).
+      for (let pos = 2, n = 0; pos + 9 <= st.size && n < 5000; n++) {
+        const t = lire(pos, 9), m = t[1];
+        if (t[0] !== 0xff || m === 0xff) { pos++; continue; }                  // hors marqueur, remplissage
+        if ((m >= 0xd0 && m <= 0xd8) || m === 0x01) { pos += 2; continue; }  // marqueurs sans longueur
+        if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) { d = { w: t.readUInt16BE(7), h: t.readUInt16BE(5) }; break; }
+        pos += 2 + t.readUInt16BE(2);
+      }
+    } else if (b.length >= 30 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') {
+      const t = b.toString('ascii', 12, 16);
+      if (t === 'VP8X') d = { w: 1 + b.readUIntLE(24, 3), h: 1 + b.readUIntLE(27, 3) };
+      else if (t === 'VP8 ') d = { w: b.readUInt16LE(26) & 0x3fff, h: b.readUInt16LE(28) & 0x3fff };
+      else if (t === 'VP8L') { const v = b.readUInt32LE(21); d = { w: 1 + (v & 0x3fff), h: 1 + ((v >>> 14) & 0x3fff) }; }
+    }
+    if (d && !(d.w > 0 && d.h > 0)) d = null;
+    dimsLues.set(cle, d);
+    return d;
+  } catch (e) { return null; }
+  finally { if (fd !== undefined) try { fs.closeSync(fd); } catch (e) {} }
+}
+
 function artPage(a) {
   const url = SITE_URL_PUB + '/blog/' + a.slug;
   const img = a.image ? (a.image.startsWith('http') ? a.image : SITE_URL_PUB + '/' + a.image.replace(/^\//, '')) : SITE_URL_PUB + '/assets/og-cover.png?v=2';
+  const dims = dimsCouverture(a);
   const desc = a.metaDescription || a.chapo || '';
   const faq = (a.faq || []).filter(q => q && q.q && q.r);
   const graphe = {
@@ -5179,6 +5230,10 @@ function artPage(a) {
     + '<meta property="og:description" content="' + htmlEsc(desc) + '" />' + NL
     + '<meta property="og:url" content="' + url + '" />' + NL
     + '<meta property="og:image" content="' + htmlEsc(img) + '" />' + NL
+    // Dimensions annoncées : sans elles, Facebook n'affiche pas l'image au PREMIER partage d'un lien (il la
+    // traite après coup). Lues dans le fichier (dimsCouverture) ; inconnues → rien n'est annoncé.
+    + (dims ? '<meta property="og:image:width" content="' + dims.w + '" />' + NL + '<meta property="og:image:height" content="' + dims.h + '" />' + NL : '')
+    + '<meta property="og:image:alt" content="' + htmlEsc(a.titre) + '" />' + NL
     + '<meta name="twitter:card" content="summary_large_image" />' + NL
     + '<meta name="theme-color" content="#be6e54" />' + NL
     + '<link rel="icon" type="image/png" href="/assets/ls-logo.png" />' + NL
