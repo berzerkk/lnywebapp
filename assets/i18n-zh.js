@@ -102,7 +102,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Durée": "时长", "De 10 h à 60 h": "10 至 60 小时", "Selon votre niveau et vos objectifs (précisée dans votre devis).": "视您的水平和目标而定（在报价单中明确）。",
   "Rythme": "节奏", "Du lundi au vendredi, 7 h – 21 h": "周一至周五，7:00 – 21:00", "Minimum 1 h de cours par semaine.": "每周至少 1 小时课程。",
   "Modalités et délais d'accès": "报名方式与时间", "Inscription toute l'année": "全年报名", "Démarrage planifié avec votre conseiller, sous 8 jours après acceptation du dossier et de l'accord de prise en charge.": "档案和资助协议通过后 8 天内，与顾问确定开课时间。", "CPF : délai légal de 11 jours ouvrés.": "CPF：法定期限 11 个工作日。",
-  "Tarif": "价格", "Sur devis personnalisé": "个性化报价", "Variable selon la durée, la formule, la langue et les outils pédagogiques.": "视时长、形式、语言和教学工具而定。", "Affiché sur Mon Compte Formation.": "公布于 Mon Compte Formation 平台。",
+  "Tarif": "价格", "Sur devis personnalisé": "个性化报价", "Variable selon la durée, la formule, la langue et les outils pédagogiques.": "视时长、形式、语言和教学工具而定。", "Affiché sur Mon Compte Formation.": "公布于 Mon Compte Formation 平台。", "Lien envoyé individuellement sur demande.": "链接可应要求单独发送。",
   "CPF · OPCO · Entreprises · France Travail": "CPF · OPCO · 企业 · France Travail", "Nous montons le dossier avec vous.": "我们与您一起准备申请材料。", "En savoir plus →": "了解更多 →",
   "Certifications préparées": "备考认证", "En tant que partenaire référencé, nous préparons aux certifications officielles et en assurons le passage pour certaines en tant que centre agréé.": "作为认可合作伙伴，我们提供官方认证的备考培训，并作为授权考试中心承办其中部分认证的考试。",
   "Examens Cambridge": "剑桥考试", "Le parcours de référence, du A2 au C2.": "标杆路径，从 A2 到 C2。",
