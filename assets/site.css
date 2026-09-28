@@ -272,12 +272,21 @@ body.menu-open{overflow:hidden}
 .marquee.dragging .marquee-track,.marquee.dragging .client-logo{cursor:grabbing}
 .client-logo{flex:none;height:60px;width:var(--w,120px);margin:0 28px;background-color:#b6ab98;-webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat;transition:transform .3s cubic-bezier(.2,.7,.2,1),background-color .3s;cursor:grab}
 .client-logo:hover{transform:scale(1.18);background-color:var(--accent)}
-/* Coloris : globe en nuances de gris visibles (au-dessus) + texte taupe (en-dessous) ; tout passe orange au survol */
+/* Coloris : globe en nuances de gris visibles (au-dessus) + texte taupe (en-dessous) ; tout passe à l'accent au survol.
+   Au survol, le globe n'est plus teinté par un filtre (il sortait jaune-orangé, sans rapport avec l'accent) :
+   une 2ᵉ image, le même globe dans la couleur d'accent avec ses différences de ton (blog/outils/coloris-survol.js),
+   apparaît en fondu par-dessus. L'image du repos ne s'efface qu'une fois celle du survol entièrement visible
+   (sinon un fondu croisé laisse transparaître le fond à mi-course), et revient aussitôt quand le survol cesse. */
 .client-logo.coloris-combo{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:auto;height:auto;background-color:transparent!important;-webkit-mask:none!important;mask:none!important}
 .client-logo.coloris-combo:hover{transform:none}
-.coloris-combo .cglobe{height:90px;width:auto;display:block;filter:opacity(.98);transition:filter .3s,transform .3s cubic-bezier(.2,.7,.2,1)}
+.coloris-combo .cglobe{position:relative;display:block;transition:transform .3s cubic-bezier(.2,.7,.2,1)}
+.coloris-combo .cglobe img{height:90px;width:auto;display:block}
+.coloris-combo .cglobe .repos{opacity:.98;transition:opacity 0s}
+.coloris-combo .cglobe .survol{position:absolute;left:0;top:0;opacity:0;transition:opacity .3s}
 .coloris-combo .ctext{display:block;height:72px;width:105px;background-color:#b6ab98;-webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat;transition:background-color .3s,transform .3s cubic-bezier(.2,.7,.2,1)}
-.client-logo.coloris-combo:hover .cglobe{filter:grayscale(1) sepia(1) saturate(4.6) hue-rotate(-22deg) brightness(.95);transform:scale(1.08)}
+.client-logo.coloris-combo:hover .cglobe{transform:scale(1.08)}
+.client-logo.coloris-combo:hover .cglobe .survol{opacity:1}
+.client-logo.coloris-combo:hover .cglobe .repos{opacity:0;transition:opacity 0s .3s}
 .client-logo.coloris-combo:hover .ctext{background-color:var(--accent);transform:scale(1.08)}
 @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.marquee-track{animation:none;flex-wrap:wrap;justify-content:center}}
