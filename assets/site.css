@@ -244,7 +244,13 @@ body.menu-open{overflow:hidden}
   .hero-stats{flex-direction:row;flex-wrap:wrap}.hero-stat{flex:1 1 40%}
 }
 
-.scroll-indicator{position:absolute;bottom:26px;left:50%;right:auto;z-index:3;display:flex;flex-direction:column;align-items:center;gap:10px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--ink-soft);opacity:0;transform:translate(-50%,8px) scale(.96);pointer-events:none;transition:opacity .48s,transform .48s}
+/* « Lire » se pose en bas du PREMIER ÉCRAN, pas en bas du héros (28/09/2026) : le héros mesure ~940 px,
+   plus que la hauteur visible d'un portable (720 à 900 px) — posé à 26 px du bas du héros, l'indicateur
+   tombait sous le bord de l'écran et ne se voyait qu'en défilant, c'est-à-dire quand il s'efface.
+   Écart au bas du héros = max(26 px, dépassement du héros sous l'écran + 26 px) : 26 px au-dessus du bord
+   de l'écran quand le héros déborde, inchangé quand l'écran est plus haut que le héros. (Le héros
+   commence en haut de la page : 100vh y désigne bien le bas du premier écran.) */
+.scroll-indicator{position:absolute;bottom:max(26px,calc(100% - 100vh + 26px));left:50%;right:auto;z-index:3;display:flex;flex-direction:column;align-items:center;gap:10px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--ink-soft);opacity:0;transform:translate(-50%,8px) scale(.96);pointer-events:none;transition:opacity .48s,transform .48s}
 .scroll-indicator.visible{opacity:.75;transform:translate(-50%,0) scale(1)}
 .scroll-indicator .arrow{width:1px;height:34px;background:linear-gradient(180deg,var(--accent),transparent);position:relative;overflow:hidden}
 /* PERF : `top` n'est pas une propriété compositable — l'animer forçait une passe de LAYOUT à
