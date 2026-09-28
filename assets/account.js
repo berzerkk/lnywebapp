@@ -927,10 +927,12 @@
       gi('g-nomA', 'Nom de l\'apprenant', h.nomApprenant) + gi('g-nomF', 'Nom du formateur', h.nomFormateur) +
       gi('g-telA', 'Tél apprenant', h.telApprenant) + gi('g-telF', 'Tél formateur', h.telFormateur) +
       gi('g-mailA', 'Mail apprenant', h.mailApprenant) + gi('g-mailF', 'Mail formateur', h.mailFormateur) + '</div>' +
-      '<h4 class="gen-h">Objectifs et organisation — notes du formateur</h4><div class="gf-grid">' +
+      '<h4 class="gen-h">Objectifs et organisation — notes du formateur</h4>' +
+      '<p class="ds-empty" style="margin:0 0 8px">À remplir lors de la première séance : cette partie ne change plus ensuite.</p><div class="gf-grid">' +
       ga('g-nVoc', 'Vocabulaire', n.vocabulaire) + ga('g-nStr', 'Structure', n.structure) +
       ga('g-nCom', 'Communication', n.communication) + ga('g-nAut', 'Autre', n.autre) + '</div>' +
       '<h4 class="gen-h">Séances (' + genState.sessions.length + ')</h4>' +
+      '<p class="ds-empty" style="margin:0 0 8px">Après chaque cours, ajoutez la séance que vous venez de faire. N\'ajoutez jamais de séance à venir.</p>' +
       '<p class="auth-err gen-sess-err" id="gen-sess-err" role="alert" hidden></p><div id="gen-sessions">' + list + '</div>' +
       (editing ? '' : '<details class="gen-add"><summary>+ Ajouter une séance (après un cours)</summary>' + champsSeance('s', {}, h.nomFormateur) +
         '<div class="gen-actions"><button class="btn btn-primary gen-add-btn" type="button">Ajouter cette séance</button></div></details>');

@@ -420,7 +420,7 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Après insertion, cliquez sur la bonne réponse pour la cocher.": "插入后，点击正确答案进行勾选。",
   "• Liste": "• 列表", "1. Liste": "1. 列表", "▦ Tableau": "▦ 表格", "◉ QCM": "◉ 选择题",
   "Objectifs de la formation": "培训目标", "Résultat de l'évaluation des acquis": "学习成果评估结果", "Acquis": "已掌握", "En cours d'acquisition": "掌握中", "Non acquis": "未掌握",
-  "Niveau atteint": "达到的水平", "Niveau & commentaires": "水平与评语", "Besoins": "需求", "Objectifs & profil": "目标与概况", "Objectifs et organisation — notes du formateur": "目标与安排 — 培训师笔记",
+  "Niveau atteint": "达到的水平", "Niveau & commentaires": "水平与评语", "Besoins": "需求", "Objectifs & profil": "目标与概况", "Objectifs et organisation — notes du formateur": "目标与安排 — 培训师笔记", "À remplir lors de la première séance : cette partie ne change plus ensuite.": "请在第一次课时填写：此部分之后不再更改。", "Après chaque cours, ajoutez la séance que vous venez de faire. N'ajoutez jamais de séance à venir.": "每次下课后，请添加您刚刚上完的课次。切勿添加尚未进行的课次。",
   "En attente de la réponse de l'apprenant…": "等待学员回复…", "En attente de la signature de l'apprenant…": "等待学员签字…",
   "Envoyer à l'apprenant →": "发送给学员 →", "Envoyer à l'apprenant pour signature →": "发送给学员签字 →", "Envoyer votre réponse →": "发送您的回答 →", "Envoyer ma signature →": "发送我的签名 →",
   "Remplir le questionnaire →": "填写问卷 →", "Signer →": "签字 →", "Signer la feuille de présence": "签署考勤表", "Votre signature (formateur)": "您的签名（培训师）",
