@@ -155,6 +155,220 @@
   // un article est une page de blog : c'est l'onglet « Blog » qui doit être actif
   if (RACINE) { var lb = document.querySelector('#nav-links a[href$="blog.html"]'); if (lb) lb.classList.add('active'); }
 
+  animerLogos();
+
+  // ---- ANIMATION DU LOGO À CHAQUE PAGE (29/09/2026, demande de l'utilisateur) -----------------
+  // Port fidèle de l'animation qu'il a fournie (« animation L&S.zip » : Logo Animation.dc.html,
+  // logo-animation.jsx, animations-v3.jsx) : même minutage (window.OM_SCENES : Rotation 3,92 s,
+  // Impact 1,2 s, Pause 2,4 s ; aucun réglage de vitesse, temps réel = temps auteur), mêmes courbes,
+  // mêmes formules, réglages par défaut du fichier (8 tours, grossissement 1,15, halo 4,5).
+  // - Joue à CHAQUE page : le site recharge la page à chaque lien, et un retour arrière servi depuis
+  //   le cache du navigateur (pageshow « persisted ») la rejoue depuis zéro. Logos animés : en-tête,
+  //   pied de page, carte auteur des articles. Laissés fixes : l'écran de chargement de l'accueil
+  //   (l'animation attend qu'il soit retiré), l'animation du héros (elle anime déjà le logo),
+  //   favicon, images d'aperçu, e-mails, PDF.
+  // - L'image du site n'est JAMAIS remplacée : elle reste à sa place (même boîte, même texte
+  //   alternatif), seul son dessin est poussé hors de sa boîte (object-position) le temps qu'une
+  //   COUCHE posée exactement sur elle joue l'animation avec la même image (ls-logo.png). À 5,12 s
+  //   (début de la scène « Pause », immobile) la couche disparaît et l'image d'origine réapparaît
+  //   telle quelle : au repos, c'est le logo fixe, au pixel près.
+  // - Non repris, exprès : le fondu de fin (7,22 → 7,52 s) et la boucle, qui ne servent qu'à faire
+  //   tourner l'aperçu en continu. La scène « Pause » immobile = le logo au repos.
+  // - « Réduire les animations » (prefers-reduced-motion) : rien ne bouge.
+  // - Géométrie : l'original dessine dans une boîte de 800 px remplie par le dessin (image rognée au
+  //   ras du cercle) ; ls-logo.png garde des marges (dessin = 658 px sur 760). Longueurs, flous et
+  //   perspective sont ramenés à la taille RÉELLE du dessin à l'écran (k = dessin / 800), remesurée à
+  //   chaque image : le logo de l'en-tête rétrécit quand on fait défiler la page.
+  function animerLogos() {
+    if (window.__lsLogoAnim) return;
+    try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) { return; }
+
+    var CUES = { Rotation: 0, Impact: 3.92, Pause: 5.12 };   // débuts des scènes = durées cumulées
+    var FIN = CUES.Pause;
+    var O = { tours: 8, grow: 1.15, S: 4.5 };
+    // Dans l'original, la boîte (800 unités) déborde un peu du dessin : logo.webp mesure 1400 px, son dessin
+    // 1372 → dessin = 784 unités. C'est cette taille qu'on fait correspondre au dessin de ls-logo.png (658 px
+    // sur 760), mesuré à l'écran : l'anneau extérieur tombe alors pile sur R = 0,49 × 800 = 392 unités.
+    var BOX = 800, DESSIN_ORIGINE = 800 * 1372 / 1400, PX_PER_UNIT = 1.47, PERSPECTIVE = 1800, DESSIN = 658 / 760;
+    var HALO_COLOR = '#ee9f87', LINE_COLOR = '#d98b76';
+    var CHOIX = '.site-header .logo .emblem, footer .logo .emblem, .art-auteur > img';
+
+    // courbes de animations-v3.jsx (Easing), recopiées telles quelles
+    var MOTION = {
+      enter: function (t) { t = t - 1; return t * t * t + 1; },                                          // easeOutCubic
+      glide: function (t) { return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1; }, // easeInOutCubic
+      pop: function (t) { var c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); } // easeOutBack
+    };
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    function animate(o) {   // animate({from, to, start, end, ease})(t) de animations-v3.jsx
+      return function (t) {
+        if (t <= o.start) return o.from;
+        if (t >= o.end) return o.to;
+        return o.from + (o.to - o.from) * o.ease((t - o.start) / (o.end - o.start));
+      };
+    }
+    var HALO_LAYERS = [
+      { blur: function (S) { return 4 + 3 * S; }, op: function (h) { return 0.9 * h; } },
+      { blur: function (S) { return 10 * S; }, op: function (h) { return 0.8 * h; } },
+      { blur: function (S) { return 26 * S; }, op: function (h, S) { return Math.min(1, 0.35 * h * S); } }
+    ];
+    var SPEED_LINES = [];
+    for (var q = 0; q < 18; q++) {
+      var r0 = Math.sin(q * 12.9898 + 1) * 43758.5453, rnd = r0 - Math.floor(r0);
+      SPEED_LINES.push({ y: -0.86 + (1.72 * q) / 17, side: q % 2 ? 1 : -1, len: 0.16 + 0.24 * rnd, phase: rnd, w: 3 + 5 * ((rnd * 7) % 1) });
+    }
+
+    // Tout l'état visuel est une fonction pure du temps T (logoState de logo-animation.jsx, sans le
+    // fondu de fin de boucle, jamais atteint puisque tout s'arrête à FIN).
+    function logoState(T) {
+      var R = CUES.Rotation, I = CUES.Impact, P = CUES.Pause, peak = I + 0.14, hold = I + 0.45;
+      var spin = function (t) { return -O.tours * 360 * (1 - MOTION.enter(clamp((t - R) / (I - R), 0, 1))); };
+      var angle = spin(T);
+      var arc = Math.abs(angle - spin(T - 1 / 60));   // degrés parcourus en une image (à 60 images/s)
+      var appear = animate({ from: 0, to: 1, start: R, end: R + 0.36, ease: MOTION.pop })(T);
+      var grow = T < peak
+        ? animate({ from: 1, to: O.grow, start: I, end: peak, ease: MOTION.enter })(T)
+        : animate({ from: O.grow, to: 1, start: peak, end: P, ease: MOTION.enter })(T);
+      var h = T < peak
+        ? animate({ from: 0, to: 1, start: I, end: peak, ease: MOTION.enter })(T)
+        : animate({ from: 1, to: 0, start: hold, end: P, ease: MOTION.glide })(T);
+      var fadeIn = animate({ from: 0, to: 1, start: R, end: R + 0.2, ease: MOTION.enter })(T);
+      return { angle: angle, arc: arc, scale: appear * grow, h: h, opacity: fadeIn };
+    }
+    // rotation autour de l'axe vertical (gauche → droite), face toujours lisible
+    function face(deg) {
+      var a = (((deg % 360) + 540) % 360) - 180;
+      if (a > 90) a -= 180; else if (a < -90) a += 180;
+      return { a: a, shade: 0.82 + 0.18 * Math.abs(Math.cos((a * Math.PI) / 180)) };
+    }
+
+    // halo = silhouette du logo remplie de HALO_COLOR (même procédé que useLogoImages), une fois par page
+    var GLOW = null, INST = [], t0 = null, raf = 0;
+    function preparerHalo(src) {
+      var im = new Image();
+      im.onload = function () {
+        try {
+          var n = 256, cv = document.createElement('canvas'); cv.width = cv.height = n;
+          var g = cv.getContext('2d');
+          g.drawImage(im, 0, 0, n, n);
+          g.globalCompositeOperation = 'source-in'; g.fillStyle = HALO_COLOR; g.fillRect(0, 0, n, n);
+          GLOW = cv.toDataURL('image/png');
+          INST.forEach(function (I) { I.halos.forEach(function (e) { e.src = GLOW; }); });
+        } catch (e) { GLOW = null; }
+      };
+      im.src = src;
+    }
+
+    function calque(tag, css) { var e = document.createElement(tag); e.style.cssText = css; if (tag === 'img') { e.alt = ''; e.decoding = 'sync'; } return e; }
+    // ⚠️ neutralise les styles d'image du conteneur : « .art-auteur img » (disque blanc bordé) toucherait sinon
+    // chaque calque de la carte auteur des articles
+    var PLEIN = 'position:absolute;left:0;top:0;width:100%;height:100%;display:none;margin:0;padding:0;border:0;max-width:none;background:none;border-radius:0;box-shadow:none;object-fit:fill;';
+    function monter(img) {
+      var parent = img.parentNode, src = img.currentSrc || img.src;
+      var I = { img: img, parent: parent, sauve: { pos: parent.style.position, op: img.style.objectPosition }, halos: [], lignes: [], fantomes: [] };
+      if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+      var couche = I.couche = calque('span', 'position:absolute;display:block;pointer-events:none;margin:0;padding:0;border:0;transform-origin:50% 50%;opacity:0;transform:scale(0)');
+      couche.setAttribute('aria-hidden', 'true');
+      couche.className = 'ls-logo-anim';
+      // ordre de logo-animation.jsx : halo, traînées, reflets (du plus ancien au plus récent), logo
+      for (var i = 0; i < 3; i++) { var h = calque('img', PLEIN); if (GLOW) h.src = GLOW; I.halos.push(h); couche.appendChild(h); }
+      SPEED_LINES.forEach(function (l) {
+        var d = calque('div', 'position:absolute;display:none;background:linear-gradient(' + (l.side < 0 ? '270deg' : '90deg') + ', ' + LINE_COLOR + ', rgba(217,139,118,0))');
+        I.lignes.push(d); couche.appendChild(d);
+      });
+      for (var j = 0; j < 6; j++) { var f = calque('img', PLEIN); f.src = src; I.fantomes.push(f); couche.appendChild(f); }
+      I.principal = calque('img', PLEIN.replace('display:none;', 'display:block;')); I.principal.src = src; couche.appendChild(I.principal);
+      parent.appendChild(couche);
+      img.style.objectPosition = '-100000px -100000px';   // le dessin sort de sa boîte : l'image reste, invisible
+      return I;
+    }
+    function demonter(I) {
+      if (I.couche.parentNode) I.couche.parentNode.removeChild(I.couche);
+      I.img.style.objectPosition = I.sauve.op;
+      I.parent.style.position = I.sauve.pos;
+      if (!I.img.getAttribute('style')) I.img.removeAttribute('style');
+      if (!I.parent.getAttribute('style')) I.parent.removeAttribute('style');
+    }
+
+    function dessiner(I, T) {
+      var img = I.img, r = img.getBoundingClientRect(), p = I.parent.getBoundingClientRect();
+      var w = img.clientWidth, hh = img.clientHeight;
+      // k = px à l'écran par unité de l'original ; la boîte de 800 unités est centrée sur le dessin
+      var st = logoState(T), k = (w * DESSIN) / DESSIN_ORIGINE, cx = w / 2, cy = hh / 2, px = function (v) { return v + 'px'; };
+      var c = I.couche.style;
+      c.left = px(r.left + img.clientLeft - p.left - I.parent.clientLeft); c.top = px(r.top + img.clientTop - p.top - I.parent.clientTop);
+      c.width = px(w); c.height = px(hh);
+      c.transform = 'scale(' + st.scale + ')'; c.opacity = st.opacity;
+      var avecHalo = !!GLOW && st.h > 0.001;
+      I.halos.forEach(function (e, i) {
+        e.style.display = avecHalo ? 'block' : 'none';
+        if (avecHalo) { e.style.filter = 'blur(' + (HALO_LAYERS[i].blur(O.S) * PX_PER_UNIT * k).toFixed(3) + 'px)'; e.style.opacity = HALO_LAYERS[i].op(st.h, O.S); }
+      });
+      var kl = clamp(((st.arc * 60) / 360 - 0.6) / 2.2, 0, 1), R = BOX * 0.49, charge = img.complete && img.naturalWidth > 0;
+      I.lignes.forEach(function (e, i) {
+        if (kl <= 0.01 || !charge) { e.style.display = 'none'; return; }
+        var l = SPEED_LINES[i], edge = Math.sqrt(Math.max(0, 1 - l.y * l.y)) * R;
+        var drift = (T * 3.2 + l.phase) % 1, len = l.len * BOX * (0.5 + 0.5 * kl);
+        var x = BOX / 2 + l.side * (edge + 16 + drift * 70) - (l.side < 0 ? len : 0);
+        var s = e.style; s.display = 'block';
+        s.left = px(cx + (x - BOX / 2) * k); s.top = px(cy + (l.y * R - l.w / 2) * k);
+        s.width = px(len * k); s.height = px(l.w * k); s.borderRadius = px(l.w * k); s.opacity = kl * (1 - drift) * 0.9;
+      });
+      var n = st.arc < 0.8 ? 0 : Math.min(6, Math.ceil(st.arc / 4)), persp = 'perspective(' + (PERSPECTIVE * k).toFixed(3) + 'px) rotateY(';
+      I.fantomes.forEach(function (e, j) {
+        if (j >= n) { e.style.display = 'none'; return; }
+        var kg = n - j, f = face(st.angle - (st.arc * kg) / n);
+        e.style.display = 'block'; e.style.transform = persp + f.a.toFixed(2) + 'deg)';
+        e.style.opacity = 0.45 * (1 - kg / (n + 1)); e.style.filter = 'brightness(' + f.shade.toFixed(3) + ')';
+      });
+      var f0 = face(st.angle);
+      I.principal.style.transform = persp + f0.a.toFixed(2) + 'deg)';
+      I.principal.style.filter = 'brightness(' + (f0.shade * (1 + 0.2 * st.h)).toFixed(3) + ')';
+    }
+
+    function arreter() { if (raf) cancelAnimationFrame(raf); raf = 0; t0 = null; INST.forEach(demonter); INST = []; }
+    function image(ts) {
+      raf = 0;
+      try {
+        if (t0 === null) t0 = ts;
+        var T = (ts - t0) / 1000;
+        if (T >= FIN) { arreter(); return; }   // scène « Pause » : logo immobile = logo fixe d'origine
+        INST.forEach(function (I) { dessiner(I, T); });
+        raf = requestAnimationFrame(image);
+      } catch (e) { arreter(); }              // au moindre incident, le logo fixe revient
+    }
+    // l'écran de chargement de l'accueil (première visite de la session) : on attend qu'il soit retiré
+    function apresEcranDeChargement(go) {
+      var s = document.getElementById('splash');
+      if (!s || !s.parentNode) { go(); return; }
+      var fini = false, garde, obs = new MutationObserver(function () { if (!document.getElementById('splash')) suite(); });
+      function suite() { if (fini) return; fini = true; obs.disconnect(); clearTimeout(garde); go(); }
+      obs.observe(s.parentNode, { childList: true });
+      garde = setTimeout(suite, 8000);   // il se retire au plus tard à 5,3 s
+    }
+    function lancer() {
+      arreter();
+      try {
+        var imgs = Array.prototype.slice.call(document.querySelectorAll(CHOIX));
+        if (!imgs.length) return;
+        if (!GLOW) preparerHalo(imgs[0].currentSrc || imgs[0].src);
+        INST = imgs.map(monter);
+        INST.forEach(function (I) { dessiner(I, 0); });   // première image affichée = état de départ
+        apresEcranDeChargement(function () { if (INST.length) raf = requestAnimationFrame(image); });
+      } catch (e) { arreter(); }
+    }
+    window.__lsLogoAnim = {
+      duree: FIN,
+      rejouer: lancer,
+      // essais : fige l'animation à l'instant T (en secondes), sans horloge
+      figer: function (T) { if (raf) cancelAnimationFrame(raf); raf = 0; if (!INST.length) { var imgs = Array.prototype.slice.call(document.querySelectorAll(CHOIX)); INST = imgs.map(monter); } INST.forEach(function (I) { dessiner(I, T); }); },
+      arreter: arreter
+    };
+    window.addEventListener('pagehide', arreter);
+    window.addEventListener('pageshow', function (e) { if (e.persisted) lancer(); });
+    lancer();
+  }
+
   // réseaux sociaux : placeholders sans lien (href="#") → on neutralise le clic en attendant les vrais liens
   document.querySelectorAll('.soc[href="#"]').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
 
