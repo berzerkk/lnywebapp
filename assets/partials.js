@@ -166,8 +166,8 @@
   //   largeur, grossissement 130 %, halo 7. Les valeurs de secours écrites dans le code (22 tours, 115 %,
   //   4,5…) ne servent que si l'éditeur n'en fournit aucune : ce n'est jamais le cas.
   // - Nouveautés de la V3 par rapport à la première animation : flou de mouvement horizontal proportionnel
-  //   à la vitesse (filtre SVG à identifiant unique), jusqu'à 8 reflets au lieu de 6,
-  //   halo en passes empilées (S > 3 : plus dense, rayon qui grandit comme √(S/3)), logo plus lumineux à
+  //   à la vitesse (filtre SVG, ou canevas sous WebKit : voir « sous WebKit » plus bas), jusqu'à 8 reflets au
+  //   lieu de 6, halo en passes empilées (S > 3 : plus dense, rayon qui grandit comme √(S/3)), logo plus lumineux à
   //   l'impact (en proportion du halo), nombre, longueur et épaisseur des traînées réglables.
   // - Joue à CHAQUE page : le site recharge la page à chaque lien, et un retour arrière servi depuis
   //   le cache du navigateur (pageshow « persisted ») la rejoue depuis zéro. Logo animé : celui de
@@ -283,13 +283,18 @@
       var couche = I.couche = calque('span', 'position:absolute;display:block;pointer-events:none;margin:0;padding:0;border:0;transform-origin:50% 50%;opacity:0;transform:scale(0)');
       couche.setAttribute('aria-hidden', 'true');
       couche.className = 'ls-logo-anim';
-      // ordre de logo-animation.jsx : halo (passes × 3 calques), traînées, puis le filtre de flou de mouvement
-      // et le bloc qu'il floute : reflets (du plus ancien au plus récent) et logo
+      // ordre de logo-animation.jsx : halo (passes × 3 calques), traînées, puis le bloc qui tourne (reflets du plus
+      // ancien au plus récent, puis logo) avec son flou de mouvement : filtre SVG, ou canevas sous WebKit
       for (var i = 0; i < HALO_PASSES * 3; i++) { var h = calque('img', PLEIN); if (GLOW) h.src = GLOW; I.halos.push(h); couche.appendChild(h); }
       SPEED_LINES.forEach(function (l) {
         var d = calque('div', 'position:absolute;display:none;background:linear-gradient(' + (l.side < 0 ? '270deg' : '90deg') + ', ' + LINE_COLOR + ', rgba(217,139,118,0))');
         I.lignes.push(d); couche.appendChild(d);
       });
+      if (WEBKIT) {
+        I.toile = calque('canvas', 'position:absolute;display:none;margin:0;padding:0;border:0;max-width:none;background:none;');
+        try { I.ctx = I.toile.getContext('2d', { willReadFrequently: true }); } catch (e) { I.ctx = null; }
+        couche.appendChild(I.toile);
+      }
       // flou de mouvement : flou gaussien HORIZONTAL seulement (stdDeviation « x 0 »), même zone que l'original ;
       // un filtre par logo animé, à identifiant unique (ne pas en partager un si d'autres logos s'animent un jour)
       I.id = 'ls-logo-flou-' + (++numero);
@@ -316,6 +321,144 @@
       if (!I.parent.getAttribute('style')) I.parent.removeAttribute('style');
     }
 
+    // ---- sous WebKit, le bloc qui tourne est dessiné dans un canevas (29/09/2026, signalé sur téléphone) --------
+    // L'original floute ce bloc (reflets + logo) par un filtre SVG (feGaussianBlur « x 0 ») posé sur un bloc HTML,
+    // et c'est ce que fait le site dans Chrome, Edge, Firefox (Android compris). Mais dans Safari et dans TOUS
+    // les navigateurs d'iPhone (moteur WebKit), un filtre SVG ne peut pas être appliqué par la carte graphique :
+    // il est peint à part et n'atteint pas les images qui tournent en 3D, peintes chacune de leur côté. Résultat :
+    // aucun flou de mouvement sur iPhone. Pour WebKit, le canevas refait le même calcul : chaque couche (reflet ou
+    // logo) est projetée colonne par colonne (rotateY + perspective : le point d'abscisse u va en
+    // X = u·cos·d/(d + u·sin), et toute sa colonne est mise à l'échelle d/(d + u·sin)), avec sa luminosité et son
+    // opacité ; puis l'ensemble reçoit le flou horizontal tel que feGaussianBlur le calcule (norme Filter Effects :
+    // trois flous en boîte, couleurs prémultipliées, espace sRGB), dans la même zone que le filtre d'origine
+    // (±720 × ±440 unités autour du centre). Dès que le flou retombe sous 0,3 (fin de la rotation), ce sont les
+    // images HTML qui s'affichent. Si le navigateur trafique la lecture du canevas (protections anti-empreinte),
+    // on revient aux images HTML. Le canevas travaille sur le fil principal : dans Chrome, le filtre SVG, fait
+    // par la carte graphique, reste plus léger sur un téléphone modeste (d'où les deux chemins).
+    // WebKit = « AppleWebKit » sans jeton Chrome/Chromium/Edg/OPR : Safari (Mac, iPhone, iPad), et Chrome, Edge,
+    // Firefox SUR iPhone (CriOS, EdgiOS, FxiOS : moteur WebKit imposé par Apple).
+    var WEBKIT = (function () { var ua = navigator.userAgent || ''; return /AppleWebKit\//.test(ua) && !/(Chrome|Chromium|Edg|OPR)\//.test(ua); })();
+    var TOILE_OK = true, SRC = null, LA = null, LB = null;
+    // ls-logo.png ramenée à la taille du logo en pixels réels (par moitiés successives : pas de crénelage),
+    // puis assombrie à la luminosité demandée (brightness(b), b ≤ 1 : couleur × b, transparence intacte),
+    // au pas de 0,005 ; chaque niveau n'est préparé qu'une fois
+    function sourceToile(img, W, H, b) {
+      var cle = W + 'x' + H + '|' + (img.currentSrc || img.src);
+      if (!SRC || SRC.cle !== cle) {
+        var s = img, sw = img.naturalWidth, sh = img.naturalHeight;
+        while (sw >= 2 * W && sh >= 2 * H) {
+          var t = document.createElement('canvas'); t.width = Math.round(sw / 2); t.height = Math.round(sh / 2);
+          var tg = t.getContext('2d'); tg.imageSmoothingEnabled = true; tg.imageSmoothingQuality = 'high'; tg.drawImage(s, 0, 0, t.width, t.height);
+          s = t; sw = t.width; sh = t.height;
+        }
+        var base = document.createElement('canvas'); base.width = W; base.height = H;
+        var bg = base.getContext('2d'); bg.imageSmoothingEnabled = true; bg.imageSmoothingQuality = 'high'; bg.drawImage(s, 0, 0, W, H);
+        SRC = { cle: cle, base: base, niveaux: {} };
+      }
+      var q = Math.round(Math.min(1, b) * 200);
+      if (q >= 200) return SRC.base;
+      var c = SRC.niveaux[q];
+      if (!c) {
+        c = document.createElement('canvas'); c.width = W; c.height = H;
+        var g = c.getContext('2d'); g.drawImage(SRC.base, 0, 0);
+        g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(0,0,0,' + (1 - q / 200) + ')'; g.fillRect(0, 0, W, H);
+        SRC.niveaux[q] = c;
+      }
+      return c;
+    }
+    // une couche projetée : le plan de l'image (W × H pixels réels, centré en ox, oy) tourne de « deg » autour de
+    // l'axe vertical, vu en perspective d. Dessin par bandes verticales, chacune à sa propre échelle verticale :
+    // le haut et le bas du logo avancent donc par petites marches, d'autant plus hautes que la bande est large
+    // et l'angle fort (marche ≈ largeur · |tan| · (H/2)/d). La bande est la plus large (8 px au plus) qui garde
+    // ces marches sous « tol » pixels réels ; le flou horizontal, quand il est fort, les efface.
+    function projeter(g, src, W, H, ox, oy, deg, d, tol) {
+      var a = deg * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a), hw = W / 2, rx = src.width / W;
+      if (c < 1e-3) return;                              // de profil : rien à voir
+      var marche = Math.abs(sn) / c * (H / 2) / d, bande = marche > 1e-9 ? Math.max(1, Math.min(8, Math.floor(tol / marche))) : 8;
+      var x0 = Math.floor(-hw * c * d / (d - hw * sn)), x1 = Math.ceil(hw * c * d / (d + hw * sn));
+      for (var X = x0; X < x1; X += bande) {
+        var Xa = X, Xb = Math.min(X + bande, x1);
+        var ua = Xa * d / (c * d - Xa * sn), ub = Xb * d / (c * d - Xb * sn);
+        if (ua < -hw) { ua = -hw; Xa = ua * c * d / (d + ua * sn); }
+        if (ub > hw) { ub = hw; Xb = ub * c * d / (d + ub * sn); }
+        if (ub <= ua || Xb <= Xa) continue;
+        var f = d / (d + ((ua + ub) / 2) * sn), hd = H * f;
+        g.drawImage(src, (ua + hw) * rx, 0, (ub - ua) * rx, src.height, ox + Xa, oy - hd / 2, Xb - Xa, hd);
+      }
+    }
+    // flou en boîte sur une ligne RGBA prémultipliée : moyenne sur [x − gauche, x + droite], hors ligne = transparent
+    function boite(S, D, L, gauche, droite) {
+      var n = gauche + droite + 1, s0 = 0, s1 = 0, s2 = 0, s3 = 0, x, j;
+      for (j = 0; j <= droite && j < L; j++) { s0 += S[4 * j]; s1 += S[4 * j + 1]; s2 += S[4 * j + 2]; s3 += S[4 * j + 3]; }
+      for (x = 0; x < L; x++) {
+        D[4 * x] = s0 / n; D[4 * x + 1] = s1 / n; D[4 * x + 2] = s2 / n; D[4 * x + 3] = s3 / n;
+        j = x + droite + 1; if (j < L) { s0 += S[4 * j]; s1 += S[4 * j + 1]; s2 += S[4 * j + 2]; s3 += S[4 * j + 3]; }
+        j = x - gauche; if (j >= 0) { s0 -= S[4 * j]; s1 -= S[4 * j + 1]; s2 -= S[4 * j + 2]; s3 -= S[4 * j + 3]; }
+      }
+    }
+    // flou gaussien horizontal d'écart-type sigma (pixels réels), comme feGaussianBlur : si d = ⌊σ·3·√(2π)/4 + 0,5⌋
+    // est impair, trois boîtes de d centrées ; s'il est pair, deux boîtes de d décalées d'un demi-pixel de part et
+    // d'autre, puis une de d + 1 centrée
+    function flouHorizontal(px, L, H, sigma) {
+      var d = Math.floor(sigma * 3 * Math.sqrt(2 * Math.PI) / 4 + 0.5), h = d >> 1, y, x, i, a, m;
+      if (d < 2) return;
+      if (!LA || LA.length < 4 * L) { LA = new Float32Array(4 * L); LB = new Float32Array(4 * L); }
+      var A = LA, B = LB;
+      for (y = 0; y < H; y++) {
+        var o = 4 * L * y, vide = true;
+        for (x = 0; x < L; x++) {
+          i = o + 4 * x; a = px[i + 3];
+          if (a) { vide = false; m = a / 255; A[4 * x] = px[i] * m; A[4 * x + 1] = px[i + 1] * m; A[4 * x + 2] = px[i + 2] * m; A[4 * x + 3] = a; }
+          else A[4 * x] = A[4 * x + 1] = A[4 * x + 2] = A[4 * x + 3] = 0;
+        }
+        if (vide) continue;
+        if (d & 1) { boite(A, B, L, h, h); boite(B, A, L, h, h); boite(A, B, L, h, h); }
+        else { boite(A, B, L, h, h - 1); boite(B, A, L, h - 1, h); boite(A, B, L, h, h); }
+        for (x = 0; x < L; x++) {
+          i = o + 4 * x; a = B[4 * x + 3];
+          if (a < 0.5) { px[i] = px[i + 1] = px[i + 2] = px[i + 3] = 0; continue; }
+          m = 255 / a; px[i] = B[4 * x] * m; px[i + 1] = B[4 * x + 1] * m; px[i + 2] = B[4 * x + 2] * m; px[i + 3] = a;
+        }
+      }
+    }
+    // reflets + logo + flou de mouvement dans le canevas ; rend false si le canevas ne peut pas servir
+    function dessinerToile(I, st, k, w, hh, flou) {
+      var img = I.img, g = I.ctx;
+      if (!g || !(img.complete && img.naturalWidth > 0)) return false;
+      var dpr = window.devicePixelRatio || 1;
+      var W = Math.max(2, Math.round(w * dpr)), H = Math.max(2, Math.round(hh * dpr));
+      // zone du filtre d'origine (x −40 % → 140 %, y −5 % → 105 % de la boîte de 800 unités), en nombre PAIR de
+      // pixels réels : le canevas reste calé sur les pixels de l'écran
+      var L = 2 * Math.max(1, Math.round(720 * k * dpr)), Hc = 2 * Math.max(1, Math.round(440 * k * dpr));
+      var d = PERSPECTIVE * k * dpr, sigma = flou * k * dpr, ox = L / 2, oy = Hc / 2;
+      // flou fort (σ ≥ 8 pixels réels, première seconde sur téléphone) : calcul à demi-résolution HORIZONTALE, le
+      // canevas étant étiré à sa largeur par le navigateur ; le flou efface la différence, le temps de calcul est divisé par deux
+      var fx = sigma >= 8 ? 2 : 1, Lx = L / fx;
+      var cv = I.toile, cs = cv.style;
+      if (cv.width !== Lx || cv.height !== Hc) { cv.width = Lx; cv.height = Hc; }
+      cs.width = L / dpr + 'px'; cs.height = Hc / dpr + 'px'; cs.left = (w - L / dpr) / 2 + 'px'; cs.top = (hh - Hc / dpr) / 2 + 'px';
+      g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.clearRect(0, 0, Lx, Hc);
+      g.setTransform(1 / fx, 0, 0, 1, 0, 0);            // on dessine en pixels réels, le canevas en garde un sur fx en largeur
+      g.imageSmoothingEnabled = true;
+      var tol = Math.max(0.35, sigma / 2);              // marches tolérées en haut et en bas du logo (voir projeter)
+      var n = st.arc < 0.8 ? 0 : Math.min(8, Math.ceil(st.arc / 4));
+      for (var kg = n; kg >= 1; kg--) {
+        var f = face(st.angle - (st.arc * kg) / n);
+        g.globalAlpha = 0.45 * (1 - kg / (n + 1));
+        projeter(g, sourceToile(img, W, H, f.shade), W, H, ox, oy, f.a, d, tol);
+      }
+      var f0 = face(st.angle);
+      g.globalAlpha = 1;
+      projeter(g, sourceToile(img, W, H, f0.shade * (1 + 0.2 * st.h * (O.S / 3))), W, H, ox, oy, f0.a, d, tol);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      var im = g.getImageData(0, 0, Lx, Hc), px = im.data;
+      // lecture trafiquée (protections anti-empreinte) : les coins, où rien n'est dessiné, doivent être transparents
+      if (px[3] !== 0 || px[px.length - 1] !== 0) { TOILE_OK = false; return false; }
+      flouHorizontal(px, Lx, Hc, sigma / fx);
+      g.putImageData(im, 0, 0);
+      return true;
+    }
+
     function dessiner(I, T) {
       var img = I.img, r = img.getBoundingClientRect(), p = I.parent.getBoundingClientRect();
       var w = img.clientWidth, hh = img.clientHeight;
@@ -340,6 +483,14 @@
         s.left = px(cx + (x - BOX / 2) * k); s.top = px(cy + (l.y * R - lw / 2) * k);
         s.width = px(len * k); s.height = px(lw * k); s.borderRadius = px(lw * k); s.opacity = kl * (1 - drift) * 0.9;
       });
+      // bloc qui tourne : flou horizontal proportionnel à la vitesse, en unités de l'original (seuil 0,3 compris).
+      // Sous WebKit, tant que ce flou est actif, tout le bloc est dessiné dans le canevas (voir plus haut) ;
+      // ailleurs, ou si le canevas ne peut pas servir, reflets et logo HTML floutés par le filtre SVG
+      var flou = Math.min(60, st.arc * 0.7) * O.blur, toile = false;
+      if (WEBKIT && TOILE_OK && flou > 0.3) { try { toile = dessinerToile(I, st, k, w, hh, flou); } catch (e) { TOILE_OK = false; toile = false; } }
+      if (I.toile) changer(I.toile, 'display', toile ? 'block' : 'none');
+      changer(I.flou, 'display', toile ? 'none' : 'block');
+      if (toile) return;
       var n = st.arc < 0.8 ? 0 : Math.min(8, Math.ceil(st.arc / 4)), persp = 'perspective(' + (PERSPECTIVE * k).toFixed(3) + 'px) rotateY(';
       I.fantomes.forEach(function (e, j) {
         if (j >= n) { changer(e, 'display', 'none'); return; }
@@ -350,16 +501,14 @@
       var f0 = face(st.angle);
       I.principal.style.transform = persp + f0.a.toFixed(2) + 'deg)';
       I.principal.style.filter = 'brightness(' + (f0.shade * (1 + 0.2 * st.h * (O.S / 3))).toFixed(3) + ')';
-      // flou horizontal proportionnel à la vitesse, en unités de l'original (seuil 0,3 compris), puis ramené à l'écran.
       // Il reste au plafond (60 × 1,2) pendant les 0,8 premières secondes : on ne réécrit le filtre que s'il change
-      var flou = Math.min(60, st.arc * 0.7) * O.blur;
       if (flou > 0.3) { var sd = (flou * k).toFixed(3) + ' 0'; if (sd !== I.sd) { I.fe.setAttribute('stdDeviation', sd); I.sd = sd; } }
       changer(I.flou, 'filter', flou > 0.3 ? 'url(#' + I.id + ')' : 'none');
     }
     // n'écrit une propriété de style que si sa valeur change (le navigateur n'a alors rien à recalculer)
     function changer(e, prop, v) { var m = e.__ls || (e.__ls = {}); if (m[prop] !== v) { e.style[prop] = v; m[prop] = v; } }
 
-    function arreter() { if (raf) cancelAnimationFrame(raf); raf = 0; t0 = null; INST.forEach(demonter); INST = []; }
+    function arreter() { if (raf) cancelAnimationFrame(raf); raf = 0; t0 = null; INST.forEach(demonter); INST = []; SRC = null; }
     function image(ts) {
       raf = 0;
       try {
