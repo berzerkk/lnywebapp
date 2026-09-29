@@ -254,16 +254,23 @@
       return { a: a, shade: 0.82 + 0.18 * Math.abs(Math.cos((a * Math.PI) / 180)) };
     }
 
-    // halo = silhouette du logo remplie de HALO_COLOR (même procédé que useLogoImages), une fois par page
+    // halo = silhouette du logo remplie de HALO_COLOR (même procédé que useLogoImages), une fois par page.
+    // ⚠️ Sur iPhone et dans Safari (WebKit), le flou CSS d'un élément est COUPÉ au bord de sa propre boîte (signalé le
+    // 30/09/2026 : un carré autour du logo à l'impact, la lueur tranchée net à la limite de l'image). La silhouette est
+    // donc posée au centre d'une image plus grande, transparente autour, et chaque calque du halo déborde d'autant la
+    // boîte du logo : HALO_CADRE fois sa taille, de quoi contenir 4 écarts-types du calque le plus flou (le reste est
+    // invisible). Dans Chrome, qui ne coupe pas, le rendu est le même (même dessin, même densité : 256 px par boîte).
+    var BOITE = DESSIN_ORIGINE / DESSIN;   // boîte du logo, en unités de l'original (905,5 : le dessin en occupe 784)
+    var HALO_CADRE = Math.ceil(10 * 2 * (BOX * 0.49 + 4 * HALO_LAYERS[2].blur(3) * HALO_SPREAD * PX_PER_UNIT) / BOITE) / 10;
     var GLOW = null, INST = [], t0 = null, raf = 0, numero = 0;
     function preparerHalo(src) {
       var im = new Image();
       im.onload = function () {
         try {
-          var n = 256, cv = document.createElement('canvas'); cv.width = cv.height = n;
+          var n = 256, N = Math.round(n * HALO_CADRE), o = (N - n) / 2, cv = document.createElement('canvas'); cv.width = cv.height = N;
           var g = cv.getContext('2d');
-          g.drawImage(im, 0, 0, n, n);
-          g.globalCompositeOperation = 'source-in'; g.fillStyle = HALO_COLOR; g.fillRect(0, 0, n, n);
+          g.drawImage(im, o, o, n, n);
+          g.globalCompositeOperation = 'source-in'; g.fillStyle = HALO_COLOR; g.fillRect(0, 0, N, N);
           GLOW = cv.toDataURL('image/png');
           INST.forEach(function (I) { I.halos.forEach(function (e) { e.src = GLOW; }); });
         } catch (e) { GLOW = null; }
@@ -285,7 +292,9 @@
       couche.className = 'ls-logo-anim';
       // ordre de logo-animation.jsx : halo (passes × 3 calques), traînées, puis le bloc qui tourne (reflets du plus
       // ancien au plus récent, puis logo) avec son flou de mouvement : filtre SVG, ou canevas sous WebKit
-      for (var i = 0; i < HALO_PASSES * 3; i++) { var h = calque('img', PLEIN); if (GLOW) h.src = GLOW; I.halos.push(h); couche.appendChild(h); }
+      // calques du halo : HALO_CADRE fois la boîte du logo, centrés sur elle (voir preparerHalo)
+      var cadre = 'left:' + (-(HALO_CADRE - 1) * 50) + '%;top:' + (-(HALO_CADRE - 1) * 50) + '%;width:' + (HALO_CADRE * 100) + '%;height:' + (HALO_CADRE * 100) + '%;';
+      for (var i = 0; i < HALO_PASSES * 3; i++) { var h = calque('img', PLEIN.replace('left:0;top:0;width:100%;height:100%;', cadre)); if (GLOW) h.src = GLOW; I.halos.push(h); couche.appendChild(h); }
       SPEED_LINES.forEach(function (l) {
         var d = calque('div', 'position:absolute;display:none;background:linear-gradient(' + (l.side < 0 ? '270deg' : '90deg') + ', ' + LINE_COLOR + ', rgba(217,139,118,0))');
         I.lignes.push(d); couche.appendChild(d);
