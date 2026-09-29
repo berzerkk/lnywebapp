@@ -166,13 +166,14 @@
   //   largeur, grossissement 130 %, halo 7. Les valeurs de secours écrites dans le code (22 tours, 115 %,
   //   4,5…) ne servent que si l'éditeur n'en fournit aucune : ce n'est jamais le cas.
   // - Nouveautés de la V3 par rapport à la première animation : flou de mouvement horizontal proportionnel
-  //   à la vitesse (filtre SVG, un par logo, identifiant propre à chacun), jusqu'à 8 reflets au lieu de 6,
+  //   à la vitesse (filtre SVG à identifiant unique), jusqu'à 8 reflets au lieu de 6,
   //   halo en passes empilées (S > 3 : plus dense, rayon qui grandit comme √(S/3)), logo plus lumineux à
   //   l'impact (en proportion du halo), nombre, longueur et épaisseur des traînées réglables.
   // - Joue à CHAQUE page : le site recharge la page à chaque lien, et un retour arrière servi depuis
-  //   le cache du navigateur (pageshow « persisted ») la rejoue depuis zéro. Logos animés : en-tête,
-  //   pied de page, carte auteur des articles. Laissés fixes : l'écran de chargement de l'accueil
-  //   (l'animation attend qu'il soit retiré), l'animation du héros (elle anime déjà le logo),
+  //   le cache du navigateur (pageshow « persisted ») la rejoue depuis zéro. Logo animé : celui de
+  //   l'EN-TÊTE SEULEMENT (demande de l'utilisateur, 29/09/2026 : « uniquement dans le header, nulle part
+  //   ailleurs »). Laissés fixes : le pied de page, la carte auteur des articles, l'écran de chargement de
+  //   l'accueil (l'animation attend qu'il soit retiré), l'animation du héros (elle anime déjà le logo),
   //   favicon, images d'aperçu, e-mails, PDF.
   // - L'image du site n'est JAMAIS remplacée : elle reste à sa place (même boîte, même texte
   //   alternatif), seul son dessin est poussé hors de sa boîte (object-position) le temps qu'une
@@ -200,7 +201,7 @@
     // sur 760), mesuré à l'écran : l'anneau extérieur tombe alors pile sur R = 0,49 × 800 = 392 unités.
     var BOX = 800, DESSIN_ORIGINE = 800 * 1372 / 1400, PX_PER_UNIT = 1.47, PERSPECTIVE = 1800, DESSIN = 658 / 760;
     var HALO_COLOR = '#ee9f87', LINE_COLOR = '#d98b76';
-    var CHOIX = '.site-header .logo .emblem, footer .logo .emblem, .art-auteur > img';
+    var CHOIX = '.site-header .logo .emblem';   // l'en-tête seulement : pied de page et carte auteur restent fixes
 
     // courbes de animations-v3.jsx (Easing), recopiées telles quelles
     var MOTION = {
@@ -271,8 +272,8 @@
     }
 
     function calque(tag, css) { var e = document.createElement(tag); e.style.cssText = css; if (tag === 'img') { e.alt = ''; e.decoding = 'sync'; } return e; }
-    // ⚠️ neutralise les styles du conteneur : « .art-auteur img » (disque blanc bordé) et « .art-auteur span »
-    // (bloc de texte à marge) toucheraient sinon chaque calque de la carte auteur des articles
+    // ⚠️ neutralise les styles qu'un conteneur imposerait à ses img ou à ses span : c'est arrivé avec
+    // « .art-auteur img » (disque blanc bordé) et « .art-auteur span » quand la carte auteur était animée
     var PLEIN = 'position:absolute;left:0;top:0;width:100%;height:100%;display:none;margin:0;padding:0;border:0;max-width:none;background:none;border-radius:0;box-shadow:none;object-fit:fill;';
     var SVG = 'http://www.w3.org/2000/svg';
     function monter(img) {
@@ -290,7 +291,7 @@
         I.lignes.push(d); couche.appendChild(d);
       });
       // flou de mouvement : flou gaussien HORIZONTAL seulement (stdDeviation « x 0 »), même zone que l'original ;
-      // un filtre par logo, à identifiant unique (trois logos sur une page d'article)
+      // un filtre par logo animé, à identifiant unique (ne pas en partager un si d'autres logos s'animent un jour)
       I.id = 'ls-logo-flou-' + (++numero);
       var svg = document.createElementNS(SVG, 'svg');
       svg.setAttribute('width', '0'); svg.setAttribute('height', '0'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
