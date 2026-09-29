@@ -158,10 +158,17 @@
   animerLogos();
 
   // ---- ANIMATION DU LOGO À CHAQUE PAGE (29/09/2026, demande de l'utilisateur) -----------------
-  // Port fidèle de l'animation qu'il a fournie (« animation L&S.zip » : Logo Animation.dc.html,
-  // logo-animation.jsx, animations-v3.jsx) : même minutage (window.OM_SCENES : Rotation 3,92 s,
-  // Impact 1,2 s, Pause 2,4 s ; aucun réglage de vitesse, temps réel = temps auteur), mêmes courbes,
-  // mêmes formules, réglages par défaut du fichier (8 tours, grossissement 1,15, halo 4,5).
+  // Port fidèle de l'animation qu'il a fournie, version V3 (« animation L&S V3.zip » : Logo Animation.dc.html,
+  // logo-animation.jsx, animations-v3.jsx) : même minutage (window.OM_SCENES : Rotation 3,92 s, Impact
+  // 1,2 s, Pause 2,4 s ; aucun réglage de vitesse, temps réel = temps auteur), mêmes courbes, mêmes formules.
+  // - Réglages = ceux ENREGISTRÉS dans l'éditeur (data-props du fichier), que l'aperçu applique réellement
+  //   (vérifié en l'ouvrant) : 30 tours, flou de mouvement 120 %, 20 traînées de 130 % en longueur et en
+  //   largeur, grossissement 130 %, halo 7. Les valeurs de secours écrites dans le code (22 tours, 115 %,
+  //   4,5…) ne servent que si l'éditeur n'en fournit aucune : ce n'est jamais le cas.
+  // - Nouveautés de la V3 par rapport à la première animation : flou de mouvement horizontal proportionnel
+  //   à la vitesse (filtre SVG, un par logo, identifiant propre à chacun), jusqu'à 8 reflets au lieu de 6,
+  //   halo en passes empilées (S > 3 : plus dense, rayon qui grandit comme √(S/3)), logo plus lumineux à
+  //   l'impact (en proportion du halo), nombre, longueur et épaisseur des traînées réglables.
   // - Joue à CHAQUE page : le site recharge la page à chaque lien, et un retour arrière servi depuis
   //   le cache du navigateur (pageshow « persisted ») la rejoue depuis zéro. Logos animés : en-tête,
   //   pied de page, carte auteur des articles. Laissés fixes : l'écran de chargement de l'accueil
@@ -175,17 +182,19 @@
   // - Non repris, exprès : le fondu de fin (7,22 → 7,52 s) et la boucle, qui ne servent qu'à faire
   //   tourner l'aperçu en continu. La scène « Pause » immobile = le logo au repos.
   // - « Réduire les animations » (prefers-reduced-motion) : rien ne bouge.
-  // - Géométrie : l'original dessine dans une boîte de 800 px remplie par le dessin (image rognée au
-  //   ras du cercle) ; ls-logo.png garde des marges (dessin = 658 px sur 760). Longueurs, flous et
-  //   perspective sont ramenés à la taille RÉELLE du dessin à l'écran (k = dessin / 800), remesurée à
-  //   chaque image : le logo de l'en-tête rétrécit quand on fait défiler la page.
+  // - Géométrie : l'original dessine dans une boîte de 800 unités où le dessin mesure 784 (logo.webp : 1372 px
+  //   de dessin sur 1400) ; ls-logo.png garde des marges (dessin = 658 px sur 760). Longueurs, flous (halo,
+  //   flou de mouvement) et perspective sont ramenés à la taille RÉELLE du dessin à l'écran
+  //   (k = dessin / 784), remesurée à chaque image : le logo de l'en-tête rétrécit quand on fait défiler.
   function animerLogos() {
     if (window.__lsLogoAnim) return;
     try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) { return; }
 
     var CUES = { Rotation: 0, Impact: 3.92, Pause: 5.12 };   // débuts des scènes = durées cumulées
     var FIN = CUES.Pause;
-    var O = { tours: 8, grow: 1.15, S: 4.5 };
+    // réglages de l'éditeur (data-props) : vitesseSpin 30, grossissement 130, intensiteHalo 7, flou 120,
+    // lignesNombre 20, lignesLongueur 130, lignesLargeur 130 — convertis comme le fait LogoAnimation()
+    var O = { tours: 30, grow: 130 / 100, S: 7, blur: 120 / 100, lines: 20, lineLen: 130 / 100, lineW: 130 / 100 };
     // Dans l'original, la boîte (800 unités) déborde un peu du dessin : logo.webp mesure 1400 px, son dessin
     // 1372 → dessin = 784 unités. C'est cette taille qu'on fait correspondre au dessin de ls-logo.png (658 px
     // sur 760), mesuré à l'écran : l'anneau extérieur tombe alors pile sur R = 0,49 × 800 = 392 unités.
@@ -212,10 +221,12 @@
       { blur: function (S) { return 10 * S; }, op: function (h) { return 0.8 * h; } },
       { blur: function (S) { return 26 * S; }, op: function (h, S) { return Math.min(1, 0.35 * h * S); } }
     ];
-    var SPEED_LINES = [];
-    for (var q = 0; q < 18; q++) {
+    // halo (Halo de logo-animation.jsx) : S > 3 → passes empilées (halo plus dense), le rayon grandit comme √(S/3)
+    var HALO_G = O.S / 3, HALO_PASSES = Math.min(4, Math.max(1, Math.ceil(HALO_G))), HALO_SPREAD = Math.sqrt(HALO_G);
+    var SPEED_LINES = [];   // makeSpeedLines(O.lines)
+    for (var q = 0; q < O.lines; q++) {
       var r0 = Math.sin(q * 12.9898 + 1) * 43758.5453, rnd = r0 - Math.floor(r0);
-      SPEED_LINES.push({ y: -0.86 + (1.72 * q) / 17, side: q % 2 ? 1 : -1, len: 0.16 + 0.24 * rnd, phase: rnd, w: 3 + 5 * ((rnd * 7) % 1) });
+      SPEED_LINES.push({ y: O.lines > 1 ? -0.86 + (1.72 * q) / (O.lines - 1) : 0, side: q % 2 ? 1 : -1, len: 0.16 + 0.24 * rnd, phase: rnd, w: 3 + 5 * ((rnd * 7) % 1) });
     }
 
     // Tout l'état visuel est une fonction pure du temps T (logoState de logo-animation.jsx, sans le
@@ -243,7 +254,7 @@
     }
 
     // halo = silhouette du logo remplie de HALO_COLOR (même procédé que useLogoImages), une fois par page
-    var GLOW = null, INST = [], t0 = null, raf = 0;
+    var GLOW = null, INST = [], t0 = null, raf = 0, numero = 0;
     function preparerHalo(src) {
       var im = new Image();
       im.onload = function () {
@@ -260,9 +271,10 @@
     }
 
     function calque(tag, css) { var e = document.createElement(tag); e.style.cssText = css; if (tag === 'img') { e.alt = ''; e.decoding = 'sync'; } return e; }
-    // ⚠️ neutralise les styles d'image du conteneur : « .art-auteur img » (disque blanc bordé) toucherait sinon
-    // chaque calque de la carte auteur des articles
+    // ⚠️ neutralise les styles du conteneur : « .art-auteur img » (disque blanc bordé) et « .art-auteur span »
+    // (bloc de texte à marge) toucheraient sinon chaque calque de la carte auteur des articles
     var PLEIN = 'position:absolute;left:0;top:0;width:100%;height:100%;display:none;margin:0;padding:0;border:0;max-width:none;background:none;border-radius:0;box-shadow:none;object-fit:fill;';
+    var SVG = 'http://www.w3.org/2000/svg';
     function monter(img) {
       var parent = img.parentNode, src = img.currentSrc || img.src;
       var I = { img: img, parent: parent, sauve: { pos: parent.style.position, op: img.style.objectPosition }, halos: [], lignes: [], fantomes: [] };
@@ -270,14 +282,27 @@
       var couche = I.couche = calque('span', 'position:absolute;display:block;pointer-events:none;margin:0;padding:0;border:0;transform-origin:50% 50%;opacity:0;transform:scale(0)');
       couche.setAttribute('aria-hidden', 'true');
       couche.className = 'ls-logo-anim';
-      // ordre de logo-animation.jsx : halo, traînées, reflets (du plus ancien au plus récent), logo
-      for (var i = 0; i < 3; i++) { var h = calque('img', PLEIN); if (GLOW) h.src = GLOW; I.halos.push(h); couche.appendChild(h); }
+      // ordre de logo-animation.jsx : halo (passes × 3 calques), traînées, puis le filtre de flou de mouvement
+      // et le bloc qu'il floute : reflets (du plus ancien au plus récent) et logo
+      for (var i = 0; i < HALO_PASSES * 3; i++) { var h = calque('img', PLEIN); if (GLOW) h.src = GLOW; I.halos.push(h); couche.appendChild(h); }
       SPEED_LINES.forEach(function (l) {
         var d = calque('div', 'position:absolute;display:none;background:linear-gradient(' + (l.side < 0 ? '270deg' : '90deg') + ', ' + LINE_COLOR + ', rgba(217,139,118,0))');
         I.lignes.push(d); couche.appendChild(d);
       });
-      for (var j = 0; j < 6; j++) { var f = calque('img', PLEIN); f.src = src; I.fantomes.push(f); couche.appendChild(f); }
-      I.principal = calque('img', PLEIN.replace('display:none;', 'display:block;')); I.principal.src = src; couche.appendChild(I.principal);
+      // flou de mouvement : flou gaussien HORIZONTAL seulement (stdDeviation « x 0 »), même zone que l'original ;
+      // un filtre par logo, à identifiant unique (trois logos sur une page d'article)
+      I.id = 'ls-logo-flou-' + (++numero);
+      var svg = document.createElementNS(SVG, 'svg');
+      svg.setAttribute('width', '0'); svg.setAttribute('height', '0'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
+      svg.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:hidden';
+      var filtre = document.createElementNS(SVG, 'filter');
+      filtre.setAttribute('id', I.id); filtre.setAttribute('x', '-40%'); filtre.setAttribute('y', '-5%');
+      filtre.setAttribute('width', '180%'); filtre.setAttribute('height', '110%'); filtre.setAttribute('color-interpolation-filters', 'sRGB');
+      I.fe = document.createElementNS(SVG, 'feGaussianBlur'); I.fe.setAttribute('stdDeviation', '0 0');
+      filtre.appendChild(I.fe); svg.appendChild(filtre); couche.appendChild(svg);
+      I.flou = calque('span', PLEIN.replace('display:none;', 'display:block;')); couche.appendChild(I.flou);
+      for (var j = 0; j < 8; j++) { var f = calque('img', PLEIN); f.src = src; I.fantomes.push(f); I.flou.appendChild(f); }
+      I.principal = calque('img', PLEIN.replace('display:none;', 'display:block;')); I.principal.src = src; I.flou.appendChild(I.principal);
       parent.appendChild(couche);
       img.style.objectPosition = '-100000px -100000px';   // le dessin sort de sa boîte : l'image reste, invisible
       return I;
@@ -299,32 +324,39 @@
       c.left = px(r.left + img.clientLeft - p.left - I.parent.clientLeft); c.top = px(r.top + img.clientTop - p.top - I.parent.clientTop);
       c.width = px(w); c.height = px(hh);
       c.transform = 'scale(' + st.scale + ')'; c.opacity = st.opacity;
-      var avecHalo = !!GLOW && st.h > 0.001;
+      var avecHalo = !!GLOW && st.h > 0.001 && O.S > 0;
       I.halos.forEach(function (e, i) {
-        e.style.display = avecHalo ? 'block' : 'none';
-        if (avecHalo) { e.style.filter = 'blur(' + (HALO_LAYERS[i].blur(O.S) * PX_PER_UNIT * k).toFixed(3) + 'px)'; e.style.opacity = HALO_LAYERS[i].op(st.h, O.S); }
+        changer(e, 'display', avecHalo ? 'block' : 'none');
+        if (avecHalo) { var L = HALO_LAYERS[i % 3]; changer(e, 'filter', 'blur(' + (L.blur(3) * HALO_SPREAD * PX_PER_UNIT * k).toFixed(3) + 'px)'); e.style.opacity = Math.min(1, L.op(st.h, 3) * Math.min(1, HALO_G)); }
       });
       var kl = clamp(((st.arc * 60) / 360 - 0.6) / 2.2, 0, 1), R = BOX * 0.49, charge = img.complete && img.naturalWidth > 0;
       I.lignes.forEach(function (e, i) {
-        if (kl <= 0.01 || !charge) { e.style.display = 'none'; return; }
+        if (kl <= 0.01 || O.lines < 1 || !charge) { changer(e, 'display', 'none'); return; }
         var l = SPEED_LINES[i], edge = Math.sqrt(Math.max(0, 1 - l.y * l.y)) * R;
-        var drift = (T * 3.2 + l.phase) % 1, len = l.len * BOX * (0.5 + 0.5 * kl);
+        var drift = (T * 3.2 + l.phase) % 1, len = l.len * BOX * (0.5 + 0.5 * kl) * O.lineLen, lw = l.w * O.lineW;
         var x = BOX / 2 + l.side * (edge + 16 + drift * 70) - (l.side < 0 ? len : 0);
-        var s = e.style; s.display = 'block';
-        s.left = px(cx + (x - BOX / 2) * k); s.top = px(cy + (l.y * R - l.w / 2) * k);
-        s.width = px(len * k); s.height = px(l.w * k); s.borderRadius = px(l.w * k); s.opacity = kl * (1 - drift) * 0.9;
+        var s = e.style; changer(e, 'display', 'block');
+        s.left = px(cx + (x - BOX / 2) * k); s.top = px(cy + (l.y * R - lw / 2) * k);
+        s.width = px(len * k); s.height = px(lw * k); s.borderRadius = px(lw * k); s.opacity = kl * (1 - drift) * 0.9;
       });
-      var n = st.arc < 0.8 ? 0 : Math.min(6, Math.ceil(st.arc / 4)), persp = 'perspective(' + (PERSPECTIVE * k).toFixed(3) + 'px) rotateY(';
+      var n = st.arc < 0.8 ? 0 : Math.min(8, Math.ceil(st.arc / 4)), persp = 'perspective(' + (PERSPECTIVE * k).toFixed(3) + 'px) rotateY(';
       I.fantomes.forEach(function (e, j) {
-        if (j >= n) { e.style.display = 'none'; return; }
+        if (j >= n) { changer(e, 'display', 'none'); return; }
         var kg = n - j, f = face(st.angle - (st.arc * kg) / n);
-        e.style.display = 'block'; e.style.transform = persp + f.a.toFixed(2) + 'deg)';
+        changer(e, 'display', 'block'); e.style.transform = persp + f.a.toFixed(2) + 'deg)';
         e.style.opacity = 0.45 * (1 - kg / (n + 1)); e.style.filter = 'brightness(' + f.shade.toFixed(3) + ')';
       });
       var f0 = face(st.angle);
       I.principal.style.transform = persp + f0.a.toFixed(2) + 'deg)';
-      I.principal.style.filter = 'brightness(' + (f0.shade * (1 + 0.2 * st.h)).toFixed(3) + ')';
+      I.principal.style.filter = 'brightness(' + (f0.shade * (1 + 0.2 * st.h * (O.S / 3))).toFixed(3) + ')';
+      // flou horizontal proportionnel à la vitesse, en unités de l'original (seuil 0,3 compris), puis ramené à l'écran.
+      // Il reste au plafond (60 × 1,2) pendant les 0,8 premières secondes : on ne réécrit le filtre que s'il change
+      var flou = Math.min(60, st.arc * 0.7) * O.blur;
+      if (flou > 0.3) { var sd = (flou * k).toFixed(3) + ' 0'; if (sd !== I.sd) { I.fe.setAttribute('stdDeviation', sd); I.sd = sd; } }
+      changer(I.flou, 'filter', flou > 0.3 ? 'url(#' + I.id + ')' : 'none');
     }
+    // n'écrit une propriété de style que si sa valeur change (le navigateur n'a alors rien à recalculer)
+    function changer(e, prop, v) { var m = e.__ls || (e.__ls = {}); if (m[prop] !== v) { e.style[prop] = v; m[prop] = v; } }
 
     function arreter() { if (raf) cancelAnimationFrame(raf); raf = 0; t0 = null; INST.forEach(demonter); INST = []; }
     function image(ts) {
