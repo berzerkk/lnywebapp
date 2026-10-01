@@ -1330,6 +1330,39 @@ footer a:hover{color:#fff8ef}
 .art-imgadm-acts button,.art-imgadm-remplacer{appearance:none;border:1px solid #ecd9b4;border-radius:999px;background:#fffaf0;color:#7a5c2c;font-family:var(--ff-body);font-size:13px;font-weight:600;padding:8px 14px;cursor:pointer;line-height:inherit}
 .art-imgadm-acts button:hover,.art-imgadm-remplacer:hover{border-color:#c9a96a;background:#fff}
 .art-imgadm-etat{font-size:12.5px;color:#8a6a34;margin:8px 0 0;min-height:1em}
+/* couverture d'un article, administration seule (01/10/2026) : un clic sur l'image ouvre le choix
+   d'un fichier, l'aperçu prend sa place, puis « Annuler » ou « Enregistrer ». Le cadre porte la
+   marge de l'image, qui n'en a plus : la mise en page ne bouge pas d'un pixel. */
+.couv{position:relative;max-width:900px;margin:0 0 34px}
+.couv .art-cover{margin:0;cursor:pointer}
+.couv [hidden]{display:none !important}
+.couv.apercu .art-cover{outline:3px dashed var(--accent);outline-offset:4px}
+.couv-chg{position:absolute;top:12px;right:12px;appearance:none;-webkit-appearance:none;border:1px solid #ecd9b4;border-radius:999px;background:rgba(255,250,240,.94);color:#7a5c2c;font-family:var(--ff-body);font-size:13px;font-weight:600;line-height:inherit;padding:8px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(42,36,29,.16)}
+.couv-chg:hover{background:#fff;border-color:#c9a96a}
+.couv-vide{appearance:none;-webkit-appearance:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;aspect-ratio:1200/630;padding:16px;border:2px dashed #ecd9b4;border-radius:16px;background:#fdf3e0;color:#8a6a34;font-family:var(--ff-body);font-size:15px;font-weight:600;line-height:inherit;text-align:center;cursor:pointer}
+.couv-vide small{font-size:12.5px;font-weight:400}
+.couv-vide:hover{border-color:#c9a96a}
+.couv-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border:1px dashed #ecd9b4;border-radius:12px;background:#fdf3e0}
+.couv-etat{flex:1 1 220px;min-width:0;font-size:13px;line-height:1.5;color:#7a5c2c}
+.couv-btns{display:flex;gap:8px;margin-left:auto}
+.couv-btn{appearance:none;-webkit-appearance:none;border:1px solid #ecd9b4;border-radius:999px;background:#fffaf0;color:#7a5c2c;font-family:var(--ff-body);font-size:13.5px;font-weight:600;line-height:inherit;padding:9px 18px;cursor:pointer}
+.couv-btn:hover{border-color:#c9a96a;background:#fff}
+.couv-btn.go{background:var(--accent);border-color:var(--accent);color:#fff8ef}
+.couv-btn.go:hover{background:color-mix(in oklab,var(--accent) 88%,#000)}
+.couv-btn:disabled{opacity:.55;cursor:default}
+/* même geste dans la fenêtre « Modifier l'article » : un cadre cliquable au lieu d'un chemin à taper */
+.e-img-zone{appearance:none;-webkit-appearance:none;display:flex;align-items:center;justify-content:center;width:100%;max-width:420px;aspect-ratio:1200/630;padding:0;overflow:hidden;border:1.5px dashed #ecd9b4;border-radius:12px;background:#fdf3e0;color:#8a6a34;font-family:var(--ff-body);font-size:13.5px;font-weight:600;line-height:inherit;cursor:pointer}
+.e-img-zone:hover{border-color:#c9a96a}
+.e-img-zone img{display:block;width:100%;height:100%;object-fit:cover}
+.e-img-zone.apercu{border:2px solid var(--accent)}
+.e-img-etat{margin:2px 0 0;min-height:1em;font-size:12.5px;font-weight:400;line-height:1.5;color:#8a6a34}
+.e-img-annuler{appearance:none;-webkit-appearance:none;margin-left:6px;padding:5px 12px;border:1px solid #ecd9b4;border-radius:999px;background:#fffaf0;color:#7a5c2c;font-family:var(--ff-body);font-size:12.5px;font-weight:600;line-height:inherit;cursor:pointer}
+@media (max-width:620px){
+  .couv-chg{top:8px;right:8px;min-height:40px}
+  .couv-btns{width:100%}
+  .couv-btn{flex:1;min-height:44px}
+  .e-img-annuler{min-height:40px;padding:8px 14px}
+}
 @media (max-width:980px){
   .art-layout{grid-template-columns:minmax(0,1fr);gap:26px}
   /* la colonne passe AU-DESSUS de l'article : le sommaire sert alors de plan d'accès rapide

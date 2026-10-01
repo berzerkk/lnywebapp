@@ -5306,7 +5306,7 @@ function artPage(a) {
       + '      <p class="art-imgadm-prompt">' + (a.promptImage ? htmlEsc(a.promptImage) : 'Aucun prompt d\'image enregistré pour cet article.') + '</p>' + NL
       + '      <div class="art-imgadm-acts">' + NL
       + (a.promptImage ? '        <button type="button" class="art-imgadm-copier">Copier le prompt</button>' + NL : '')
-      + '        <label class="art-imgadm-remplacer">Remplacer l\'image<input type="file" accept="image/jpeg,image/png,image/webp" hidden /></label>' + NL
+      + '        <label class="art-imgadm-remplacer">' + (a.image ? 'Remplacer l\'image' : 'Ajouter une image') + '<input type="file" accept="image/jpeg,image/png,image/webp" hidden /></label>' + NL
       + '      </div>' + NL
       + '      <p class="art-imgadm-etat" aria-live="polite"></p>' + NL
       + '    </div>' + NL

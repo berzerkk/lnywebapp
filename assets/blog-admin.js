@@ -43,6 +43,186 @@
   }
   function info(msg) { dialogue({ titre: 'Information', message: msg, confirmer: 'OK', annuler: 'Fermer', onOui: function () {} }); }
 
+  // ---- image de couverture ---------------------------------------------------
+  // Demande de l'utilisateur (01/10/2026) : « cliquer, charger une image, puis Enregistrer ou
+  // Annuler ». L'image choisie s'affiche en APERÇU ; rien ne part au serveur avant « Enregistrer ».
+  // Elle est recadrée et allégée ICI, dans le navigateur, comme les couvertures préparées à la main
+  // depuis août : 1200 × 630 (le format des couvertures et des aperçus de partage), recadrage
+  // centré, JPEG qualité 0,82. Une photo brute de plusieurs Mo devient ~200 ko, et l'aperçu montre
+  // exactement ce qui sera enregistré. Le site recadrait déjà l'affichage au même rapport.
+  var COUV_L = 1200, COUV_H = 630;
+  function preparerCouverture(fichier) {
+    return new Promise(function (ok, ko) {
+      if (!fichier || !/^image\//.test(fichier.type || '')) return ko(new Error('Ce fichier n’est pas une image : choisissez une image JPEG, PNG ou WebP.'));
+      var lien = URL.createObjectURL(fichier);
+      var img = new Image();
+      img.onerror = function () { URL.revokeObjectURL(lien); ko(new Error('Image illisible : choisissez une image JPEG, PNG ou WebP.')); };
+      img.onload = function () {
+        URL.revokeObjectURL(lien);
+        var w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) return ko(new Error('Image illisible : choisissez une image JPEG, PNG ou WebP.'));
+        // recadrage centré au rapport 1200 / 630
+        var sx = 0, sy = 0, sw = w, sh = h;
+        if (w / h > COUV_L / COUV_H) { sw = Math.round(h * COUV_L / COUV_H); sx = Math.round((w - sw) / 2); }
+        else { sh = Math.round(w * COUV_H / COUV_L); sy = Math.round((h - sh) / 2); }
+        // réduction par moitiés : un seul passage d'une grande photo à 1200 px crénelle les détails fins
+        var src = img;
+        while (sw / 2 >= COUV_L) {
+          var t = document.createElement('canvas');
+          t.width = Math.round(sw / 2); t.height = Math.round(sh / 2);
+          var tc = t.getContext('2d');
+          tc.imageSmoothingEnabled = true; tc.imageSmoothingQuality = 'high';
+          tc.drawImage(src, sx, sy, sw, sh, 0, 0, t.width, t.height);
+          src = t; sx = 0; sy = 0; sw = t.width; sh = t.height;
+        }
+        var c = document.createElement('canvas');
+        c.width = COUV_L; c.height = COUV_H;
+        var x = c.getContext('2d');
+        x.fillStyle = '#ffffff'; x.fillRect(0, 0, COUV_L, COUV_H);   // la transparence d'un PNG devient du blanc
+        x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+        x.drawImage(src, sx, sy, sw, sh, 0, 0, COUV_L, COUV_H);
+        c.toBlob(function (b) {
+          if (!b) return ko(new Error('L’image n’a pas pu être préparée. Essayez-en une autre.'));
+          ok({ blob: b, url: URL.createObjectURL(b), largeur: w, hauteur: h });
+        }, 'image/jpeg', 0.82);
+      };
+      img.src = lien;
+    });
+  }
+  // une image plus petite que la couverture est agrandie, donc floue : on le dit avant l'envoi
+  function avertissement(res) {
+    return res.largeur < COUV_L || res.hauteur < COUV_H
+      ? ' Attention : elle ne fait que ' + res.largeur + ' × ' + res.hauteur + ' px, elle paraîtra floue.' : '';
+  }
+  function envoyerCouverture(id, blob) {
+    var fd = new FormData();
+    fd.append('image', blob, 'couverture.jpg');
+    return fetch(API + '/' + id + '/image', { method: 'POST', headers: { Authorization: 'Bearer ' + token() }, body: fd })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }, function () { return { ok: r.ok, data: {} }; }); })
+      .catch(function () { return { ok: false, data: { error: 'Envoi impossible : vérifiez la connexion, puis réessayez.' } }; });
+  }
+
+  // Sur la page d'un article (brouillon OU en ligne) : un clic sur l'image, ou sur « Changer
+  // l'image », ouvre le choix du fichier ; l'aperçu remplace l'image, avec « Annuler » et
+  // « Enregistrer » dessous. Sans image, un cadre « Ajouter une image de couverture » la remplace.
+  function couverturePage(id, titre) {
+    var main = document.querySelector('.art-main');
+    if (!main) return null;
+    var img = document.getElementById('ls-art-cover');
+    var origine = img ? img.getAttribute('src') : '';   // l'image enregistrée ('' : aucune)
+    var w = document.createElement('div');
+    w.className = 'couv';
+    if (img) img.parentNode.insertBefore(w, img);
+    else {
+      main.insertBefore(w, main.firstChild);
+      img = document.createElement('img');
+      img.className = 'art-cover'; img.id = 'ls-art-cover'; img.alt = titre || '';
+      img.setAttribute('width', '1200'); img.setAttribute('height', '630');
+    }
+    img.title = 'Cliquer pour changer l’image';
+    var vide = document.createElement('button');
+    vide.type = 'button'; vide.className = 'couv-vide';
+    vide.innerHTML = '<span>+ Ajouter une image de couverture</span><small>Cliquez ici pour choisir une image (JPEG, PNG ou WebP)</small>';
+    var chg = document.createElement('button');
+    chg.type = 'button'; chg.className = 'couv-chg'; chg.textContent = 'Changer l’image';
+    var fichier = document.createElement('input');
+    fichier.type = 'file'; fichier.accept = 'image/jpeg,image/png,image/webp'; fichier.hidden = true;
+    var bar = document.createElement('div');
+    bar.className = 'couv-bar'; bar.hidden = true;
+    bar.innerHTML = '<span class="couv-etat" aria-live="polite"></span>' +
+      '<span class="couv-btns"><button type="button" class="couv-btn couv-annuler">Annuler</button>' +
+      '<button type="button" class="couv-btn go couv-enregistrer">Enregistrer</button></span>';
+    [img, vide, chg, fichier, bar].forEach(function (el) { w.appendChild(el); });
+    var etat = bar.querySelector('.couv-etat'), btns = bar.querySelector('.couv-btns');
+    var bAnnuler = bar.querySelector('.couv-annuler'), bEnregistrer = bar.querySelector('.couv-enregistrer');
+    var apercu = null, occupe = false;
+
+    function afficher() {
+      var src = apercu ? apercu.url : origine;
+      if (!src) img.removeAttribute('src');
+      else if (img.getAttribute('src') !== src) img.src = src;
+      img.hidden = !src; chg.hidden = !src; vide.hidden = !!src;
+      w.classList.toggle('apercu', !!apercu);
+    }
+    function liberer() { if (apercu) { URL.revokeObjectURL(apercu.url); apercu = null; } }
+    function ouvrir() { if (occupe) return; fichier.value = ''; fichier.click(); }
+    img.addEventListener('click', ouvrir);
+    vide.onclick = ouvrir;
+    chg.onclick = ouvrir;
+    fichier.onchange = function () {
+      var f = fichier.files && fichier.files[0];
+      if (!f) return;
+      bar.hidden = false; btns.hidden = true; etat.textContent = 'Préparation de l’image…';
+      preparerCouverture(f).then(function (res) {
+        liberer(); apercu = res; afficher();
+        btns.hidden = false; bAnnuler.disabled = bEnregistrer.disabled = false;
+        etat.textContent = 'Aperçu : cette image n’est pas encore enregistrée.' + avertissement(res);
+      }, function (e) {
+        // l'image d'avant (ou l'aperçu déjà choisi) reste en place
+        etat.textContent = e.message; btns.hidden = !apercu;
+        if (!apercu) setTimeout(function () { if (!apercu && !occupe) bar.hidden = true; }, 5000);
+      });
+    };
+    bAnnuler.onclick = function () { liberer(); afficher(); bar.hidden = true; };
+    bEnregistrer.onclick = function () {
+      if (!apercu || occupe) return;
+      occupe = true; bAnnuler.disabled = bEnregistrer.disabled = true; etat.textContent = 'Enregistrement…';
+      envoyerCouverture(id, apercu.blob).then(function (r) {
+        occupe = false;
+        if (!r.ok || !r.data || !r.data.article) {
+          bAnnuler.disabled = bEnregistrer.disabled = false;
+          etat.textContent = (r.data && r.data.error) || 'Enregistrement impossible. Réessayez.';
+          return;
+        }
+        // l'image servie par le site remplace l'aperçu ; celui-ci n'est libéré qu'une fois elle
+        // chargée, sinon un éclair vide passerait entre les deux
+        var ancien = apercu; apercu = null;
+        origine = r.data.article.image;
+        var fin = function () { URL.revokeObjectURL(ancien.url); };
+        img.addEventListener('load', fin, { once: true });
+        img.addEventListener('error', fin, { once: true });
+        afficher();
+        btns.hidden = true; etat.textContent = 'Image enregistrée ✓';
+        setTimeout(function () { if (!apercu && !occupe) bar.hidden = true; }, 2500);
+      });
+    };
+    afficher();
+    return { ouvrir: ouvrir };
+  }
+
+  // Dans la fenêtre « Modifier l'article » / « Nouvel article » : même geste, mais l'image part
+  // AVEC l'article, au clic sur « Enregistrer » de la fenêtre (un nouvel article n'a pas encore
+  // d'identifiant où l'envoyer). Fermer la fenêtre l'abandonne.
+  function couvertureModale(m, image) {
+    var zone = m.querySelector('.e-img-zone'), fichier = m.querySelector('.e-img-fichier'), etat = m.querySelector('.e-img-etat');
+    var origine = image || '', apercu = null;
+    function afficher() {
+      var src = apercu ? apercu.url : origine;
+      zone.innerHTML = src ? '<img src="' + esc(src) + '" alt="" />' : '<span>+ Choisir une image</span>';
+      zone.classList.toggle('apercu', !!apercu);
+    }
+    function liberer() { if (apercu) { URL.revokeObjectURL(apercu.url); apercu = null; } }
+    zone.onclick = function () { fichier.value = ''; fichier.click(); };
+    fichier.onchange = function () {
+      var f = fichier.files && fichier.files[0];
+      if (!f) return;
+      etat.textContent = 'Préparation de l’image…';
+      preparerCouverture(f).then(function (res) {
+        liberer(); apercu = res; afficher();
+        etat.innerHTML = esc('Nouvelle image : elle sera enregistrée avec l’article.' + avertissement(res)) +
+          ' <button type="button" class="e-img-annuler">Annuler</button>';
+        etat.querySelector('.e-img-annuler').onclick = function () { liberer(); afficher(); etat.textContent = ''; };
+      }, function (e) { etat.textContent = e.message; });
+    };
+    afficher();
+    return {
+      choisie: function () { return apercu; },
+      // l'image est partie : elle devient l'image enregistrée (un nouvel essai ne la renverra pas)
+      envoyee: function (src) { var a = apercu; apercu = null; if (src) origine = src; afficher(); if (a) URL.revokeObjectURL(a.url); etat.textContent = ''; },
+      liberer: liberer
+    };
+  }
+
   // ---- rendu des commandes --------------------------------------------------
   function barre(nb) {
     var b = document.createElement('div');
@@ -156,13 +336,17 @@
           champ('e-titre', 'Titre', a.titre) +
           champ('e-cat', 'Catégorie', a.categorie || 'Conseils') +
           zone('e-chapo', 'Chapô', a.chapo, 2, '— une phrase, affichée sous le titre et sur la carte') +
+          // l'image se CHOISIT : plus de chemin à taper (demande de l'utilisateur, 01/10/2026)
+          '<div class="gf gf-full e-img">Image de couverture <small style="font-weight:400;color:var(--ink-soft)">— cliquez sur le cadre pour choisir une image</small>' +
+            '<button type="button" class="e-img-zone" aria-label="Choisir l’image de couverture"></button>' +
+            '<input type="file" class="e-img-fichier" accept="image/jpeg,image/png,image/webp" hidden />' +
+            '<p class="e-img-etat" aria-live="polite"></p></div>' +
           '</div>' +
           '<h4 class="gen-h">Référencement</h4><div class="gf-grid">' +
           champ('e-motcle', 'Mot-clé principal', a.motCle, '— l’expression que quelqu’un taperait') +
           champ('e-slug', 'Adresse (slug)', a.slug) +
           champ('e-titreseo', 'Titre pour Google', a.titreSeo, '— 60 caractères au plus') +
           zone('e-metadesc', 'Meta description', a.metaDescription, 2, '— entre 150 et 160 caractères') +
-          champ('e-image', 'Image de couverture', a.image, '— chemin, ex. /blog/img/mon-article.png') +
           '</div>' +
           '<h4 class="gen-h">Corps de l’article</h4>' +
           zone('e-corps', 'HTML', a.corps, 16, '— &lt;h2&gt; pour les sections, &lt;h3&gt; pour les sous-parties, &lt;p&gt; et &lt;ul&gt;') +
@@ -177,14 +361,23 @@
           postsHTML(postsDe(a)) + '<span class="li-etat"></span></div>' +
         '</div>' +
         '<div class="gen-foot"><p class="fe-err auth-err" id="e-err" style="margin:0 12px 0 0"></p>' +
+        '<button class="btn btn-ghost e-annuler" type="button" style="padding:11px 22px">Annuler</button>' +
         '<button class="btn btn-primary e-save" type="button" style="padding:11px 22px">Enregistrer</button></div></div>';
       document.body.appendChild(m);
       document.body.style.overflow = 'hidden';
-      function fermer() { m.remove(); document.body.style.overflow = ''; }
-      m.querySelector('.nm-close').onclick = fermer;
-      m.querySelector('.nm-backdrop').onclick = fermer;
+      var couv = couvertureModale(m, a.image);
+      function fermer() { couv.liberer(); m.remove(); document.body.style.overflow = ''; }
+      // fermer sans enregistrer ; un article déjà créé (image partie en échec) doit tout de même
+      // apparaître dans la grille
+      function abandonner() { fermer(); if (idArt && !id) apres({ ok: true, data: {} }); }
+      m.querySelector('.nm-close').onclick = abandonner;
+      m.querySelector('.nm-backdrop').onclick = abandonner;
+      m.querySelector('.e-annuler').onclick = abandonner;
       var blocPosts = m.querySelector('.e-posts');
       var lirePosts = brancherPosts(blocPosts, postsDe(a), blocPosts.querySelector('.li-etat'));
+      // ⚠️ un article CRÉÉ dont l'image n'a pas pu partir garde son identifiant : un nouvel essai
+      // l'enregistre au lieu d'en créer un second
+      var idArt = id;
 
       m.querySelector('.e-save').onclick = function () {
         var v = function (i) { var e = document.getElementById(i); return e ? e.value.trim() : ''; };
@@ -200,20 +393,39 @@
           return { titre: l.slice(0, i).trim(), url: l.slice(i + 1).trim() };
         }).filter(function (x) { return x && x.url; });
 
+        // ⚠️ plus de champ `image` : l'API le laisse tel quel quand il est absent ; c'est la route
+        // d'envoi de l'image qui le change
         var corps = {
           titre: v('e-titre'), categorie: v('e-cat'), chapo: v('e-chapo'),
           motCle: v('e-motcle'), slug: v('e-slug'), titreSeo: v('e-titreseo'),
-          metaDescription: v('e-metadesc'), image: v('e-image'),
+          metaDescription: v('e-metadesc'),
           corps: v('e-corps'), faq: faq, sources: sources,
           postsLi: lirePosts()
         };
-        var b = m.querySelector('.e-save'); b.disabled = true; b.textContent = 'Enregistrement…';
-        api(id ? API + '/' + id : API, id ? 'PATCH' : 'POST', corps).then(function (rr) {
-          b.disabled = false; b.textContent = 'Enregistrer';
-          if (!rr.ok) { document.getElementById('e-err').textContent = (rr.data && rr.data.error) || 'Enregistrement impossible.'; return; }
-          // ⚠️ l'adresse a pu changer (le slug est modifiable) : on suit la réponse du serveur,
-          // sans quoi un rechargement sur la page d'un article tomberait sur une 404
-          fermer(); apres(rr);
+        var b = m.querySelector('.e-save'), err = document.getElementById('e-err');
+        b.disabled = true; b.textContent = 'Enregistrement…'; err.textContent = '';
+        var echec = function (t) { b.disabled = false; b.textContent = 'Enregistrer'; err.textContent = t; };
+        // ⚠️ l'adresse a pu changer (le slug est modifiable) : on suit la réponse du serveur,
+        // sans quoi un rechargement sur la page d'un article tomberait sur une 404
+        var fin = function (rr) { fermer(); apres(rr); };
+        // article existant : l'image d'abord (si elle échoue, rien n'a encore bougé)
+        var image = couv.choisie();
+        (idArt && image ? envoyerCouverture(idArt, image.blob) : Promise.resolve(null)).then(function (ri) {
+          if (ri && !ri.ok) return echec((ri.data && ri.data.error) || 'L’image n’a pas pu être envoyée. Réessayez.');
+          if (ri) couv.envoyee(ri.data.article && ri.data.article.image);
+          return api(idArt ? API + '/' + idArt : API, idArt ? 'PATCH' : 'POST', corps).then(function (rr) {
+            if (!rr.ok) return echec((rr.data && rr.data.error) || 'Enregistrement impossible.');
+            // nouvel article : il fallait son identifiant pour y joindre l'image
+            var image2 = couv.choisie();
+            if (!idArt && image2 && rr.data.article) {
+              idArt = rr.data.article.id;
+              return envoyerCouverture(idArt, image2.blob).then(function (ri2) {
+                if (!ri2.ok) return echec('L’article est enregistré, mais pas son image : ' + ((ri2.data && ri2.data.error) || 'envoi impossible.') + ' Cliquez de nouveau sur « Enregistrer » pour réessayer.');
+                couv.envoyee(); fin(ri2);
+              });
+            }
+            fin(rr);
+          });
         });
       };
     });
@@ -395,13 +607,15 @@
       var art = null;
       for (var k = 0; k < arts.length; k++) if (arts[k].id === id) art = arts[k];
       if (art) ANCRE.appendChild(barreArticle(art));
-      // encadré image du brouillon (rendu par le serveur) : copie du prompt + remplacement
+      // la couverture se change d'un clic, brouillon ou article en ligne
+      var couv = art ? couverturePage(id, art.titre) : null;
+      // encadré image du brouillon (rendu par le serveur) : copie du prompt + même geste que l'image
       var boxImg = document.getElementById('ls-art-imgadm');
       if (boxImg) {
         // ⚠️ le « dit » de boiteLinkedin est local à cette fonction-là : le nôtre l'est aussi
         var dit = function (el, t) { el.textContent = t; setTimeout(function () { el.textContent = ''; }, 2500); };
         var copier = boxImg.querySelector('.art-imgadm-copier');
-        var fichier = boxImg.querySelector('input[type=file]');
+        var remplacer = boxImg.querySelector('.art-imgadm-remplacer');
         var etatImg = boxImg.querySelector('.art-imgadm-etat');
         if (copier) copier.onclick = function () {
           var txt = boxImg.querySelector('.art-imgadm-prompt').textContent;
@@ -410,27 +624,12 @@
               function () { dit(etatImg, 'Copie impossible — sélectionnez le texte'); });
           } else dit(etatImg, 'Copie impossible — sélectionnez le texte');
         };
-        if (fichier) fichier.onchange = function () {
-          var f = fichier.files && fichier.files[0];
-          if (!f) return;
-          dit(etatImg, 'Envoi de l’image…');
-          var fd = new FormData();
-          fd.append('image', f);
-          fetch(API + '/' + boxImg.getAttribute('data-art') + '/image', {
-            method: 'POST',
-            headers: { Authorization: 'Bearer ' + token() },
-            body: fd
-          }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }); })
-            .then(function (r) {
-              if (!r.ok) { dit(etatImg, (r.data && r.data.error) || 'Envoi impossible.'); return; }
-              dit(etatImg, 'Image remplacée ✓');
-              var cover = document.getElementById('ls-art-cover');
-              // l'image porte un ?v= neuf : la recharger suffit, pas besoin de recharger la page
-              if (cover) cover.src = r.data.article.image;
-              else location.reload(); // l'article n'avait pas d'image : la page doit se reconstruire
-            })
-            .catch(function () { dit(etatImg, 'Envoi impossible — réessayez.'); });
-        };
+        // le bouton de l'encadré ouvre le même choix que l'image : aperçu, puis Enregistrer / Annuler
+        // (preventDefault : le champ caché de l'étiquette ne s'ouvre plus)
+        if (remplacer) {
+          if (couv) remplacer.addEventListener('click', function (e) { e.preventDefault(); couv.ouvrir(); });
+          else remplacer.hidden = true;
+        }
       }
       // la fiche complète porte le post LinkedIn, absent de la liste
       var cible = document.getElementById('ls-art-linkedin');
