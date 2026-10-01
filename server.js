@@ -353,7 +353,8 @@ function mailHtmlSections(titre, intro, sections, signature) {
 // redéploiements via db.lastOffsiteBackup). Rétention : toutes les archives des
 // 3 derniers jours + la dernière de chaque jour sur 30 jours. Statut consultable :
 // GET /api/admin/backup-status · déclenchement manuel : POST /api/admin/backup-run.
-// Un échec envoie une alerte e-mail à l'administration (au plus 1 par 24 h).
+// Quatre échecs DE SUITE (ou 48 h sans réussite) envoient une alerte e-mail à l'administration
+// (au plus 1 par 24 h), et la première réussite qui suit est annoncée par un second e-mail.
 const BACKUP_CFG_FILE = path.join(DATA_DIR, 'backup.json');
 function backupCfg() {
   if (SIMULATION) return null;   // serveur de démonstration : aucun effet extérieur, jamais
@@ -467,6 +468,15 @@ function archiveDate(fileName) {
   return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)) : null;
 }
 const MAX_BUFFER = 350 * 1024 * 1024; // au-delà, refus explicite plutôt qu'un OOM du conteneur
+// Attentes entre deux essais d'envoi vers B2 : elles DOUBLENT, comme Backblaze le recommande pour ses
+// erreurs passagères. ⚠️ « no tomes available » (01/10/2026) : le serveur de stockage que B2 désigne
+// pour l'envoi est plein ou surchargé ; il faut redemander une adresse d'envoi et réessayer. Quatre
+// essais en 18 secondes n'avaient pas suffi, d'où six essais étalés sur une minute.
+const B2_ATTENTES = [2000, 4000, 8000, 16000, 32000];
+// Un échec ISOLÉ ne déclenche plus d'alerte : le serveur réessaie tout seul à chaque passage (toutes
+// les 15 min pendant un créneau, puis au créneau suivant). L'alerte part au bout de ce nombre d'échecs
+// DE SUITE (soit un créneau entier qui échoue), et un e-mail « rétablie » suit la première réussite.
+const BACKUP_ECHECS_ALERTE = 4;
 async function runOffsiteBackup(reason, force) {
   const d = new Date();
   const p2 = n => String(n).padStart(2, '0');
@@ -510,18 +520,19 @@ async function runOffsiteBackup(reason, force) {
         bucketId = buckets[0].bucketId;
       }
       // B2 impose de redemander une URL d'envoi et de réessayer sur les erreurs
-      // transitoires (503, jeton expiré, « no tomes available ») : 4 tentatives espacées.
+      // transitoires (503, jeton expiré, « no tomes available ») : 6 essais, attentes doublées.
       const archive = fs.readFileSync(tmp);
+      const essais = B2_ATTENTES.length + 1;
       let sent = false, lastErr = null;
-      for (let attempt = 1; attempt <= 4 && !sent; attempt++) {
+      for (let attempt = 1; attempt <= essais && !sent; attempt++) {
         try {
           const up = await api('b2_get_upload_url', { bucketId });
           await b2Fetch(up.uploadUrl, { method: 'POST', headers: { Authorization: up.authorizationToken, 'X-Bz-File-Name': encodeURIComponent(name), 'Content-Type': 'application/gzip', 'Content-Length': String(archive.length), 'X-Bz-Content-Sha1': sha1 }, body: archive }, 600000);
           sent = true;
         } catch (e) {
           lastErr = e;
-          console.error('🗄 envoi B2 tentative ' + attempt + '/4 : ' + e.message);
-          if (attempt < 4) await new Promise(r => setTimeout(r, attempt * 3000));
+          console.error('🗄 envoi B2 tentative ' + attempt + '/' + essais + ' : ' + e.message);
+          if (attempt < essais) await new Promise(r => setTimeout(r, B2_ATTENTES[attempt - 1]));
         }
       }
       if (!sent) throw lastErr || new Error('envoi B2 impossible');
@@ -549,31 +560,59 @@ async function runOffsiteBackup(reason, force) {
         }
       } catch (e) { console.error('🗄 rétention :', e.message); }
     }
+    // une alerte est partie depuis la dernière réussite : on annonce le rétablissement, puis on efface
+    // la marque de l'alerte (une panne suivante pourra de nouveau alerter, sans attendre 24 h)
+    const alerte = !!db.lastBackupAlert, echecs = db.backupEchecs || 0;
     db.backupStatus = { ok: true, name, size, users, docs, date: Date.now(), reason: reason || 'auto' };
-    db.lastOffsiteBackup = Date.now(); save();
+    db.lastOffsiteBackup = Date.now(); db.backupEchecs = 0; delete db.lastBackupAlert; save();
     console.log('🗄 sauvegarde offsite OK : ' + name + ' (' + Math.round(size / 1024) + ' ko, ' + users + ' comptes, ' + docs + ' documents)');
+    if (alerte) mailSauvegardeRetablie(echecs);
   } catch (e) {
-    db.backupStatus = { ok: false, error: String((e && e.message) || e), users, docs, date: Date.now(), reason: reason || 'auto' };
+    db.backupEchecs = (db.backupEchecs || 0) + 1;
+    db.backupStatus = { ok: false, error: String((e && e.message) || e), echecs: db.backupEchecs, users, docs, date: Date.now(), reason: reason || 'auto' };
     try { save(); } catch (e2) { }
-    console.error('🗄 sauvegarde offsite ÉCHEC :', (e && e.message) || e);
-    alertBackupFailure();
+    console.error('🗄 sauvegarde offsite ÉCHEC (' + db.backupEchecs + ' de suite) :', (e && e.message) || e);
+    if (db.backupEchecs >= BACKUP_ECHECS_ALERTE) alertBackupFailure();
   } finally {
     try { fs.unlinkSync(tmp); } catch (e) { }
   }
   return db.backupStatus;
 }
-// alerte e-mail à l'administration en cas d'échec (au plus 1 par 24 h) : une sauvegarde
-// morte en silence est le pire scénario — il faut que quelqu'un l'apprenne tout de suite.
+// alerte e-mail à l'administration quand la sauvegarde échoue DE SUITE ou ne réussit plus depuis 48 h
+// (au plus 1 par 24 h tant que la panne dure) : une sauvegarde morte en silence est le pire scénario.
+const destinataireSauvegarde = () => ((db.users || []).find(u => u.role === 'admin') || {}).email || (MAIL && MAIL.user);
+// ⚠️ Dates à l'HEURE DE PARIS : le conteneur tourne en UTC, et l'alerte du 01/10/2026 annonçait une
+// dernière sauvegarde « 06:00:12 » qui avait eu lieu à 8 h.
+const dateSauvegarde = (ms) => artQuandLisible(ms);
 function alertBackupFailure() {
   try {
     if (Date.now() - (db.lastBackupAlert || 0) < 24 * 60 * 60 * 1000) return;
-    const to = ((db.users || []).find(u => u.role === 'admin') || {}).email || (MAIL && MAIL.user);
+    const to = destinataireSauvegarde();
     if (!to) return;
-    const st = db.backupStatus || {}, last = db.lastOffsiteBackup ? new Date(db.lastOffsiteBackup).toLocaleString('fr-FR') : 'jamais';
+    const st = db.backupStatus || {}, n = db.backupEchecs || 0;
+    const last = db.lastOffsiteBackup ? dateSauvegarde(db.lastOffsiteBackup) + ' (heure de Paris)' : 'jamais';
     db.lastBackupAlert = Date.now(); save();
+    const lignes = (st.ok === false
+      ? ['La sauvegarde automatique des données de l\'espace documents a échoué' + (n > 1 ? ' ' + n + ' fois de suite.' : '.'), 'Erreur : ' + (st.error || '?')]
+      : ['Aucune sauvegarde automatique des données de l\'espace documents n\'a réussi depuis plus de 48 heures.'])
+      .concat(['Dernière sauvegarde réussie : ' + last + '.',
+        'Le serveur continue de réessayer tout seul, toutes les 15 minutes pendant les créneaux de 8 h, 12 h, 16 h et 20 h. Un e-mail vous préviendra dès qu\'une sauvegarde aura de nouveau réussi.']);
     sendMailSafe(to, 'Alerte : la sauvegarde du site a échoué — Languages & Success',
-      'La sauvegarde automatique des données a échoué.\n\nErreur : ' + (st.error || '?') + '\nDernière sauvegarde réussie : ' + last + '\n\nLanguages & Success',
-      mailHtml('La sauvegarde a échoué', ['La sauvegarde automatique des données de l\'espace documents a échoué.', 'Erreur : ' + (st.error || '?'), 'Dernière sauvegarde réussie : ' + last], null, null));
+      lignes.join('\n\n') + '\n\nLanguages & Success',
+      mailHtml('La sauvegarde a échoué', lignes, null, null));
+  } catch (e) { }
+}
+// la première sauvegarde réussie après une alerte le dit : sans cet e-mail, rien n'annonçait la fin
+// de la panne (l'encart de la vue d'administration a été retiré le 25/09/2026)
+function mailSauvegardeRetablie(echecs) {
+  try {
+    const to = destinataireSauvegarde();
+    if (!to) return;
+    const lignes = ['La sauvegarde automatique des données de l\'espace documents fonctionne de nouveau : une sauvegarde a réussi le ' + dateSauvegarde(Date.now()) + ' (heure de Paris).',
+      (echecs > 1 ? 'Elle avait échoué ' + echecs + ' fois de suite. ' : '') + 'Aucune action n\'est nécessaire de votre part.'];
+    sendMailSafe(to, 'La sauvegarde du site fonctionne de nouveau — Languages & Success',
+      lignes.join('\n\n') + '\n\nLanguages & Success',
+      mailHtml('La sauvegarde fonctionne de nouveau', lignes, null, null));
   } catch (e) { }
 }
 let offsiteRunning = false;
