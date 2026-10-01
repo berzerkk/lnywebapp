@@ -45,7 +45,9 @@
 
   // ---- image de couverture ---------------------------------------------------
   // Demande de l'utilisateur (01/10/2026) : « cliquer, charger une image, puis Enregistrer ou
-  // Annuler ». L'image choisie s'affiche en APERÇU ; rien ne part au serveur avant « Enregistrer ».
+  // Annuler », et ⚠️ UNIQUEMENT dans la fenêtre « Modifier » : un premier jet rendait aussi la
+  // couverture de la page cliquable, ce qu'il a refusé le soir même. L'image choisie s'affiche en
+  // APERÇU ; rien ne part au serveur avant « Enregistrer ».
   // Elle est recadrée et allégée ICI, dans le navigateur, comme les couvertures préparées à la main
   // depuis août : 1200 × 630 (le format des couvertures et des aperçus de partage), recadrage
   // centré, JPEG qualité 0,82. Une photo brute de plusieurs Mo devient ~200 ko, et l'aperçu montre
@@ -102,97 +104,9 @@
       .catch(function () { return { ok: false, data: { error: 'Envoi impossible : vérifiez la connexion, puis réessayez.' } }; });
   }
 
-  // Sur la page d'un article (brouillon OU en ligne) : un clic sur l'image, ou sur « Changer
-  // l'image », ouvre le choix du fichier ; l'aperçu remplace l'image, avec « Annuler » et
-  // « Enregistrer » dessous. Sans image, un cadre « Ajouter une image de couverture » la remplace.
-  function couverturePage(id, titre) {
-    var main = document.querySelector('.art-main');
-    if (!main) return null;
-    var img = document.getElementById('ls-art-cover');
-    var origine = img ? img.getAttribute('src') : '';   // l'image enregistrée ('' : aucune)
-    var w = document.createElement('div');
-    w.className = 'couv';
-    if (img) img.parentNode.insertBefore(w, img);
-    else {
-      main.insertBefore(w, main.firstChild);
-      img = document.createElement('img');
-      img.className = 'art-cover'; img.id = 'ls-art-cover'; img.alt = titre || '';
-      img.setAttribute('width', '1200'); img.setAttribute('height', '630');
-    }
-    img.title = 'Cliquer pour changer l’image';
-    var vide = document.createElement('button');
-    vide.type = 'button'; vide.className = 'couv-vide';
-    vide.innerHTML = '<span>+ Ajouter une image de couverture</span><small>Cliquez ici pour choisir une image (JPEG, PNG ou WebP)</small>';
-    var chg = document.createElement('button');
-    chg.type = 'button'; chg.className = 'couv-chg'; chg.textContent = 'Changer l’image';
-    var fichier = document.createElement('input');
-    fichier.type = 'file'; fichier.accept = 'image/jpeg,image/png,image/webp'; fichier.hidden = true;
-    var bar = document.createElement('div');
-    bar.className = 'couv-bar'; bar.hidden = true;
-    bar.innerHTML = '<span class="couv-etat" aria-live="polite"></span>' +
-      '<span class="couv-btns"><button type="button" class="couv-btn couv-annuler">Annuler</button>' +
-      '<button type="button" class="couv-btn go couv-enregistrer">Enregistrer</button></span>';
-    [img, vide, chg, fichier, bar].forEach(function (el) { w.appendChild(el); });
-    var etat = bar.querySelector('.couv-etat'), btns = bar.querySelector('.couv-btns');
-    var bAnnuler = bar.querySelector('.couv-annuler'), bEnregistrer = bar.querySelector('.couv-enregistrer');
-    var apercu = null, occupe = false;
-
-    function afficher() {
-      var src = apercu ? apercu.url : origine;
-      if (!src) img.removeAttribute('src');
-      else if (img.getAttribute('src') !== src) img.src = src;
-      img.hidden = !src; chg.hidden = !src; vide.hidden = !!src;
-      w.classList.toggle('apercu', !!apercu);
-    }
-    function liberer() { if (apercu) { URL.revokeObjectURL(apercu.url); apercu = null; } }
-    function ouvrir() { if (occupe) return; fichier.value = ''; fichier.click(); }
-    img.addEventListener('click', ouvrir);
-    vide.onclick = ouvrir;
-    chg.onclick = ouvrir;
-    fichier.onchange = function () {
-      var f = fichier.files && fichier.files[0];
-      if (!f) return;
-      bar.hidden = false; btns.hidden = true; etat.textContent = 'Préparation de l’image…';
-      preparerCouverture(f).then(function (res) {
-        liberer(); apercu = res; afficher();
-        btns.hidden = false; bAnnuler.disabled = bEnregistrer.disabled = false;
-        etat.textContent = 'Aperçu : cette image n’est pas encore enregistrée.' + avertissement(res);
-      }, function (e) {
-        // l'image d'avant (ou l'aperçu déjà choisi) reste en place
-        etat.textContent = e.message; btns.hidden = !apercu;
-        if (!apercu) setTimeout(function () { if (!apercu && !occupe) bar.hidden = true; }, 5000);
-      });
-    };
-    bAnnuler.onclick = function () { liberer(); afficher(); bar.hidden = true; };
-    bEnregistrer.onclick = function () {
-      if (!apercu || occupe) return;
-      occupe = true; bAnnuler.disabled = bEnregistrer.disabled = true; etat.textContent = 'Enregistrement…';
-      envoyerCouverture(id, apercu.blob).then(function (r) {
-        occupe = false;
-        if (!r.ok || !r.data || !r.data.article) {
-          bAnnuler.disabled = bEnregistrer.disabled = false;
-          etat.textContent = (r.data && r.data.error) || 'Enregistrement impossible. Réessayez.';
-          return;
-        }
-        // l'image servie par le site remplace l'aperçu ; celui-ci n'est libéré qu'une fois elle
-        // chargée, sinon un éclair vide passerait entre les deux
-        var ancien = apercu; apercu = null;
-        origine = r.data.article.image;
-        var fin = function () { URL.revokeObjectURL(ancien.url); };
-        img.addEventListener('load', fin, { once: true });
-        img.addEventListener('error', fin, { once: true });
-        afficher();
-        btns.hidden = true; etat.textContent = 'Image enregistrée ✓';
-        setTimeout(function () { if (!apercu && !occupe) bar.hidden = true; }, 2500);
-      });
-    };
-    afficher();
-    return { ouvrir: ouvrir };
-  }
-
-  // Dans la fenêtre « Modifier l'article » / « Nouvel article » : même geste, mais l'image part
+  // Dans la fenêtre « Modifier l'article » / « Nouvel article » : un cadre cliquable ; l'image part
   // AVEC l'article, au clic sur « Enregistrer » de la fenêtre (un nouvel article n'a pas encore
-  // d'identifiant où l'envoyer). Fermer la fenêtre l'abandonne.
+  // d'identifiant où l'envoyer). Fermer la fenêtre ou « Annuler » l'abandonne.
   function couvertureModale(m, image) {
     var zone = m.querySelector('.e-img-zone'), fichier = m.querySelector('.e-img-fichier'), etat = m.querySelector('.e-img-etat');
     var origine = image || '', apercu = null;
@@ -607,15 +521,14 @@
       var art = null;
       for (var k = 0; k < arts.length; k++) if (arts[k].id === id) art = arts[k];
       if (art) ANCRE.appendChild(barreArticle(art));
-      // la couverture se change d'un clic, brouillon ou article en ligne
-      var couv = art ? couverturePage(id, art.titre) : null;
-      // encadré image du brouillon (rendu par le serveur) : copie du prompt + même geste que l'image
+      // ⚠️ L'image ne se change QUE dans la fenêtre « Modifier » (décision de l'utilisateur,
+      // 01/10/2026) : la couverture de la page n'est pas cliquable, l'encadré n'a plus de bouton.
+      // encadré image du brouillon (rendu par le serveur) : le prompt et sa copie
       var boxImg = document.getElementById('ls-art-imgadm');
       if (boxImg) {
         // ⚠️ le « dit » de boiteLinkedin est local à cette fonction-là : le nôtre l'est aussi
         var dit = function (el, t) { el.textContent = t; setTimeout(function () { el.textContent = ''; }, 2500); };
         var copier = boxImg.querySelector('.art-imgadm-copier');
-        var remplacer = boxImg.querySelector('.art-imgadm-remplacer');
         var etatImg = boxImg.querySelector('.art-imgadm-etat');
         if (copier) copier.onclick = function () {
           var txt = boxImg.querySelector('.art-imgadm-prompt').textContent;
@@ -624,12 +537,6 @@
               function () { dit(etatImg, 'Copie impossible — sélectionnez le texte'); });
           } else dit(etatImg, 'Copie impossible — sélectionnez le texte');
         };
-        // le bouton de l'encadré ouvre le même choix que l'image : aperçu, puis Enregistrer / Annuler
-        // (preventDefault : le champ caché de l'étiquette ne s'ouvre plus)
-        if (remplacer) {
-          if (couv) remplacer.addEventListener('click', function (e) { e.preventDefault(); couv.ouvrir(); });
-          else remplacer.hidden = true;
-        }
       }
       // la fiche complète porte le post LinkedIn, absent de la liste
       var cible = document.getElementById('ls-art-linkedin');

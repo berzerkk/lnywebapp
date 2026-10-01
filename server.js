@@ -5298,16 +5298,17 @@ function artPage(a) {
     + '    <div class="art-main">' + NL
     + (a.image ? '    <img class="art-cover" id="ls-art-cover" src="' + htmlEsc(a.image) + '" alt="' + htmlEsc(a.titre) + '" width="1200" height="630" />' + NL : '')
     // encadré d'administration de l'image, UNIQUEMENT en brouillon (une page non publiée n'est
-    // servie qu'à l'administration) : le prompt de l'image idéale + le remplacement direct.
-    // Les boutons sont câblés par blog-admin.js (le jeton admin vit dans le navigateur).
+    // servie qu'à l'administration) : le prompt de l'image idéale et sa copie. ⚠️ L'image elle-même
+    // ne se change QUE dans la fenêtre « Modifier » (décision de l'utilisateur, 01/10/2026).
+    // Le bouton est câblé par blog-admin.js (le jeton admin vit dans le navigateur).
     + (!artEnLigne(a)
       ? '    <div class="art-imgadm" id="ls-art-imgadm" data-art="' + a.id + '">' + NL
       + '      <div class="art-imgadm-t">Image de couverture · brouillon</div>' + NL
       + '      <p class="art-imgadm-prompt">' + (a.promptImage ? htmlEsc(a.promptImage) : 'Aucun prompt d\'image enregistré pour cet article.') + '</p>' + NL
-      + '      <div class="art-imgadm-acts">' + NL
-      + (a.promptImage ? '        <button type="button" class="art-imgadm-copier">Copier le prompt</button>' + NL : '')
-      + '        <label class="art-imgadm-remplacer">' + (a.image ? 'Remplacer l\'image' : 'Ajouter une image') + '<input type="file" accept="image/jpeg,image/png,image/webp" hidden /></label>' + NL
-      + '      </div>' + NL
+      + (a.promptImage ? '      <div class="art-imgadm-acts">' + NL
+        + '        <button type="button" class="art-imgadm-copier">Copier le prompt</button>' + NL
+        + '      </div>' + NL : '')
+      + '      <p class="art-imgadm-aide">Pour ' + (a.image ? 'changer' : 'ajouter') + ' l\'image : bouton « Modifier », en haut de l\'article.</p>' + NL
       + '      <p class="art-imgadm-etat" aria-live="polite"></p>' + NL
       + '    </div>' + NL
       : '')
