@@ -4,10 +4,10 @@
 // enregistré à l'Assemblée nationale le 1er octobre 2026) et la page de Mon Compte Formation du
 // 2 octobre 2026. Le texte de loi ne fixe AUCUN montant : les 350 € sont la somme des 150 € actuels et
 // du « complément pouvant atteindre 200 € » annoncé par Mon Compte Formation. L'article le dit.
-// Couverture : illustration DESSINÉE pour l'article (blog/outils/couverture-reste-a-charge-cpf.js, 03/10/2026,
-// demande de l'utilisateur : « fais une image en rapport avec l'article ») : une pièce d'un euro colossale
-// dressée comme un monument, une porte de lumière à sa base (la formation), des marches à gravir (le reste à
-// charge), la silhouette terracotta. Le promptImage décrit la même scène, pour une version peinte par IA.
+// Couverture : l'illustration dessinée du 03/10/2026 a été jugée « nulle » par l'utilisateur, qui veut un
+// PROMPT pour son générateur d'images : le promptImage ci-dessous (escalier de pièces d'or dont les marches
+// grandissent, le reste à charge qui monte, vers une porte de lumière, la formation). L'image générée se
+// pose ensuite par la fenêtre « Modifier » (cadre « Image de couverture »).
 module.exports = {
   slug: 'reste-a-charge-cpf-350-euros-loi-de-finances-2027',
   titre: 'Reste à charge CPF : jusqu’à 350 € avec le projet de loi de finances 2027',
@@ -17,7 +17,7 @@ module.exports = {
   metaDescription: 'Le projet de loi de finances 2027 prévoit un reste à charge CPF majoré, jusqu’à 350 €, pour les formations hors priorités, dès les achats du 2 octobre 2026.',
   chapo: 'Le gouvernement veut majorer la participation que vous réglez pour utiliser votre CPF, et la mesure viserait déjà les achats faits depuis début octobre. Ce que dit le texte, qui serait concerné, et ce que cela change pour une formation en langue.',
   image: '/blog/img/reste-a-charge-cpf-350-euros-loi-de-finances-2027.jpg',
-  promptImage: 'Cinematic ultra-wide digital painting, anime film concept art, painterly matte painting, volumetric light, towering highly detailed cumulus clouds, atmospheric haze and depth, a single tiny human figure seen from behind wearing a terracotta jacket (#BE6E54), dwarfed by one colossal surreal element, serene contemplative mood, sense of quiet awe, soft film grain, no text, no letters, no logo, no watermark. A colossal golden euro coin standing upright on its edge like an ancient monument on a quiet plateau at dusk, its face embossed with the euro sign and a ring of small stars, an arched doorway of warm light (#FFE6B0) carved into the base of the coin, a short flight of pale stone steps leading up to the doorway, a lit stone path crossing the dark meadow toward it, teal sky #2E6E63 with towering orange cumulus clouds (#E8763C, #F2A65E), golden dust drifting in the glow, the tiny figure walks up the path toward the door. --ar 16:9',
+  promptImage: 'Cinematic ultra-wide digital painting, anime film concept art, painterly matte painting, volumetric light, towering highly detailed cumulus clouds, atmospheric haze and depth, a single tiny human figure seen from behind wearing a terracotta jacket (#BE6E54), dwarfed by one colossal surreal element, serene contemplative mood, sense of quiet awe, soft film grain, no text, no letters, no logo, no watermark. A monumental staircase built from giant stacked golden coins rising out of a quiet meadow at dusk, each step noticeably taller than the one before, climbing toward a tall doorway of warm light (#F5E9C9 with #E8763C edges) standing free among the clouds, teal sky #2E6E63 fading to #8FBFAE near the horizon, towering orange cumulus clouds (#E8763C, #F2A65E), soft golden glints along the coin edges, the tiny figure stands at the foot of the first step, looking up at the climb. --ar 16:9',
 
   corps: `      <p>Le <strong>reste à charge CPF</strong> pourrait plus que doubler. Le projet de loi de finances pour 2027, présenté en Conseil des ministres le 1<sup>er</sup> octobre 2026, prévoit de majorer la participation que vous réglez pour utiliser votre compte personnel de formation : jusqu’à 350 € au total, contre 150 € aujourd’hui, pour les formations qui ne relèvent pas des priorités fixées par l’État et qui ne sont pas cofinancées.</p>
       <p>Le texte doit encore être examiné et voté par le Parlement. Mais une partie s’appliquerait déjà aux achats faits depuis le début du mois d’octobre. Voici ce que dit le texte, qui serait concerné, et ce que cela change pour une formation en langue.</p>
