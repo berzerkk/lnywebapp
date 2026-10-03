@@ -4,10 +4,10 @@
 // enregistré à l'Assemblée nationale le 1er octobre 2026) et la page de Mon Compte Formation du
 // 2 octobre 2026. Le texte de loi ne fixe AUCUN montant : les 350 € sont la somme des 150 € actuels et
 // du « complément pouvant atteindre 200 € » annoncé par Mon Compte Formation. L'article le dit.
-// Couverture : l'illustration dessinée du 03/10/2026 a été jugée « nulle » par l'utilisateur, qui veut un
-// PROMPT pour son générateur d'images : le promptImage ci-dessous (escalier de pièces d'or dont les marches
-// grandissent, le reste à charge qui monte, vers une porte de lumière, la formation). L'image générée se
-// pose ensuite par la fenêtre « Modifier » (cadre « Image de couverture »).
+// Couverture : image générée par l'utilisateur à partir du promptImage ci-dessous (escalier de pièces d'or
+// qui monte en spirale vers une porte de lumière dans les nuages), posée par la fenêtre « Modifier » le
+// 03/10/2026 ; le fichier vit dans le volume de données (/blog-img/, sauvegardé avec la base), pas dans Git.
+// Post « La question » : RÉÉCRIT par l'utilisateur et coché « Post à publier » (sa version fait foi).
 module.exports = {
   slug: 'reste-a-charge-cpf-350-euros-loi-de-finances-2027',
   titre: 'Reste à charge CPF : jusqu’à 350 € avec le projet de loi de finances 2027',
@@ -16,7 +16,7 @@ module.exports = {
   titreSeo: 'Reste à charge CPF à 350 € : ce que prévoit le budget 2027',
   metaDescription: 'Le projet de loi de finances 2027 prévoit un reste à charge CPF majoré, jusqu’à 350 €, pour les formations hors priorités, dès les achats du 2 octobre 2026.',
   chapo: 'Le gouvernement veut majorer la participation que vous réglez pour utiliser votre CPF, et la mesure viserait déjà les achats faits depuis début octobre. Ce que dit le texte, qui serait concerné, et ce que cela change pour une formation en langue.',
-  image: '/blog/img/reste-a-charge-cpf-350-euros-loi-de-finances-2027.jpg',
+  image: '/blog-img/5aa71207-64c4-4e8a-ad2c-7b139ab93574.jpg',
   promptImage: 'Cinematic ultra-wide digital painting, anime film concept art, painterly matte painting, volumetric light, towering highly detailed cumulus clouds, atmospheric haze and depth, a single tiny human figure seen from behind wearing a terracotta jacket (#BE6E54), dwarfed by one colossal surreal element, serene contemplative mood, sense of quiet awe, soft film grain, no text, no letters, no logo, no watermark. A monumental staircase built from giant stacked golden coins rising out of a quiet meadow at dusk, each step noticeably taller than the one before, climbing toward a tall doorway of warm light (#F5E9C9 with #E8763C edges) standing free among the clouds, teal sky #2E6E63 fading to #8FBFAE near the horizon, towering orange cumulus clouds (#E8763C, #F2A65E), soft golden glints along the coin edges, the tiny figure stands at the foot of the first step, looking up at the climb. --ar 16:9',
 
   corps: `      <p>Le <strong>reste à charge CPF</strong> pourrait plus que doubler. Le projet de loi de finances pour 2027, présenté en Conseil des ministres le 1<sup>er</sup> octobre 2026, prévoit de majorer la participation que vous réglez pour utiliser votre compte personnel de formation : jusqu’à 350 € au total, contre 150 € aujourd’hui, pour les formations qui ne relèvent pas des priorités fixées par l’État et qui ne sont pas cofinancées.</p>
@@ -85,21 +85,21 @@ module.exports = {
   ],
 
   postsLi: [
-    { angle: 'La question', texte:
+    { angle: 'La question', choisi: true, texte:
 `Votre reste à charge CPF pourrait-il passer de 150 à 350 € ?
 
-C'est ce que prévoit le projet de loi de finances pour 2027, présenté le 1er octobre.
+C'est ce que prévoit le projet de loi de finances pour 2027, avec une participation majorée pouvant atteindre jusqu'à 350 € contre 150 € aujourd'hui. 
 
-Son article 89 ajoute une majoration à la participation obligatoire quand la formation ne relève pas des priorités de l'État. Le texte renvoie le montant à un décret, mais Mon Compte Formation évoque un complément pouvant atteindre 200 €.
+Et la mesure viserait les achats validés depuis le 2 octobre 2026. En confirmant votre inscription, vous vous engagez à régler en 2027, si vous êtes concerné, un complément pouvant atteindre 200 €.
+
+Seraient concernées les formations hors priorités de l'État et sans cofinancement.
 
 Qui y échapperait ?
 → les formations des secteurs prioritaires (défense, industrie, numérique, transition écologique, médico-social, souveraineté alimentaire) et les métiers en tension ;
 → les formations cofinancées à hauteur d'au moins 150 € par l'employeur, l'OPCO, la région ou France Travail ;
 → les demandeurs d'emploi, pour la part majorée.
 
-Le point qui surprend : la mesure viserait les achats validés depuis le 2 octobre 2026, avant même le vote de la loi.
-
-Nous avons tout détaillé, texte à l'appui. Le lien est en commentaire.
+Toutes les règles prévues, avec leurs sources, sont dans notre article. Lien en commentaire.
 
 #CPF #FormationProfessionnelle #PLF2027 #Financement` },
 
