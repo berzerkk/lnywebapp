@@ -20,8 +20,6 @@ module.exports = {
       <p>Une précision qui évite le contresens le plus coûteux : <strong>ce plafond porte sur vos droits, pas sur le prix de la formation</strong>. Une formation plus chère reste possible. Au-delà du plafond, l’administration indique que « le reste sera pris en charge par le bénéficiaire ou par un financeur tiers (l’employeur si vous êtes salarié, l’État, la région, un opérateur de compétences – Opco…) ».</p>
       <p>Le montant exact mobilisable pour votre dossier s’affiche dans votre parcours d’achat sur moncompteformation.gouv.fr. Nous vous invitons à le regarder avant de vous engager, pas après.</p>
 
-{{ILLU_A}}
-
       <p>Deux catégories échappent à ce plafond : les formations préparant une certification enregistrée au <strong>RNCP</strong>, et la certification <strong>CléA</strong>. Attention toutefois : CléA porte sur la communication en français, pas sur les langues étrangères.</p>
 
       <h2>La participation est passée à 150 €</h2>
@@ -33,8 +31,6 @@ module.exports = {
       <p>C’est le changement le moins commenté, et le plus favorable à qui apprend une langue.</p>
       <p>Depuis le <strong>27 juin 2026</strong>, le CPF ne peut plus financer une certification que vous avez <strong>déjà obtenue</strong>. La loi prévoit une seule exception, et elle vise expressément « une certification visant à atteindre un niveau de connaissance d’une langue ».</p>
       <p>Autrement dit : repasser un test de langue pour attester d’une progression reste finançable. Un B1 obtenu il y a deux ans n’interdit pas de financer le passage visant le B2. C’est cohérent avec la nature même d’une certification de niveau, qui photographie un état à un instant donné et non un acquis définitif.</p>
-
-{{ILLU_B}}
 
       <h2>Ne pas se présenter à l’examen a désormais un coût</h2>
       <p>Le même texte a introduit un garde-fou. Depuis le 27 juin 2026, si vous ne vous présentez pas aux épreuves sans motif légitime, vous ne pouvez plus mobiliser vos droits pour régler l’organisme, et la Caisse des dépôts peut vous demander le remboursement des sommes déjà utilisées.</p>
