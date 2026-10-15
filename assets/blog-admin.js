@@ -447,6 +447,42 @@
         '<textarea class="li-txt" rows="12" spellcheck="false"></textarea></div>';
     }).join('');
   }
+  // ⚠️ LinkedIn perd les LIGNES VIDES d'un texte collé en texte brut : son éditeur ne garde
+  // qu'un saut de ligne quand il en reçoit plusieurs à la suite, et les paragraphes du post se
+  // retrouvent collés (signalé par l'utilisateur le 15/10/2026). On dépose donc AUSSI une version
+  // HTML : un paragraphe par ligne, une ligne vide = un paragraphe vide, la forme que l'éditeur
+  // de LinkedIn emploie lui-même. Le texte brut reste dans le presse-papiers pour les autres
+  // applications.
+  function postEnHtml(t) {
+    return String(t == null ? '' : t).replace(/\r\n?/g, '\n').split('\n').map(function (l) {
+      return l.trim() ? '<p>' + esc(l) + '</p>' : '<p><br></p>';
+    }).join('');
+  }
+  // au clic : l'API moderne si elle est là, sinon l'événement « copy » (marche partout)
+  function copierPost(texte) {
+    var html = postEnHtml(texte);
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      return navigator.clipboard.write([new window.ClipboardItem({
+        'text/plain': new Blob([texte], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' })
+      })]).catch(function () { return copierParEvenement(texte, html); });
+    }
+    return copierParEvenement(texte, html);
+  }
+  function copierParEvenement(texte, html) {
+    return new Promise(function (ok, ko) {
+      var fait = false;
+      var poser = function (e) {
+        e.clipboardData.setData('text/plain', texte);
+        e.clipboardData.setData('text/html', html);
+        e.preventDefault(); fait = true;
+      };
+      document.addEventListener('copy', poser, true);
+      try { document.execCommand('copy'); } catch (er) { /* fait reste à false */ }
+      document.removeEventListener('copy', poser, true);
+      if (fait) ok(); else ko();
+    });
+  }
   // compteurs, copie et cases exclusives ; renvoie une fonction qui lit l'état à enregistrer
   function brancherPosts(racine, posts, etat) {
     var dit = function (t) { if (!etat) return; etat.textContent = t; setTimeout(function () { etat.textContent = ''; }, 2500); };
@@ -467,11 +503,17 @@
       };
       v.querySelector('.li-copier').onclick = function () {
         ta.select(); ta.setSelectionRange(0, ta.value.length);
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(ta.value).then(function () { dit('Version ' + (i + 1) + ' copiée ✓'); },
-            function () { dit('Copie impossible — sélectionnez le texte'); });
-        } else dit(document.execCommand && document.execCommand('copy') ? 'Version ' + (i + 1) + ' copiée ✓' : 'Copie impossible — sélectionnez le texte');
+        copierPost(ta.value).then(function () { dit('Version ' + (i + 1) + ' copiée ✓'); },
+          function () { dit('Copie impossible — sélectionnez le texte'); });
       };
+      // même chose pour un Ctrl+C fait à la main dans la zone de texte (sur la sélection)
+      ta.addEventListener('copy', function (e) {
+        var sel = ta.value.substring(ta.selectionStart, ta.selectionEnd);
+        if (!sel || !e.clipboardData) return;
+        e.clipboardData.setData('text/plain', sel);
+        e.clipboardData.setData('text/html', postEnHtml(sel));
+        e.preventDefault();
+      });
     });
     return function lire() {
       return zones.map(function (v, i) {
