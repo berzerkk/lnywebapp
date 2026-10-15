@@ -271,7 +271,7 @@
           // les trois posts LinkedIn, modifiables ici comme dans la boîte sous l'article, avec la
           // case « Post à publier » (demande de l'utilisateur, 14/09/2026)
           '<h4 class="gen-h">Posts LinkedIn</h4>' +
-          '<div class="e-posts"><p class="li-astuce">Trois versions au choix, jamais affichées sur le site. Cochez celle que vous publierez. Sur LinkedIn, collez l’adresse de l’article en premier commentaire plutôt que dans le post.</p>' +
+          '<div class="e-posts"><p class="li-astuce">Trois versions au choix, jamais affichées sur le site. Cochez celle que vous publierez. Chaque version se termine par le lien de l’article, qui ne s’ouvre qu’une fois l’article en ligne.</p>' +
           postsHTML(postsDe(a)) + '<span class="li-etat"></span></div>' +
         '</div>' +
         '<div class="gen-foot"><p class="fe-err auth-err" id="e-err" style="margin:0 12px 0 0"></p>' +
@@ -529,7 +529,7 @@
     b.className = 'li-box';
     b.innerHTML = '<div class="li-h"><h4>Posts LinkedIn</h4>' +
       '<span class="li-note">Trois versions au choix — notes internes, jamais affichées sur le site</span></div>' +
-      '<p class="li-astuce">Sur LinkedIn, un lien dans le corps du post réduit sa portée : publiez le post seul, puis collez l’adresse de l’article en premier commentaire.</p>' +
+      '<p class="li-astuce">Chaque version se termine par le lien de l’article : il ne s’ouvre qu’une fois l’article en ligne.</p>' +
       postsHTML(posts) +
       '<div class="li-acts"><button type="button" class="btn-mini li-save">Enregistrer les trois</button><span class="li-etat"></span></div>';
     var etat = b.querySelector('.li-etat');

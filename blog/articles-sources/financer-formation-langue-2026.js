@@ -73,21 +73,26 @@ module.exports = {
 
   postsLi: [
     { angle: 'La question', texte:
-`« Mon TOEIC date de deux ans. Je peux le repasser avec mon CPF ? »
+`CPF 2026 : ce qui change pour financer une formation en langue
 
-Oui, et c'est une exception que les langues sont seules à avoir. Elle change ce qu'on peut espérer quand on cherche à financer une formation en langue en 2026.
+Les règles de financement des formations en langue ont évolué.
 
-Depuis le 27 juin 2026, le CPF ne finance plus une certification déjà obtenue. La loi réserve un seul cas : « une certification visant à atteindre un niveau de connaissance d'une langue ».
+Et certaines modifications sont loin d’être anecdotiques.
 
-Autrement dit, un B1 obtenu il y a deux ans n'interdit pas de financer le passage visant le B2.
-
-C'est logique : une certification de niveau photographie un état à un instant donné, pas un acquis définitif.
-
+3 changements sont particulièrement importants :
+→ 1 500 € maximum de droits CPF pour les certifications enregistrées au Répertoire spécifique.
+→ 150 € de participation forfaitaire depuis le 2 avril 2026, avec plusieurs cas de dispense.
+→ Une exception spécifique aux certifications de langue : même si vous avez déjà obtenu une certification, vous pouvez financer une nouvelle certification pour attester d’une progression de votre niveau.
 Ce point est passé largement inaperçu. Il change pourtant la donne pour qui veut faire reconnaître sa progression.
 
-Nous avons fait le point sur tout ce qui a changé cette année pour financer une formation en langue en 2026 : plafond, participation, et cette exception.
+À cela s’ajoutent de nouvelles règles concernant l’absence à l’examen, ainsi que des changements dans les modalités de financement par les OPCO pour les entreprises.
 
-Adresse en commentaire.
+Le problème ?
+
+Entre les annonces, les anciennes règles qui continuent de circuler et les nombreuses exceptions, il devient difficile de savoir ce qui s’applique réellement à votre situation.
+
+Ce qu'il faut savoir pour financer une formation en langue en 2026, texte par texte et date par date, est dans notre article.
+👉 Voici le lien vers l'article : https://languagesandsuccess.com/blog/financer-formation-langue-2026-ce-qui-a-change
 
 #CPF #TOEIC #FormationEnLangue #Anglais` },
 
@@ -104,7 +109,7 @@ Trois textes ont changé la façon de financer une formation en langue en 2026. 
 
 Chaque chiffre de cet article a son décret et sa date. Nous n'en publions pas d'autres.
 
-Le détail est en commentaire.
+👉 Voici le lien vers l'article : https://languagesandsuccess.com/blog/financer-formation-langue-2026-ce-qui-a-change
 
 #CPF #Financement #FormationProfessionnelle #Qualiopi` },
 
@@ -119,7 +124,8 @@ La différence n'est pas théorique. Elle se découvre au moment de valider le d
 
 Notre façon de faire n'a pas changé : on regarde le solde et le coût réel AVANT d'annoncer quoi que ce soit. Puis on monte le cofinancement.
 
-Ce qu'il faut savoir pour financer une formation en langue en 2026, texte par texte et date par date : c'est en commentaire.
+Ce qu'il faut savoir pour financer une formation en langue en 2026, texte par texte et date par date, est dans notre article.
+👉 Voici le lien vers l'article : https://languagesandsuccess.com/blog/financer-formation-langue-2026-ce-qui-a-change
 
 #CPF #Financement #FormationEnLangue #Nice` }
   ]

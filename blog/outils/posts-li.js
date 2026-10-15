@@ -36,7 +36,12 @@ function verifierPosts(posts, motCle) {
     const accroche = t.split('\n')[0].trim();
     const pos = mc ? norm(t).indexOf(mc) : 0;
     const tags = (t.match(/#[\wÀ-ÿ]+/g) || []).length;
-    const lien = /https?:\/\//.test(t);
+    // Depuis le 15/10/2026 (demande de l'utilisateur), chaque post se termine par
+    // « 👉 Voici le lien vers l'article : <adresse> » : le lien vers le site est permis, et même
+    // attendu ; tout lien vers un autre site reste refusé.
+    const liens = t.match(/https?:\/\/\S+/g) || [];
+    const externes = liens.filter(u => !/^https:\/\/languagesandsuccess\.com\//.test(u));
+    const versArticle = liens.some(u => /^https:\/\/languagesandsuccess\.com\/blog\//.test(u));
 
     // ⚠️ Le tiret cadratin est PROSCRIT du contenu publié, article comme post (demande de
     // l'utilisateur, 03/08/2026). Selon le contexte : deux-points si la suite explique, virgule
@@ -49,8 +54,8 @@ function verifierPosts(posts, motCle) {
     else if (mc && pos > MOTCLE_AVANT) erreurs.push(nom + ' : mot-clé au caractère ' + pos + ' (avant ' + MOTCLE_AVANT + ', sinon il est sous le pli)');
     if (tags < 3) erreurs.push(nom + ' : ' + tags + ' hashtag(s), 3 minimum');
     if (tags > 5) alertes.push(nom + ' : ' + tags + ' hashtags, 5 suffisent');
-    if (lien) erreurs.push(nom + ' : un lien dans le corps réduit la portée — renvoyez au premier commentaire');
-    if (!/commentaire/i.test(t)) alertes.push(nom + ' : ne renvoie pas au premier commentaire');
+    if (externes.length) erreurs.push(nom + ' : lien vers un autre site (' + externes[0] + '), seul le lien de l\'article est permis');
+    if (!versArticle) alertes.push(nom + ' : pas de lien vers l\'article (« 👉 Voici le lien vers l\'article : … »)');
     if (t.length > 2600) alertes.push(nom + ' : ' + t.length + ' caractères (LinkedIn coupe à 3000)');
 
     // deux fois la même phrase longue dans un même post : signe d'un copier-coller mal recousu
