@@ -149,7 +149,7 @@
 (function(){
   var s=document.getElementById('splash');
   if(!s) return;
-  try{ if(sessionStorage.getItem('ls-seen-splash')){ s.remove(); return; } sessionStorage.setItem('ls-seen-splash','1'); }catch(e){}
+  try{ if(sessionStorage.getItem('ls-seen-splash')){ s.remove(); window.__splashDone=true; return; } sessionStorage.setItem('ls-seen-splash','1'); }catch(e){}
   var DUR=2000, start=performance.now(), pct=document.getElementById('splash-pct'), loaded=false, gone=false;
   (function count(){
     var p=Math.min(100, Math.round((performance.now()-start)/DUR*100));
@@ -160,12 +160,30 @@
     if(gone) return; gone=true;
     if(pct) pct.textContent='100%';
     s.classList.add('hide');
+    // signale le début du fondu de sortie : le haut de page apparaît pendant que l'écran s'efface
+    window.__splashDone=true;
+    try{ window.dispatchEvent(new Event('splash-done')); }catch(e){}
     setTimeout(function(){ if(s&&s.parentNode) s.parentNode.removeChild(s); }, 800);
   };
   var tryDone=function(){ var el=performance.now()-start; if(loaded && el>=DUR) done(); };
   window.addEventListener('load', function(){ loaded=true; setTimeout(tryDone, Math.max(0, DUR-(performance.now()-start))); });
   setTimeout(tryDone, DUR);
   setTimeout(done, 4500); // garde-fou
+})();
+</script>
+<script>
+/* Apparition en cascade du haut de page (petit titre, grand titre, sous-titre, boutons, chiffres), synchronisée
+   avec l'écran de chargement : 250 ms après le début de son fondu, 150 ms s'il est déjà fini, 5 s au plus tard.
+   La classe est posée sur <html> AVANT que le héros soit lu : aucun éclair du texte. Sans JavaScript ou en
+   « réduire les animations », le texte reste affiché tel quel (site.css). */
+(function(){
+  try{ if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; }catch(e){}
+  var root=document.documentElement, parti=false;
+  root.classList.add('hero-intro');
+  var go=function(){ if(parti) return; parti=true; var h=document.querySelector('.hero-content'); if(h) h.classList.add('start'); else root.classList.remove('hero-intro'); };
+  if(window.__splashDone || !document.getElementById('splash')) setTimeout(go, 150);
+  else window.addEventListener('splash-done', function(){ setTimeout(go, 250); }, { once:true });
+  setTimeout(go, 5000);   // sécurité : jamais de texte caché
 })();
 </script>
 
