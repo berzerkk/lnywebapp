@@ -784,7 +784,8 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Trier les comptes": "Сортировать аккаунты",
   "Par formateur": "По преподавателю",
   "Nom (A → Z)": "Фамилия (А → Я)",
+  "Formateurs puis apprenants": "Преподаватели, затем слушатели",
   "Connexion la plus récente": "Последний вход: сначала новые",
   "Connexion la plus ancienne": "Последний вход: сначала давние",
-  "Création (du plus récent au plus ancien)": "Создание (от новых к старым)",
+  "Création (récents d'abord)": "Создание (сначала новые)",
 });

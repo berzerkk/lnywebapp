@@ -1358,9 +1358,11 @@
     var adm = us.filter(function (u) { return u.role === 'admin'; }), l = us.filter(function (u) { return u.role !== 'admin'; });
     var nomDe = function (u) { return String(u.nom || '') + ' ' + String(u.prenom || ''); };
     var co = function (u) { return u.derniereConnexion || 0; };
-    // par nom : les formateurs d'abord, puis les apprenants, chaque groupe par ordre alphabétique
+    var parNom = function (a, b) { return nomDe(a).localeCompare(nomDe(b), 'fr', { sensitivity: 'base' }); };
+    // « nom-role » : les formateurs d'abord, puis les apprenants, chaque groupe par ordre alphabétique
     var rangRole = function (u) { return u.role === 'prof' ? 0 : u.role === 'eleve' ? 1 : 2; };
-    if (t === 'nom') l.sort(function (a, b) { return (rangRole(a) - rangRole(b)) || nomDe(a).localeCompare(nomDe(b), 'fr', { sensitivity: 'base' }); });
+    if (t === 'nom') l.sort(parNom);
+    else if (t === 'nom-role') l.sort(function (a, b) { return (rangRole(a) - rangRole(b)) || parNom(a, b); });
     else if (t === 'co-recente') l.sort(function (a, b) { return co(b) - co(a); });
     else if (t === 'co-ancienne') l.sort(function (a, b) { return co(a) - co(b); });
     else if (t === 'creation') l.sort(function (a, b) { return (b.rangCreation || 0) - (a.rangCreation || 0); });
@@ -1405,9 +1407,9 @@
       var triOpt = function (v, l) { return '<option value="' + v + '"' + (admTriComptes === v ? ' selected' : '') + '>' + l + '</option>'; };
       sections += '<div class="adm-sec"><div class="adm-sec-h adm-sec-tri"><h4>Comptes</h4>' +
         '<select id="adm-tri" class="adm-tri" aria-label="Trier les comptes">' +
-        triOpt('defaut', 'Par formateur') + triOpt('nom', 'Nom (A → Z)') +
+        triOpt('defaut', 'Par formateur') + triOpt('nom', 'Nom (A → Z)') + triOpt('nom-role', 'Formateurs puis apprenants') +
         triOpt('co-recente', 'Connexion la plus récente') + triOpt('co-ancienne', 'Connexion la plus ancienne') +
-        triOpt('creation', 'Création (du plus récent au plus ancien)') + '</select></div>' + (us.length ? '<ul class="admin-users">' + us.map(function (u) {
+        triOpt('creation', "Création (récents d'abord)") + '</select></div>' + (us.length ? '<ul class="admin-users">' + us.map(function (u) {
         // les dossiers de cette personne, décrits par les AUTRES membres qu'elle y côtoie
         var ds = groups.filter(function (g) {
           return (g.profs || []).some(function (x) { return x.id === u.id; }) || (g.eleve && g.eleve.id === u.id);

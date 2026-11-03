@@ -784,7 +784,8 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Trier les comptes": "Ordina gli account",
   "Par formateur": "Per formatore",
   "Nom (A → Z)": "Cognome (A → Z)",
+  "Formateurs puis apprenants": "Formatori poi allievi",
   "Connexion la plus récente": "Accesso più recente",
   "Connexion la plus ancienne": "Accesso meno recente",
-  "Création (du plus récent au plus ancien)": "Creazione (dal più recente al meno recente)",
+  "Création (récents d'abord)": "Creazione (recenti prima)",
 });

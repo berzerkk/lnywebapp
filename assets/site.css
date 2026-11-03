@@ -1013,7 +1013,8 @@ footer a:hover{color:#fff8ef}
 .adm-sec-tri h4{margin:0;font:inherit;font-weight:700;color:inherit}
 .adm-tri{font-family:var(--ff-body,inherit);font-size:13.5px;font-weight:400;color:var(--ink);padding:6px 32px 6px 12px;border:1.5px solid var(--line);border-radius:999px;cursor:pointer;max-width:100%;appearance:none;-webkit-appearance:none;background:var(--bg-card) url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23be6e54' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center}
 .adm-tri:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
-@media(max-width:620px){.adm-tri{min-height:44px}}
+/* sous 620 px le menu passe à 16 px (anti-zoom iOS) : marges resserrées pour que « Formateurs puis apprenants » tienne */
+@media(max-width:620px){.adm-tri{min-height:44px;padding-left:10px;padding-right:28px;background-position:right 10px center}}
 /* chat */
 .chat{display:flex;flex-direction:column;gap:10px;margin-top:8px}
 .chat-msgs{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto;padding:6px 2px}

@@ -806,7 +806,8 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Trier les comptes": "Sort accounts",
   "Par formateur": "By trainer",
   "Nom (A → Z)": "Surname (A → Z)",
+  "Formateurs puis apprenants": "Trainers then learners",
   "Connexion la plus récente": "Most recent sign-in",
   "Connexion la plus ancienne": "Oldest sign-in",
-  "Création (du plus récent au plus ancien)": "Created (newest to oldest)",
+  "Création (récents d'abord)": "Created (newest first)",
 });

@@ -785,7 +785,8 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Trier les comptes": "账户排序",
   "Par formateur": "按培训师",
   "Nom (A → Z)": "姓氏（A → Z）",
+  "Formateurs puis apprenants": "先培训师后学员",
   "Connexion la plus récente": "最近登录在前",
   "Connexion la plus ancienne": "最早登录在前",
-  "Création (du plus récent au plus ancien)": "创建时间（从新到旧）",
+  "Création (récents d'abord)": "创建时间（新的在前）",
 });
