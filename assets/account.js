@@ -1407,7 +1407,7 @@
       var triOpt = function (v, l) { return '<option value="' + v + '"' + (admTriComptes === v ? ' selected' : '') + '>' + l + '</option>'; };
       sections += '<div class="adm-sec"><div class="adm-sec-h adm-sec-tri"><h4>Comptes</h4>' +
         '<select id="adm-tri" class="adm-tri" aria-label="Trier les comptes">' +
-        triOpt('defaut', 'Par formateur') + triOpt('nom', 'Nom (A → Z)') + triOpt('nom-role', 'Formateurs puis apprenants') +
+        triOpt('defaut', 'Par formateur') + triOpt('nom', 'Nom (A → Z)') + triOpt('nom-role', 'Nom, formateurs puis apprenants') +
         triOpt('co-recente', 'Connexion la plus récente') + triOpt('co-ancienne', 'Connexion la plus ancienne') +
         triOpt('creation', "Création (récents d'abord)") + '</select></div>' + (us.length ? '<ul class="admin-users">' + us.map(function (u) {
         // les dossiers de cette personne, décrits par les AUTRES membres qu'elle y côtoie
