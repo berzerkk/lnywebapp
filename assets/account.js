@@ -1358,7 +1358,9 @@
     var adm = us.filter(function (u) { return u.role === 'admin'; }), l = us.filter(function (u) { return u.role !== 'admin'; });
     var nomDe = function (u) { return String(u.nom || '') + ' ' + String(u.prenom || ''); };
     var co = function (u) { return u.derniereConnexion || 0; };
-    if (t === 'nom') l.sort(function (a, b) { return nomDe(a).localeCompare(nomDe(b), 'fr', { sensitivity: 'base' }); });
+    // par nom : les formateurs d'abord, puis les apprenants, chaque groupe par ordre alphabétique
+    var rangRole = function (u) { return u.role === 'prof' ? 0 : u.role === 'eleve' ? 1 : 2; };
+    if (t === 'nom') l.sort(function (a, b) { return (rangRole(a) - rangRole(b)) || nomDe(a).localeCompare(nomDe(b), 'fr', { sensitivity: 'base' }); });
     else if (t === 'co-recente') l.sort(function (a, b) { return co(b) - co(a); });
     else if (t === 'co-ancienne') l.sort(function (a, b) { return co(a) - co(b); });
     else if (t === 'creation') l.sort(function (a, b) { return (b.rangCreation || 0) - (a.rangCreation || 0); });
