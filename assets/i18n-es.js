@@ -780,4 +780,11 @@ window.__lsI18N && window.__lsI18N.register('es', {
   "Ce contrat concerne quel formateur ? Choisissez-le dans « Visible par » avant d'envoyer.": "¿A qué formador concierne este contrato? Elíjalo en « Visible para » antes de enviar.",
   "Fichier trop volumineux : 25 Mo au maximum.": "Archivo demasiado grande: 25 MB como máximo.",
   "Le fichier n'a pas pu être reçu. Réessayez.": "No se pudo recibir el archivo. Inténtelo de nuevo.",
+  // tri des comptes de la vue globale (03/11/2026)
+  "Trier les comptes": "Ordenar las cuentas",
+  "Par formateur": "Por formador",
+  "Nom (A → Z)": "Apellido (A → Z)",
+  "Connexion la plus récente": "Conexión más reciente",
+  "Connexion la plus ancienne": "Conexión más antigua",
+  "Création (du plus récent au plus ancien)": "Creación (de la más reciente a la más antigua)",
 });

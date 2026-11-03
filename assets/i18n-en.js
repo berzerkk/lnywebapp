@@ -802,4 +802,11 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Ce contrat concerne quel formateur ? Choisissez-le dans « Visible par » avant d'envoyer.": "Which trainer is this contract for? Choose them under \"Visible to\" before sending.",
   "Fichier trop volumineux : 25 Mo au maximum.": "File too large: 25 MB maximum.",
   "Le fichier n'a pas pu être reçu. Réessayez.": "The file could not be received. Please try again.",
+  // tri des comptes de la vue globale (03/11/2026)
+  "Trier les comptes": "Sort accounts",
+  "Par formateur": "By trainer",
+  "Nom (A → Z)": "Surname (A → Z)",
+  "Connexion la plus récente": "Most recent sign-in",
+  "Connexion la plus ancienne": "Oldest sign-in",
+  "Création (du plus récent au plus ancien)": "Created (newest to oldest)",
 });

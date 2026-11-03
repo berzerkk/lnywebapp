@@ -780,4 +780,11 @@ window.__lsI18N && window.__lsI18N.register('it', {
   "Ce contrat concerne quel formateur ? Choisissez-le dans « Visible par » avant d'envoyer.": "A quale formatore si riferisce questo contratto? Sceglilo in « Visibile a » prima di inviare.",
   "Fichier trop volumineux : 25 Mo au maximum.": "File troppo grande: massimo 25 MB.",
   "Le fichier n'a pas pu être reçu. Réessayez.": "Impossibile ricevere il file. Riprova.",
+  // tri des comptes de la vue globale (03/11/2026)
+  "Trier les comptes": "Ordina gli account",
+  "Par formateur": "Per formatore",
+  "Nom (A → Z)": "Cognome (A → Z)",
+  "Connexion la plus récente": "Accesso più recente",
+  "Connexion la plus ancienne": "Accesso meno recente",
+  "Création (du plus récent au plus ancien)": "Creazione (dal più recente al meno recente)",
 });

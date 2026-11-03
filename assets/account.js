@@ -76,6 +76,8 @@
 
   var ME = null, NOTIFS = [], selected = null, channel = 'commun', authTab = 'login', genState = null;
   var adminShow = { dossiers: true, comptes: true, fichiers: true }, adminQuery = '', ADMIN_OVERVIEW = null;
+  // tri de la liste des comptes (vue globale) : en mémoire, comme le pli des fichiers
+  var admTriComptes = 'defaut';
   // ⚠️ dossiers dont la liste de fichiers est DÉPLIÉE, et non l'inverse : les fichiers sont
   // repliés par DÉFAUT (demande de l'utilisateur), donc l'état à mémoriser est l'exception.
   // En mémoire : il survit aux re-rendus du panneau admin (filtrage, suppression) mais pas au
@@ -1348,6 +1350,20 @@
     return '<li><span class="doc-ic">📄</span><span class="doc-meta"><b>' + esc(d.name) + '</b><small>' + esc(d.groupLabel || '') + ' · ' + fmtSize(d.size) + ' · ' + (d.channel === 'prive' ? '🔒 privé' : 'commun') + ' · ' + fmtDate(d.date) + '</small></span>' +
       '<a class="btn-mini" href="/api/documents/' + d.id + '/download?token=' + encodeURIComponent(token()) + '">Télécharger</a></li>';
   }
+  // « Par formateur » = l'ordre du serveur (ordreAdmin) ; le tri du navigateur est stable, donc à
+  // égalité l'ordre par formateur est gardé. Jamais connecté = connexion la plus ancienne qui soit.
+  // L'administration reste en tête quel que soit le tri : on trie les personnes, pas elle.
+  function trierComptes(us) {
+    var t = admTriComptes;
+    var adm = us.filter(function (u) { return u.role === 'admin'; }), l = us.filter(function (u) { return u.role !== 'admin'; });
+    var nomDe = function (u) { return String(u.nom || '') + ' ' + String(u.prenom || ''); };
+    var co = function (u) { return u.derniereConnexion || 0; };
+    if (t === 'nom') l.sort(function (a, b) { return nomDe(a).localeCompare(nomDe(b), 'fr', { sensitivity: 'base' }); });
+    else if (t === 'co-recente') l.sort(function (a, b) { return co(b) - co(a); });
+    else if (t === 'co-ancienne') l.sort(function (a, b) { return co(a) - co(b); });
+    else if (t === 'creation') l.sort(function (a, b) { return (b.rangCreation || 0) - (a.rangCreation || 0); });
+    return adm.concat(l);
+  }
   function adminPanel(a) {
     var users = a.users || [], groups = a.groups || [], docs = a.docs || [];
     var q = norm(adminQuery);
@@ -1383,8 +1399,13 @@
       }).join('') : '<p class="ds-empty">Aucun dossier.</p>') + '</div>';
     }
     if (adminShow.comptes) {
-      var us = users.filter(function (u) { return !q || norm(u.prenom + ' ' + u.nom).indexOf(q) >= 0 || norm(u.email).indexOf(q) >= 0; });
-      sections += '<div class="adm-sec"><h4 class="adm-sec-h">Comptes</h4>' + (us.length ? '<ul class="admin-users">' + us.map(function (u) {
+      var us = trierComptes(users.filter(function (u) { return !q || norm(u.prenom + ' ' + u.nom).indexOf(q) >= 0 || norm(u.email).indexOf(q) >= 0; }));
+      var triOpt = function (v, l) { return '<option value="' + v + '"' + (admTriComptes === v ? ' selected' : '') + '>' + l + '</option>'; };
+      sections += '<div class="adm-sec"><div class="adm-sec-h adm-sec-tri"><h4>Comptes</h4>' +
+        '<select id="adm-tri" class="adm-tri" aria-label="Trier les comptes">' +
+        triOpt('defaut', 'Par formateur') + triOpt('nom', 'Nom (A → Z)') +
+        triOpt('co-recente', 'Connexion la plus récente') + triOpt('co-ancienne', 'Connexion la plus ancienne') +
+        triOpt('creation', 'Création (du plus récent au plus ancien)') + '</select></div>' + (us.length ? '<ul class="admin-users">' + us.map(function (u) {
         // les dossiers de cette personne, décrits par les AUTRES membres qu'elle y côtoie
         var ds = groups.filter(function (g) {
           return (g.profs || []).some(function (x) { return x.id === u.id; }) || (g.eleve && g.eleve.id === u.id);
@@ -1414,6 +1435,10 @@
   function wireAdmin() {
     document.querySelectorAll('.adm-chip').forEach(function (t) { t.onclick = function () { var k = t.getAttribute('data-k'); adminShow[k] = !adminShow[k]; rerenderAdmin(false); }; });
     var s = document.getElementById('adm-search'); if (s) s.oninput = function () { adminQuery = s.value; rerenderAdmin(true); };
+    var tri = document.getElementById('adm-tri'); if (tri) tri.onchange = function () {
+      admTriComptes = tri.value; rerenderAdmin(false);
+      var n = document.getElementById('adm-tri'); if (n) n.focus();   // le panneau est reconstruit
+    };
     var nb = document.querySelector('.adm-new'); if (nb) nb.onclick = openCreateAccount;
     var ng = document.querySelector('.adm-newgrp'); if (ng) ng.onclick = openCreateGroup;
     var lb = document.querySelector('.adm-logins'); if (lb) lb.onclick = function () { openLoginsModal(null, null); };

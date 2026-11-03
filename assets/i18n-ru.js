@@ -780,4 +780,11 @@ window.__lsI18N && window.__lsI18N.register('ru', {
   "Ce contrat concerne quel formateur ? Choisissez-le dans « Visible par » avant d'envoyer.": "Какого преподавателя касается этот договор? Выберите его в поле « Кому виден » перед отправкой.",
   "Fichier trop volumineux : 25 Mo au maximum.": "Файл слишком большой: не более 25 МБ.",
   "Le fichier n'a pas pu être reçu. Réessayez.": "Не удалось получить файл. Попробуйте ещё раз.",
+  // tri des comptes de la vue globale (03/11/2026)
+  "Trier les comptes": "Сортировать аккаунты",
+  "Par formateur": "По преподавателю",
+  "Nom (A → Z)": "Фамилия (А → Я)",
+  "Connexion la plus récente": "Последний вход: сначала новые",
+  "Connexion la plus ancienne": "Последний вход: сначала давние",
+  "Création (du plus récent au plus ancien)": "Создание (от новых к старым)",
 });

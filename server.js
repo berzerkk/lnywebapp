@@ -2161,6 +2161,10 @@ app.get('/api/admin/overview', auth, (req, res) => {
     docs: db.docs.filter(d => d.group === g.id).length, date: g.date
   }));
   const docs = db.docs.slice().sort((a, b) => b.date - a.date).map(d => { const g = groupById(d.group); return Object.assign(docPub(d), { groupLabel: g ? membersLabel(g) : '—' }); });
+  // dernière connexion connue par compte : `lastSeen` n'existe que depuis le 05/08/2026, l'historique
+  // des connexions couvre les comptes plus anciens (sert au tri « connexion » de la vue globale)
+  const derniereCo = {};
+  db.logins.forEach(l => { if ((l.date || 0) > (derniereCo[l.user] || 0)) derniereCo[l.user] = l.date; });
   // `pending` = compte créé mais mot de passe pas encore choisi (jamais le jeton lui-même)
   const users = ordre.trierComptes(db.users).map(u => Object.assign(pubFull(u), {
     pending: !!u.mustActivate,
@@ -2172,7 +2176,11 @@ app.get('/api/admin/overview', auth, (req, res) => {
     derniereRelance: u.derniereRelance || null,
     // sort réel des invitations envoyées (réponse du serveur d'envoi), jamais le lien lui-même
     envois: (u.envois || []).map(e => ({ date: e.date, type: e.type, etat: e.etat, reponse: e.reponse || null, erreur: e.erreur || null })),
-    lastSeen: u.lastSeen || null
+    lastSeen: u.lastSeen || null,
+    derniereConnexion: Math.max(u.lastSeen || 0, derniereCo[u.id] || 0) || null,
+    // ⚠️ rang dans db.users = ordre de création exact (on n'y fait qu'ajouter et retirer) : les comptes
+    // antérieurs au 05/08/2026 n'ont pas de dateCreation, et celle d'un compte en attente est approchée
+    rangCreation: db.users.indexOf(u)
   }));
   res.json({ users, groups, docs });
 });

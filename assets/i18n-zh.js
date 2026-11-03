@@ -781,4 +781,11 @@ window.__lsI18N && window.__lsI18N.register('zh', {
   "Ce contrat concerne quel formateur ? Choisissez-le dans « Visible par » avant d'envoyer.": "此合同涉及哪位培训师？发送前请在「可见对象」中选择。",
   "Fichier trop volumineux : 25 Mo au maximum.": "文件过大：最多 25 MB。",
   "Le fichier n'a pas pu être reçu. Réessayez.": "无法接收文件，请重试。",
+  // tri des comptes de la vue globale (03/11/2026)
+  "Trier les comptes": "账户排序",
+  "Par formateur": "按培训师",
+  "Nom (A → Z)": "姓氏（A → Z）",
+  "Connexion la plus récente": "最近登录在前",
+  "Connexion la plus ancienne": "最早登录在前",
+  "Création (du plus récent au plus ancien)": "创建时间（从新到旧）",
 });
