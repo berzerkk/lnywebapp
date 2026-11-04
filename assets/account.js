@@ -76,8 +76,11 @@
 
   var ME = null, NOTIFS = [], selected = null, channel = 'commun', authTab = 'login', genState = null;
   var adminShow = { dossiers: true, comptes: true, fichiers: true }, adminQuery = '', ADMIN_OVERVIEW = null;
-  // tri de la liste des comptes (vue globale) : en mémoire, comme le pli des fichiers
-  var admTriComptes = 'defaut';
+  // tri de la liste des comptes (vue globale) : MÉMORISÉ dans le navigateur (demande de l'utilisateur,
+  // 04/11/2026), il revient à la connexion suivante. Valeur relue en liste blanche ; stockage bloqué →
+  // tri par défaut, sans erreur.
+  var TRI_CLE = 'ls-adm-tri', TRIS = ['defaut', 'nom', 'nom-role', 'co-recente', 'co-ancienne', 'creation'];
+  var admTriComptes = (function () { try { var v = localStorage.getItem(TRI_CLE); return TRIS.indexOf(v) >= 0 ? v : 'defaut'; } catch (e) { return 'defaut'; } })();
   // ⚠️ dossiers dont la liste de fichiers est DÉPLIÉE, et non l'inverse : les fichiers sont
   // repliés par DÉFAUT (demande de l'utilisateur), donc l'état à mémoriser est l'exception.
   // En mémoire : il survit aux re-rendus du panneau admin (filtrage, suppression) mais pas au
@@ -1532,7 +1535,8 @@
     document.querySelectorAll('.adm-chip').forEach(function (t) { t.onclick = function () { var k = t.getAttribute('data-k'); adminShow[k] = !adminShow[k]; rerenderAdmin(false); }; });
     var s = document.getElementById('adm-search'); if (s) s.oninput = function () { adminQuery = s.value; rerenderAdmin(true); };
     var tri = document.getElementById('adm-tri'); if (tri) tri.onchange = function () {
-      admTriComptes = tri.value; rerenderAdmin(false);
+      admTriComptes = tri.value; try { localStorage.setItem(TRI_CLE, admTriComptes); } catch (e) { }
+      rerenderAdmin(false);
       var n = document.getElementById('adm-tri'); if (n) n.focus();   // le panneau est reconstruit
     };
     var nb = document.querySelector('.adm-new'); if (nb) nb.onclick = openCreateAccount;
