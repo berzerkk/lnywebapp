@@ -230,7 +230,7 @@
 
   // ---- connexion (l'inscription publique est fermée : comptes créés par l'admin)
   function renderAuth() {
-    document.body.classList.remove('ds-app');   // REFONTE UI : l'en-tête de page revient hors connexion
+    document.documentElement.classList.remove('ds-app');   // REFONTE UI : l'en-tête de page revient hors connexion
     var el = app(); if (!el) return;
     // ⚠️ Plus de titre « Se connecter » au-dessus du formulaire : seul, dans un cadre d'onglets,
     // il ressemblait à un bouton (demande de l'utilisateur, 05/08/2026). Le bouton d'envoi porte
@@ -258,7 +258,7 @@
   }
   // ---- première connexion : la personne définit son mot de passe -----------
   function renderActivate(tok) {
-    document.body.classList.remove('ds-app');   // REFONTE UI : l'en-tête de page revient hors connexion
+    document.documentElement.classList.remove('ds-app');   // REFONTE UI : l'en-tête de page revient hors connexion
     var el = app(); if (!el) return;
     el.innerHTML = '<div class="auth-wrap"><div class="auth-tabs"><button class="auth-tab on" type="button">Première connexion</button></div>' +
       '<p class="ds-empty" id="act-load">Vérification de votre lien…</p></div>';
@@ -349,7 +349,7 @@
   // Jumeau de renderActivate, avec un préfixe de lien DIFFÉRENT (#reinit=) : deux jetons de
   // natures différentes derrière le même préfixe rendraient les deux écrans indiscernables.
   function renderReset(tok) {
-    document.body.classList.remove('ds-app');   // REFONTE UI : l'en-tête de page revient hors connexion
+    document.documentElement.classList.remove('ds-app');   // REFONTE UI : l'en-tête de page revient hors connexion
     var el = app(); if (!el) return;
     el.innerHTML = '<div class="auth-wrap"><div class="auth-tabs"><button class="auth-tab on" type="button">Nouveau mot de passe</button></div>' +
       '<p class="ds-empty">Vérification de votre lien…</p></div>';
@@ -817,7 +817,7 @@
     // (choix de l'utilisateur : pas d'onglets). Sur téléphone, un dossier ouvert prend tout l'écran
     // (« ← Tous mes dossiers » pour revenir), sauf pendant la visite guidée, qui a besoin de la
     // liste et du dossier d'exemple ensemble.
-    document.body.classList.add('ds-app');
+    document.documentElement.classList.add('ds-app');
     el.innerHTML = topHTML() +
       '<div class="ds-grid' + (selG ? (TUTO_DEMO_ON ? ' tuto-demo' : ' a-dossier') : '') + '"><aside class="ds-side">' + notifCardHTML(unread) + dossiersCardHTML(groups) +
       '</aside><main class="ds-main">' + groupView(selG, messages, docs) + '</main></div>' + (overview ? adminPanel(overview) : '');

@@ -131,6 +131,13 @@
 <link rel="stylesheet" href="assets/fonts.css?v=BUILD" />
 <link rel="stylesheet" href="assets/site.css?v=BUILD" />
 <link rel="stylesheet" href="assets/espace-documents.css?v=BUILD" />
+<script>
+/* Connecté (jeton présent) : l'interface de l'application est choisie AVANT le premier affichage.
+   Sans cela, le grand titre de la page visiteur restait visible quelques images, le temps que le
+   serveur réponde. account.js retire la classe si la session s'avère expirée (écran de connexion),
+   et les liens d'activation ou de réinitialisation ouvrent leur propre écran. */
+try { if ((localStorage.getItem('lsx_token') || sessionStorage.getItem('lsx_sim')) && !/[#&](activation|reinit)=/i.test(location.hash)) document.documentElement.classList.add('ds-app'); } catch (e) {}
+</script>
 </head>
 <body>
 <div id="ls-nav"></div>

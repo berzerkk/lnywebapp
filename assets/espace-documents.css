@@ -3,9 +3,16 @@
    Même fonctionnement, mêmes boutons qu'avant : seule la présentation a changé.
    Chargée après site.css, par espace-documents.html seulement.
    ============================================================================ */
-body.ds-app .page-hero{display:none}
-body.ds-app .page-hero + .sec{padding-top:112px!important;padding-bottom:64px}
-body.ds-app .page-hero + .sec .wrap{max-width:1440px}
+html.ds-app .page-hero{display:none}
+html.ds-app .page-hero + .sec{padding-top:112px!important;padding-bottom:64px}
+html.ds-app .page-hero + .sec .wrap{max-width:1440px}
+/* le temps que les données arrivent : la place de la barre et du tableau de bord est réservée
+   (rien ne saute à l'arrivée), au lieu d'un vide ou de l'écran visiteur */
+html.ds-app .docspace:empty::before,html.ds-app .docspace:empty::after{content:'';display:block;border-radius:16px;background:var(--bg-card);border:1px solid var(--line);animation:ds-attente 1.4s ease-in-out infinite alternate}
+html.ds-app .docspace:empty::before{height:78px;margin-bottom:16px}
+html.ds-app .docspace:empty::after{height:min(62vh,560px)}
+@keyframes ds-attente{from{opacity:.55}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){html.ds-app .docspace:empty::before,html.ds-app .docspace:empty::after{animation:none}}
 .docspace{--ds-ombre:0 1px 2px rgba(42,33,24,.05),0 10px 30px -18px rgba(42,33,24,.22);--ds-r:16px}
 
 /* ---- barre du haut : qui je suis + une action + « Mon compte » ---- */
@@ -167,8 +174,8 @@ body.ds-app .page-hero + .sec .wrap{max-width:1440px}
   .ds-retour{display:inline-flex}
 }
 @media(max-width:620px){
-  body.ds-app .page-hero + .sec{padding-top:92px!important}
-  body.ds-app .page-hero + .sec .wrap{padding:0 12px}
+  html.ds-app .page-hero + .sec{padding-top:92px!important}
+  html.ds-app .page-hero + .sec .wrap{padding:0 12px}
   .docspace .ds-top{padding:12px;border-radius:14px}
   .ds-avatar{width:38px;height:38px;font-size:13px}
   .docspace .ds-top-acts{width:100%;justify-content:stretch}
