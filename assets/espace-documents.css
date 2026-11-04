@@ -1,0 +1,194 @@
+/* ============================================================================
+   ESPACE DOCUMENTS : présentation de l'application (refonte du 04/11/2026)
+   Même fonctionnement, mêmes boutons qu'avant : seule la présentation a changé.
+   Chargée après site.css, par espace-documents.html seulement.
+   ============================================================================ */
+body.ds-app .page-hero{display:none}
+body.ds-app .page-hero + .sec{padding-top:112px!important;padding-bottom:64px}
+body.ds-app .page-hero + .sec .wrap{max-width:1440px}
+.docspace{--ds-ombre:0 1px 2px rgba(42,33,24,.05),0 10px 30px -18px rgba(42,33,24,.22);--ds-r:16px}
+
+/* ---- barre du haut : qui je suis + une action + « Mon compte » ---- */
+.docspace .ds-top{background:var(--bg-card);border:1px solid var(--line);border-radius:var(--ds-r);box-shadow:var(--ds-ombre);padding:14px 18px;margin-bottom:16px;gap:12px}
+.docspace .ds-id{gap:12px;flex-wrap:nowrap;min-width:0}
+.ds-avatar{flex:none;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;text-transform:uppercase;color:#fff;background:var(--accent)}
+.ds-avatar.role-admin{background:#7a4ac0}
+.ds-avatar.role-prof{background:#1f7a5a}
+.ds-id-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ds-lieu{font-family:var(--ff-body);font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);line-height:1.2;margin:0}
+.ds-hi-ligne{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.docspace .ds-hi{font-size:clamp(19px,2.2vw,24px);line-height:1.2}
+.docspace .ds-top-acts{align-items:center;gap:8px}
+.docspace .ds-top-acts .btn{padding:9px 16px;font-size:14px;border-width:1px;border-color:var(--line);background:var(--bg-card);color:var(--ink)}
+.docspace .ds-top-acts .btn:hover{border-color:var(--accent);color:var(--accent);background:color-mix(in oklab,var(--accent) 7%,var(--bg-card))}
+.ds-compte{position:relative}
+.ds-compte>summary{list-style:none;cursor:pointer;user-select:none}
+.ds-compte>summary::-webkit-details-marker{display:none}
+.docspace .ds-compte[open]>summary{border-color:var(--accent);color:var(--accent)}
+.ds-chev{font-size:11px;transition:transform .2s}
+.ds-compte[open] .ds-chev{transform:rotate(180deg)}
+.ds-compte-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:60;min-width:250px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px -18px rgba(42,33,24,.4);padding:6px;display:flex;flex-direction:column}
+.ds-compte-qui{padding:10px 12px 9px;margin-bottom:4px;border-bottom:1px solid var(--line);font-weight:600;font-size:14px;line-height:1.3;display:flex;flex-direction:column}
+.ds-compte-qui small{font-weight:400;color:var(--ink-soft);font-size:12px;overflow-wrap:anywhere}
+.ds-compte-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;font:inherit;font-size:14px;color:var(--ink);padding:11px 12px;border-radius:9px;cursor:pointer;min-height:44px}
+.ds-compte-menu button:hover,.ds-compte-menu button:focus-visible{background:color-mix(in oklab,var(--accent) 9%,#fff);outline:none}
+.ds-compte-menu .ds-logout{color:#b03a2e}
+
+
+/* ---- cartes ---- */
+.docspace .ds-card{border-radius:var(--ds-r);box-shadow:var(--ds-ombre);padding:20px;margin-bottom:16px}
+.docspace .ds-grid{grid-template-columns:300px minmax(0,1fr);gap:20px}
+.docspace .ds-side{position:sticky;top:96px}
+.dd-n{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 7px;margin-left:6px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--ink-soft);font-family:var(--ff-body);font-size:12px;font-weight:600;vertical-align:2px;letter-spacing:0;text-transform:none}
+
+/* notifications : une ligne */
+.docspace .ds-card-notifs{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.dn-ic{flex:none;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--bg);font-size:17px}
+.ds-card-notifs.a-lire .dn-ic{background:color-mix(in oklab,var(--accent) 16%,#fff)}
+.dn-txt{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.dn-txt b{font-size:14px}
+.dn-txt small{font-size:12.5px;color:var(--ink-soft)}
+.ds-card-notifs.a-lire .dn-txt small{color:var(--accent);font-weight:600}
+.ds-card-notifs .ds-seeall{flex:none;padding:10px 4px}
+
+/* liste des dossiers */
+.docspace .ds-card-dossiers{padding:16px 12px 12px}
+.docspace .ds-card-dossiers h3{padding:0 6px 10px}
+.ds-filtre{width:100%;font:inherit;font-size:14px;padding:9px 13px;margin:0 0 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+.ds-filtre:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
+.docspace .contact-list{gap:4px}
+.docspace .contact{border-color:transparent;padding:10px;border-radius:12px;position:relative}
+.docspace .contact:hover{border-color:transparent;background:color-mix(in oklab,var(--accent) 6%,var(--bg-card))}
+.docspace .contact:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.docspace .contact.on{border-color:transparent;background:color-mix(in oklab,var(--accent) 13%,#fff)}
+.docspace .contact.on::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:3px;background:var(--accent)}
+.docspace .contact.has-new:not(.on){border-color:transparent;background:transparent}
+.docspace .contact.has-new .c-name{font-weight:700}
+.docspace .contact .c-name{flex:1;min-width:0}
+.docspace .contact .c-name small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-chev{margin-left:auto;flex:none;color:var(--line);font-size:22px;line-height:1}
+.contact:hover .c-chev,.contact.on .c-chev{color:var(--accent)}
+
+/* aucun dossier ouvert */
+.docspace .space-empty{padding:44px 28px}
+.se-aide{list-style:none;display:grid;gap:10px;max-width:460px;margin:24px auto 0;text-align:left}
+.se-aide li{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--bg);font-size:14px;color:var(--ink-soft);line-height:1.45}
+.se-aide li>span:first-child{font-size:18px;line-height:1.2}
+
+/* ---- dossier ouvert ---- */
+.ds-retour{display:none;align-items:center;gap:8px;border:0;background:none;font:inherit;font-weight:600;font-size:14.5px;color:var(--accent);padding:6px 0 12px;min-height:44px;cursor:pointer}
+.docspace .dd-head{align-items:flex-start;margin-bottom:12px}
+.dd-titre{min-width:0;flex:1 1 280px}
+.docspace .ds-dossier h3{font-size:clamp(20px,2vw,24px);line-height:1.2}
+.dd-sous{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font-size:13.5px;color:var(--ink-soft)}
+.dd-formation{font-weight:600;color:var(--ink)}
+.dd-dates::before{content:"\1F4C5  ";font-size:12px}
+.docspace .ds-card-acts .btn-mini{padding:8px 14px}
+.docspace .grp-members{gap:6px;margin-bottom:16px}
+.docspace .mchip{font-size:11.5px;padding:4px 10px}
+
+/* canaux : deux grands choix explicites */
+.docspace .chan-tabs{gap:8px;background:none;border:0;padding:0;margin-bottom:12px}
+.docspace .chan-tab{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:11px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg-card);color:var(--ink)}
+.docspace .chan-tab:hover{border-color:color-mix(in oklab,var(--accent) 55%,var(--line))}
+.docspace .chan-tab.on{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 9%,#fff);color:var(--ink);box-shadow:inset 0 0 0 1px var(--accent)}
+.docspace .chan-tab .ct-l{font-size:14px;font-weight:700;display:inline-flex;align-items:center;flex-wrap:wrap;gap:0 2px;line-height:1.3}
+.docspace .chan-tab .chan-dot{display:inline-flex;align-items:center;justify-content:center;height:18px;min-width:18px;padding:0 5px;line-height:1;vertical-align:middle;margin-left:6px;font-variant-numeric:tabular-nums}
+.docspace .chan-tab .ct-s{font-size:12px;font-weight:500;color:var(--ink-soft)}
+.docspace .chan-tab.on .chan-dot{background:var(--accent);color:#fff}
+.docspace .chan-tabs.seul{display:none}
+.docspace .chan-note{margin-bottom:12px}
+
+/* À faire */
+.dd-afaire{border:1.5px solid color-mix(in oklab,var(--accent) 45%,var(--line));background:color-mix(in oklab,var(--accent) 7%,#fff);border-radius:14px;padding:12px 14px;margin-bottom:16px}
+.dd-afaire-t{display:flex;align-items:center;gap:6px;font-size:14px;margin-bottom:8px;color:var(--accent)}
+.dd-afaire-n{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.dd-afaire ul{list-style:none;display:grid;gap:8px}
+.dd-afaire li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.dd-afaire-ic{font-size:18px}
+.dd-afaire-nom{flex:1 1 180px;font-weight:600;font-size:14px;min-width:0}
+.dd-afaire .req-acts{margin:0}
+
+/* messagerie + documents côte à côte */
+.dd-cols{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
+.dd-col{border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px;min-width:0}
+.docspace .dd-col .ds-sub{margin:0 0 10px;display:flex;align-items:center}
+.dd-msgs .chat{margin-top:0}
+.dd-msgs .chat-msgs{min-height:220px;max-height:min(56vh,520px);padding:8px 6px;background:var(--bg-card);border-radius:10px;border:1px solid color-mix(in oklab,var(--line) 70%,transparent)}
+.dd-docs .ds-sep{display:none}
+.dd-docs .upload-zone{padding:12px 14px;margin-bottom:10px;gap:12px;border-radius:12px}
+.dd-docs .upload-zone .uz-ic{width:38px;height:38px;flex:none;border-radius:10px;display:flex;align-items:center;justify-content:center;background:color-mix(in oklab,var(--accent) 12%,#fff);color:var(--accent);font-size:17px}
+.dd-docs .upload-zone small{font-size:12px;line-height:1.35;display:inline-block;margin-top:2px}
+.dd-docs .docs-h{margin:6px 0}
+.dd-docs .docs-h span{display:none}
+.dd-docs .docs-scroll{max-height:min(48vh,440px)}
+.docspace .docs{gap:6px}
+.docspace .docs li{padding:10px 12px;gap:10px;background:var(--bg-card);border-color:color-mix(in oklab,var(--line) 85%,transparent)}
+.docspace .docs li:hover{border-color:color-mix(in oklab,var(--accent) 45%,var(--line))}
+.docspace .doc-meta b{font-size:13.5px;overflow-wrap:anywhere}
+.docspace .docs li .btn-mini{padding:6px 12px;font-size:12.5px;background:transparent;color:var(--accent);border-color:color-mix(in oklab,var(--accent) 50%,transparent)}
+.docspace .docs li .btn-mini:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.docspace .docs li .adm-del{width:28px;height:28px;font-size:13px}
+.docspace .doc-meta small{font-size:11.5px;line-height:1.35}
+
+/* ---- vue globale de l'administration ---- */
+.docspace .adm-head{align-items:center}
+.adm-actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.docspace .adm-bar{padding:12px;border-radius:12px;background:var(--bg);border:1px solid var(--line);margin-bottom:18px}
+/* comptes et dossiers : même fond et même bordure que les lignes de fichiers (demande de l'utilisateur) */
+.docspace .adm-grp{background:var(--bg-card);border-color:color-mix(in oklab,var(--line) 85%,transparent);padding:12px 14px}
+.docspace .admin-users li{background:var(--bg-card);border-color:color-mix(in oklab,var(--line) 85%,transparent);padding:10px 12px}
+.adm-ouvrir{flex:none}
+
+/* ---- connexion ---- */
+.page-hero{padding:128px 0 8px}
+.page-hero h1{font-size:clamp(36px,4.6vw,58px)}
+.page-hero .lead{margin-top:16px;font-size:clamp(17px,1.7vw,21px)}
+.auth-wrap .auth-err:empty{display:none}
+.auth-aide{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:0 0 18px;text-align:center}
+.auth-oubli{margin:-8px 0 0;text-align:right}
+.auth-oubli .link-btn{padding:6px 0;font-size:13px}
+.auth-wrap .auth-go{justify-self:stretch;justify-content:center;width:100%}
+.auth-premiere{margin:18px 0 0;padding:12px 14px;border-radius:12px;background:var(--bg);font-size:13px;line-height:1.5;color:var(--ink-soft);text-align:center}
+.auth-premiere b{color:var(--ink)}
+
+/* ---- tablette : messagerie et documents l'un sous l'autre ---- */
+@media(max-width:1199px){
+  .dd-cols{grid-template-columns:minmax(0,1fr)}
+  .dd-docs{order:-1}
+}
+/* ---- téléphone et petite tablette : la liste OU le dossier, jamais les deux ---- */
+@media(max-width:980px){
+  .docspace .ds-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+  .docspace .ds-side{position:static}
+  .docspace .ds-grid.a-dossier .ds-side{display:none}
+  .docspace .ds-grid:not(.a-dossier):not(.tuto-demo) .ds-main{display:none}
+  .docspace .ds-grid.tuto-demo .ds-retour{display:none}
+  .ds-retour{display:inline-flex}
+}
+@media(max-width:620px){
+  body.ds-app .page-hero + .sec{padding-top:92px!important}
+  body.ds-app .page-hero + .sec .wrap{padding:0 12px}
+  .docspace .ds-top{padding:12px;border-radius:14px}
+  .ds-avatar{width:38px;height:38px;font-size:13px}
+  .docspace .ds-top-acts{width:100%;justify-content:stretch}
+  .docspace .ds-top-acts>*{flex:1 1 0;min-width:0}
+  .docspace .ds-top-acts .btn{width:100%;justify-content:center;padding:10px;min-height:44px;white-space:normal;line-height:1.2;text-align:center}
+  .ds-compte-menu{min-width:min(280px,calc(100vw - 48px))}
+  .docspace .ds-card{padding:14px;border-radius:14px}
+  .docspace .ds-card-dossiers{padding:12px 8px 8px}
+  .docspace .contact{padding:12px 10px;min-height:56px}
+  .dd-head .ds-card-acts{width:100%;margin-left:0}
+  .dd-head .ds-card-acts .btn-mini{flex:1 1 auto;text-align:center;min-height:42px}
+  .docspace .chan-tabs{flex-direction:column}
+  .docspace .chan-tab{padding:10px 12px}
+  .dd-col{padding:10px;border-radius:12px}
+  .dd-afaire li .req-acts{width:100%}
+  .dd-afaire li .req-acts>*{flex:1 1 auto;text-align:center;min-height:40px}
+  .docspace .adm-grp-h .adm-grp-acts{width:100%;justify-content:flex-end;padding-left:45px}
+  .docspace .adm-grp-h .c-name{flex-basis:calc(100% - 50px)}
+  .adm-actions{width:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .adm-actions .btn-mini{white-space:normal;text-align:center;line-height:1.25;min-height:42px}
+  .adm-actions .adm-logins{grid-column:1 / -1}
+  .docspace .adm-bar{display:flex;flex-direction:column;align-items:stretch}
+}

@@ -148,7 +148,7 @@
     // en simulation, « Se déconnecter » ramène à l'espace administrateur : la vraie session n'est pas fermée
     if (enSimulation()) { quitterSimulation(); return; }
     fermerSessionServeur();
-    setToken(null); ME = null; NOTIFS = []; selected = null; if (notifTimer) { clearInterval(notifTimer); notifTimer = null; } renderHeader(); if (app()) renderAuth(); }
+    setToken(null); ME = null; NOTIFS = []; selected = null; AUTO_OUVERT = false; if (notifTimer) { clearInterval(notifTimer); notifTimer = null; } renderHeader(); if (app()) renderAuth(); }
 
   // ---- modale notifications ----------------------------------------------
   function ensureNotifModal() {
@@ -186,6 +186,13 @@
   }
   function closeNotifModal() { var m = document.getElementById('notif-modal'); if (m) { m.classList.remove('open'); document.body.style.overflow = ''; } if (app() && ME) renderDashboard(); }
 
+  // REFONTE UI : le menu « Mon compte » se referme au clic ailleurs et à Échap (posé une seule fois)
+  document.addEventListener('click', function (e) {
+    var o = document.querySelector('.ds-compte[open]'); if (o && !o.contains(e.target)) o.open = false;
+  });
+  document.addEventListener('keydown', function (e) {
+    var o = document.querySelector('.ds-compte[open]'); if (e.key === 'Escape' && o) { o.open = false; var s = o.querySelector('summary'); if (s) s.focus(); }
+  });
   // ---- boot ---------------------------------------------------------------
   function boot() {
     // ⚠️ un lien d'activation ou de réinitialisation vaut pour un VRAI compte : ouvert dans un onglet
@@ -223,6 +230,7 @@
 
   // ---- connexion (l'inscription publique est fermée : comptes créés par l'admin)
   function renderAuth() {
+    document.body.classList.remove('ds-app');   // REFONTE UI : l'en-tête de page revient hors connexion
     var el = app(); if (!el) return;
     // ⚠️ Plus de titre « Se connecter » au-dessus du formulaire : seul, dans un cadre d'onglets,
     // il ressemblait à un bouton (demande de l'utilisateur, 05/08/2026). Le bouton d'envoi porte
@@ -250,6 +258,7 @@
   }
   // ---- première connexion : la personne définit son mot de passe -----------
   function renderActivate(tok) {
+    document.body.classList.remove('ds-app');   // REFONTE UI : l'en-tête de page revient hors connexion
     var el = app(); if (!el) return;
     el.innerHTML = '<div class="auth-wrap"><div class="auth-tabs"><button class="auth-tab on" type="button">Première connexion</button></div>' +
       '<p class="ds-empty" id="act-load">Vérification de votre lien…</p></div>';
@@ -298,9 +307,14 @@
   // comptes de démonstration. Les comptes eux-mêmes existent toujours en base pour les essais,
   // mais plus rien ne les annonce, et la route qui les servait a été supprimée.
   function loginForm() {
-    return '<form class="form auth-form" id="login-form" style="max-width:none">' + field('li-email', 'E-mail', 'email') + pwdField('li-pwd', 'Mot de passe') +
-      '<p class="auth-err" id="login-err"></p><button class="btn btn-primary" type="submit" style="justify-self:center">Se connecter →</button></form>' +
-      '<p class="chan-note" style="text-align:center;margin:14px 0 0"><button type="button" class="link-btn li-oubli">Mot de passe oublié ?</button></p>';
+    // REFONTE UI : une phrase d'aide en tête (quel identifiant), le lien d'oubli sous le mot de passe,
+    // et la marche à suivre pour une première connexion sous le bouton. Pas de titre « Se connecter »
+    // (retiré le 05/08/2026 à la demande de l'utilisateur : il ressemblait à un bouton).
+    return '<p class="auth-aide">Connectez-vous avec l\'adresse e-mail à laquelle vous avez reçu votre invitation.</p>' +
+      '<form class="form auth-form" id="login-form" style="max-width:none">' + field('li-email', 'E-mail', 'email') + pwdField('li-pwd', 'Mot de passe') +
+      '<p class="auth-oubli"><button type="button" class="link-btn li-oubli">Mot de passe oublié ?</button></p>' +
+      '<p class="auth-err" id="login-err"></p><button class="btn btn-primary auth-go" type="submit">Se connecter →</button></form>' +
+      '<p class="auth-premiere"><b>Première connexion ?</b> <span>Ouvrez le lien reçu par e-mail pour choisir votre mot de passe.</span></p>';
   }
   // ---- mot de passe oublié : demande du lien -------------------------------
   // ⚠️ La réponse est TOUJOURS la même, que l'adresse ait un compte ou non : le message ne dit
@@ -335,6 +349,7 @@
   // Jumeau de renderActivate, avec un préfixe de lien DIFFÉRENT (#reinit=) : deux jetons de
   // natures différentes derrière le même préfixe rendraient les deux écrans indiscernables.
   function renderReset(tok) {
+    document.body.classList.remove('ds-app');   // REFONTE UI : l'en-tête de page revient hors connexion
     var el = app(); if (!el) return;
     el.innerHTML = '<div class="auth-wrap"><div class="auth-tabs"><button class="auth-tab on" type="button">Nouveau mot de passe</button></div>' +
       '<p class="ds-empty">Vérification de votre lien…</p></div>';
@@ -473,15 +488,21 @@
     // ⚠️ les deux boutons sont groupés dans .ds-top-acts : .ds-top est en justify-content:space-between,
     // un second bouton posé directement dedans flotterait au milieu du bandeau sur ordinateur et
     // ferait déborder l'en-tête à 375 px (précédent .adm-grp-acts).
+    // REFONTE UI : une seule action visible (la visite guidée, ou la simulation pour l'administration),
+    // les réglages du compte rangés dans « Mon compte » (mêmes boutons, mêmes classes, mêmes actions).
     return (enSimulation() ? simBandeauHTML() : '') +
-      '<div class="ds-top"><div class="ds-id"><span class="ds-hi">Bonjour ' + esc(ME.prenom) + ' ' + esc(ME.nom) + '</span>' +
-      '<span class="role-chip role-' + ME.role + '">' + ROLES[ME.role] + '</span></div><div class="ds-top-acts">' +
-      (ME.role === 'admin' ? '' : '<button type="button" class="btn btn-ghost tuto-replay">Revoir la visite guidée</button>') +
-      // bouton « Simulation » : administration seulement, à gauche de « Changer mon mot de passe »
+      '<div class="ds-top"><div class="ds-id"><span class="ds-avatar role-' + ME.role + '" aria-hidden="true">' + esc(initials(fullName(ME))) + '</span>' +
+      '<div class="ds-id-txt"><h1 class="ds-lieu">Espace documents</h1><span class="ds-hi-ligne"><span class="ds-hi">Bonjour ' + esc(ME.prenom) + ' ' + esc(ME.nom) + '</span>' +
+      '<span class="role-chip role-' + ME.role + '">' + ROLES[ME.role] + '</span></span></div></div><div class="ds-top-acts">' +
+      (ME.role === 'admin' ? '' : '<button type="button" class="btn btn-ghost tuto-replay"><span aria-hidden="true">❔</span> <span>Revoir la visite guidée</span></button>') +
       (ME.role === 'admin' ? '<button type="button" class="btn btn-ghost ds-sim">🎭 Simulation</button>' : '') +
-      '<button type="button" class="btn btn-ghost ds-pwd">Changer mon mot de passe</button>' +
-      '<button class="btn btn-ghost ds-logout">Se déconnecter</button></div></div>';
+      '<details class="ds-compte"><summary class="btn btn-ghost"><span>Mon compte</span> <span class="ds-chev" aria-hidden="true">▾</span></summary>' +
+      '<div class="ds-compte-menu" role="menu"><p class="ds-compte-qui">' + esc(fullName(ME)) + '<small>' + esc(ME.email || '') + '</small></p>' +
+      '<button type="button" class="ds-pwd" role="menuitem"><span aria-hidden="true">🔑</span> <span>Changer mon mot de passe</span></button>' +
+      '<button type="button" class="ds-logout" role="menuitem"><span aria-hidden="true">↪</span> <span>Se déconnecter</span></button></div></details></div></div>';
   }
+  // REFONTE UI : dossier unique ouvert d'office, une fois par visite (voir renderUserDash)
+  var AUTO_OUVERT = false;
   // Consomme les notifications d'un dossier pour UN canal, puis redessine. Les notifications sans
   // canal (demandes de signature, changements de composition) partent avec le premier canal ouvert.
   function consommerNotifs(groupId, ch) {
@@ -500,9 +521,10 @@
   function notifCardHTML(unread) {
     // ds-card-notifs : ancre stable de la visite guidée (une ancre positionnelle du type
     // « .ds-side > .ds-card:first-child » se déplacerait en silence si une carte était ajoutée).
-    return '<div class="ds-card ds-card-notifs"><div class="ds-card-h"><h3>Notifications' + (unread ? ' <span class="mini-badge">' + unread + '</span>' : '') + '</h3>' +
-      (NOTIFS.length ? '<button class="link-btn ds-seeall">Voir tout</button>' : '') + '</div>' +
-      '<p class="ds-empty" style="margin:0">' + (NOTIFS.length ? (unread ? unread + (unread > 1 ? ' notifications non lues' : ' notification non lue') : 'Tout est lu.') : 'Aucune notification pour le moment.') + '</p></div>';
+    // REFONTE UI : une ligne compacte (le détail s'ouvre dans la même fenêtre que la cloche)
+    return '<div class="ds-card ds-card-notifs' + (unread ? ' a-lire' : '') + '"><span class="dn-ic" aria-hidden="true">🔔</span>' +
+      '<p class="dn-txt"><b>Notifications</b><small>' + (NOTIFS.length ? (unread ? unread + (unread > 1 ? ' notifications non lues' : ' notification non lue') : 'Tout est lu.') : 'Aucune notification pour le moment.') + '</small></p>' +
+      (NOTIFS.length ? '<button class="link-btn ds-seeall">Voir tout</button>' : '') + '</div>';
   }
   // ---- membres d'un dossier (autant de formateurs et d'apprenants que voulu) ----
   function gProfs(g) { return (g && g.profs) || []; }
@@ -671,35 +693,80 @@
       }).join('') + '</ul></div>' : '<p class="ds-empty" style="margin:14px 0">Aucun document dans ce canal.</p>') +
       '<hr class="ds-sep" />';
   }
+  // REFONTE UI : la formation du dossier (intitulé + dates), lue dans la fiche de l'apprenant quand
+  // le compte connecté y a accès (formateur, administration, l'apprenant lui-même)
+  function dateCourte(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : ''; }
+  function formationDe(g) {
+    var p = (g && g.eleve && g.eleve.profile) || {};
+    var d = dateCourte(p.dateDebut), f = dateCourte(p.dateFin);
+    return { intitule: p.intitule || '', dates: d && f ? d + ' → ' + f : (d || f) };
+  }
+  // REFONTE UI : ce que le compte connecté a À FAIRE dans ce canal, en tête du dossier. Les boutons
+  // portent les MÊMES classes que ceux des cartes de la messagerie (wireChat les branche tous).
+  function aFaireHTML(messages) {
+    var t = token(), items = [];
+    (messages || []).forEach(function (m) {
+      if (m.kind === 'qs' && ME.role === 'eleve' && m.qs && m.qs.status !== 'done')
+        items.push(['📋', m.qs.title || 'Questionnaire', '<button class="btn-mini qs-fill-btn" data-qs="' + m.qs.id + '">Remplir le questionnaire →</button>']);
+      if (m.kind === 'presence' && ME.role === 'eleve' && m.presence && m.presence.status !== 'done')
+        items.push(['🖊️', m.presence.title || 'Feuille de présence', '<button class="btn-mini pr-sign-btn" data-pr="' + m.presence.id + '">Signer →</button>']);
+      if (m.kind === 'attestation' && ME.role === 'eleve' && m.attestation && m.attestation.status !== 'done')
+        items.push(['🎓', m.attestation.title || 'Attestation de fin de formation', '<a class="btn-mini ghost" href="/api/attestation/' + m.attestation.id + '/apercu?token=' + encodeURIComponent(t) + '" target="_blank" rel="noopener">Lire le document</a><button class="btn-mini at-sign-btn" data-at="' + m.attestation.id + '">Signer →</button>']);
+      if (m.kind === 'contrat' && ME.role === 'prof' && m.contrat && m.contrat.status !== 'done' && m.contrat.prof === ME.id)
+        items.push(['📝', m.contrat.title || 'Contrat de sous-traitance', '<a class="btn-mini ghost" href="/api/contrat/' + m.contrat.id + '/apercu?token=' + encodeURIComponent(t) + '" target="_blank" rel="noopener">Lire le contrat</a><button class="btn-mini ct-sign-btn" data-ct="' + m.contrat.id + '">Signer →</button>']);
+    });
+    if (!items.length) return '';
+    return '<div class="dd-afaire" role="region" aria-label="À faire"><p class="dd-afaire-t"><span aria-hidden="true">⚡</span> <b>À faire</b> <span class="dd-afaire-n">' + items.length + '</span></p><ul>' +
+      items.map(function (it) { return '<li><span class="dd-afaire-ic" aria-hidden="true">' + it[0] + '</span><span class="dd-afaire-nom">' + esc(it[1]) + '</span><span class="req-acts">' + it[2] + '</span></li>'; }).join('') + '</ul></div>';
+  }
   function groupView(g, messages, docs) {
-    if (!g) return '<div class="ds-card space-empty"><div class="se-ic">📁</div><h3>Vos dossiers</h3><p class="ds-empty">Sélectionnez un dossier à gauche pour voir les documents et discuter.</p></div>';
+    if (!g) return '<div class="ds-card space-empty"><div class="se-ic">📁</div><h3>Vos dossiers</h3><p class="ds-empty">Sélectionnez un dossier à gauche pour voir les documents et discuter.</p>' +
+      '<ul class="se-aide"><li><span aria-hidden="true">💬</span><span>Une messagerie pour échanger avec votre formateur, votre apprenant ou l\'administration.</span></li>' +
+      '<li><span aria-hidden="true">📄</span><span>Tous les documents de la formation, à télécharger ou à envoyer.</span></li>' +
+      '<li><span aria-hidden="true">✍️</span><span>Les questionnaires à remplir et les documents à signer, signalés dans « À faire ».</span></li></ul></div>';
     var canPrive = (ME.role === 'prof' || ME.role === 'admin');
     // l'administration modifie la composition SANS quitter le dossier (le même bouton existe
     // aussi sur chaque dossier de la vue globale, en bas de page)
     var acts = (ME.role === 'admin' ? '<button class="btn-mini ghost grp-edit-btn" type="button" title="Ajouter ou retirer des formateurs de ce dossier">👥 Formateurs</button>' +
       '<button class="btn-mini ghost msg-hist-btn" type="button" title="Modifications et suppressions de messages dans ce dossier">🕐 Historique des messages</button>' : '') +
       (ME.role !== 'eleve' ? '<button class="btn-mini gen-btn">📄 Générer un document</button>' : '');
-    return '<div class="ds-card"><div class="ds-card-h"><h3>Dossier — ' + esc(groupTitle(g)) + '</h3>' +
+    // REFONTE UI : en-tête du dossier (qui, quelle formation, actions), canaux en choix explicite,
+    // « À faire », puis messagerie et documents CÔTE À CÔTE sur ordinateur (empilés sur téléphone)
+    var fo = formationDe(g);
+    var nDocs = (docs || []).length;
+    return '<div class="ds-card ds-dossier"><button type="button" class="ds-retour"><span aria-hidden="true">←</span> <span>Tous mes dossiers</span></button>' +
+      '<div class="ds-card-h dd-head"><div class="dd-titre"><h3>Dossier — ' + esc(groupTitle(g)) + '</h3>' +
+      (fo.intitule || fo.dates ? '<p class="dd-sous">' + (fo.intitule ? '<span class="dd-formation">' + esc(fo.intitule) + '</span>' : '') + (fo.dates ? '<span class="dd-dates">' + esc(fo.dates) + '</span>' : '') + '</p>' : '') + '</div>' +
       (acts ? '<div class="ds-card-acts">' + acts + '</div>' : '') + '</div>' + membersChips(g) +
       // pastille sur l'onglet qui porte du non-lu : sans elle, rien ne dit qu'il se passe quelque
       // chose dans l'autre canal tant qu'on n'y va pas
-      '<div class="chan-tabs"><button class="chan-tab' + (channel === 'commun' ? ' on' : '') + '" data-ch="commun">💬 Discussion commune' + pastilleCanal(g.id, 'commun') + '</button>' +
-      (canPrive ? '<button class="chan-tab' + (channel === 'prive' ? ' on' : '') + '" data-ch="prive">🔒 Privé · formateur + admin' + pastilleCanal(g.id, 'prive') + '</button>' : '') + '</div>' +
+      '<div class="chan-tabs' + (canPrive ? '' : ' seul') + '"><button class="chan-tab' + (channel === 'commun' ? ' on' : '') + '" data-ch="commun"><span class="ct-l">💬 Discussion commune' + pastilleCanal(g.id, 'commun') + '</span>' +
+      (canPrive ? '<small class="ct-s">Visible par l\'apprenant</small>' : '') + '</button>' +
+      (canPrive ? '<button class="chan-tab' + (channel === 'prive' ? ' on' : '') + '" data-ch="prive"><span class="ct-l">🔒 Privé · formateur + admin' + pastilleCanal(g.id, 'prive') + '</span><small class="ct-s">L\'apprenant n\'y a pas accès</small></button>' : '') + '</div>' +
       (channel === 'prive' ? '<p class="chan-note">Canal privé : l\'apprenant n\'a pas accès à ce canal.</p>' : '') +
-      docsBlock(docs) + '<h4 class="ds-sub">Messagerie</h4>' + chatHTML(messages) + '</div>';
+      aFaireHTML(messages) +
+      '<div class="dd-cols"><section class="dd-col dd-msgs"><h4 class="ds-sub">Messagerie</h4>' + chatHTML(messages) + '</section>' +
+      '<section class="dd-col dd-docs"><h4 class="ds-sub">Documents' + (nDocs ? ' <span class="dd-n">' + nDocs + '</span>' : '') + '</h4>' + docsBlock(docs) + '</section></div></div>';
   }
   // Les dossiers sont constitués par l'administration UNIQUEMENT (30/07/2026) : ni l'apprenant
   // ni le formateur n'ajoute qui que ce soit, il n'y a donc plus de bouton loupe ici.
   function dossiersCardHTML(groups) {
-    return '<div class="ds-card ds-card-dossiers"><h3>Mes dossiers</h3>' +
+    // REFONTE UI : chaque dossier montre sa FORMATION (plus parlant que « Apprenant · 1 formateur ·
+    // Admin », qui reste en repli), un vrai bouton (clavier) et, au-delà de 5 dossiers, un filtre.
+    return '<div class="ds-card ds-card-dossiers"><h3>Mes dossiers' + (groups.length ? ' <span class="dd-n">' + groups.length + '</span>' : '') + '</h3>' +
+      (groups.length > 5 ? '<input type="search" class="ds-filtre" id="ds-filtre" placeholder="Rechercher un dossier…" aria-label="Rechercher un dossier" autocomplete="off" />' : '') +
       (groups.length ? '<ul class="contact-list">' + groups.map(function (g) {
         // Le nombre de formateurs est désormais variable : chaque mot est dans son propre nœud
         // texte pour rester une clé de traduction stable malgré le nombre qui change.
         var np = gProfs(g).length;
-        var sub = '<span>Apprenant</span> · ' + np + ' <span>' + (np > 1 ? 'formateurs' : 'formateur') + '</span> · <span>Admin</span>';
+        var fo = formationDe(g);
+        var sub = fo.intitule ? '<span class="c-forma">' + esc(fo.intitule) + '</span>'
+          : '<span>Apprenant</span> · ' + np + ' <span>' + (np > 1 ? 'formateurs' : 'formateur') + '</span> · <span>Admin</span>';
         var nb = NOTIFS.filter(function (n) { return !n.read && n.group === g.id; }).length;
-        return '<li class="contact' + (selected === g.id ? ' on' : '') + (nb ? ' has-new' : '') + '" data-id="' + g.id + '"><span class="avatar">' + esc(initials(groupTitle(g))) + '</span><span class="c-name">' + esc(groupTitle(g)) + '<small>' + sub + '</small></span>' + (nb ? '<span class="contact-badge">' + (nb > 9 ? '9+' : nb) + '</span>' : '') + '</li>';
-      }).join('') + '</ul>' : '<p class="ds-empty">Aucun dossier pour l\'instant.</p>') + '</div>';
+        return '<li class="contact' + (selected === g.id ? ' on' : '') + (nb ? ' has-new' : '') + '" data-id="' + g.id + '" data-q="' + esc(norm(groupTitle(g) + ' ' + fo.intitule)) + '" role="button" tabindex="0"' + (selected === g.id ? ' aria-current="true"' : '') + '>' +
+          '<span class="avatar">' + esc(initials(groupTitle(g))) + '</span><span class="c-name">' + esc(groupTitle(g)) + '<small>' + sub + '</small></span>' +
+          (nb ? '<span class="contact-badge" title="Non lu">' + (nb > 9 ? '9+' : nb) + '</span>' : '<span class="c-chev" aria-hidden="true">›</span>') + '</li>';
+      }).join('') + '</ul><p class="ds-empty ds-filtre-vide" hidden>Aucun dossier ne correspond.</p>' : '<p class="ds-empty">Aucun dossier pour l\'instant.</p>') + '</div>';
   }
 
   // ---- routeur + rendu ----------------------------------------------------
@@ -716,6 +783,11 @@
     Promise.all([api('/api/groups'), api('/api/notifications')]).then(function (res) {
       var groups = res[0].data.groups || [];
       NOTIFS = res[1].data.notifs || [];
+      // REFONTE UI : un seul dossier (le cas de presque tous les apprenants) → il s'ouvre d'office,
+      // une fois par visite. ⚠️ SANS consommer ses notifications : elles ne partent, comme avant,
+      // que sur un geste de la personne (clic sur le dossier, changement de canal, cloche).
+      if (!AUTO_OUVERT && !selected && groups.length === 1 && !TUTO_DEMO_ON) { selected = groups[0].id; channel = 'commun'; }
+      AUTO_OUVERT = true;
       var selG = selected ? groups.filter(function (g) { return g.id === selected; })[0] : null;
       if (selected && !selG) selected = null;
       loadGroupContent(selG, function (m, d) { paintBoard(el, groups, selG, m, d, null); });
@@ -741,8 +813,22 @@
     if (changed) GEN_PROF = null;
     resetGenTargets();
     var unread = NOTIFS.filter(function (n) { return !n.read; }).length;
-    el.innerHTML = topHTML() + '<div class="ds-grid"><aside class="ds-side">' + notifCardHTML(unread) + dossiersCardHTML(groups) +
+    // REFONTE UI : la vue globale de l'administration reste SOUS les dossiers, sur la même page
+    // (choix de l'utilisateur : pas d'onglets). Sur téléphone, un dossier ouvert prend tout l'écran
+    // (« ← Tous mes dossiers » pour revenir), sauf pendant la visite guidée, qui a besoin de la
+    // liste et du dossier d'exemple ensemble.
+    document.body.classList.add('ds-app');
+    el.innerHTML = topHTML() +
+      '<div class="ds-grid' + (selG ? (TUTO_DEMO_ON ? ' tuto-demo' : ' a-dossier') : '') + '"><aside class="ds-side">' + notifCardHTML(unread) + dossiersCardHTML(groups) +
       '</aside><main class="ds-main">' + groupView(selG, messages, docs) + '</main></div>' + (overview ? adminPanel(overview) : '');
+    var rt = el.querySelector('.ds-retour'); if (rt) rt.onclick = function () { selected = null; renderDashboard(); window.scrollTo({ top: 0, behavior: 'instant' }); };
+    var fl = el.querySelector('#ds-filtre'); if (fl) fl.oninput = function () {
+      var q = norm(fl.value), n = 0;
+      el.querySelectorAll('.contact').forEach(function (li) { var ok = !q || (li.getAttribute('data-q') || '').indexOf(q) >= 0; li.hidden = !ok; if (ok) n++; });
+      var v = el.querySelector('.ds-filtre-vide'); if (v) v.hidden = n > 0;
+    };
+    var cpt = el.querySelector('.ds-compte');
+    if (cpt) cpt.addEventListener('toggle', function () { var p = cpt.querySelector('.ds-pwd'); if (cpt.open && p) p.focus(); });
     el.querySelector('.ds-logout').onclick = function () { logout(); };
     var pb = el.querySelector('.ds-pwd'); if (pb) pb.onclick = function () { openPasswordModal(); };
     var sb = el.querySelector('.ds-sim'); if (sb) sb.onclick = function () { entrerSimulation(sb, false); };
@@ -761,7 +847,10 @@
         // ⚠️ On ne consomme que les notifications du canal qu'on ouvre (ici « commun ») : celles
         // du canal privé doivent survivre, sinon le formateur perd l'alerte sans l'avoir vue.
         consommerNotifs(selected, 'commun');
+        // téléphone : le dossier remplace la liste, on remonte en haut pour le voir
+        if (window.matchMedia && window.matchMedia('(max-width:980px)').matches) window.scrollTo({ top: 0, behavior: 'instant' });
       };
+      li.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); li.click(); } };
     });
     el.querySelectorAll('.doc-del').forEach(function (b) {
       b.onclick = function () {
@@ -1372,12 +1461,13 @@
     var users = a.users || [], groups = a.groups || [], docs = a.docs || [];
     var q = norm(adminQuery);
     function chip(key, label, count) { return '<button class="adm-chip' + (adminShow[key] ? ' on' : '') + '" type="button" data-k="' + key + '">' + label + ' (' + count + ')</button>'; }
-    var bar = '<div class="ds-card-h"><h3>Administration — vue globale</h3></div>' +
-      '<div class="adm-bar"><div class="adm-toggle">' + chip('dossiers', 'Dossiers', groups.length) + chip('comptes', 'Comptes', users.length) + chip('fichiers', 'Fichiers', docs.length) +
-      '</div><input id="adm-search" class="adm-search" placeholder="Filtrer par nom, e-mail, fichier…" value="' + esc(adminQuery) + '" />' +
+    // REFONTE UI : les actions (créer) d'un côté, les filtres de l'autre ; mêmes boutons, mêmes classes
+    var bar = '<div class="ds-card-h adm-head"><h3>Administration — vue globale</h3><div class="adm-actions">' +
       '<button class="btn-mini adm-new" type="button">+ Créer un compte</button>' +
       '<button class="btn-mini adm-newgrp" type="button">+ Créer un dossier</button>' +
-      '<button class="btn-mini adm-logins" type="button">🕐 Historique de connexions</button>' +
+      '<button class="btn-mini ghost adm-logins" type="button">🕐 Historique de connexions</button></div></div>' +
+      '<div class="adm-bar"><div class="adm-toggle">' + chip('dossiers', 'Dossiers', groups.length) + chip('comptes', 'Comptes', users.length) + chip('fichiers', 'Fichiers', docs.length) +
+      '</div><input id="adm-search" class="adm-search" type="search" placeholder="Filtrer par nom, e-mail, fichier…" value="' + esc(adminQuery) + '" />' +
       // replier d'un coup les fichiers de tous les dossiers : c'est ce qui rend la vue lisible
       // quand il y a beaucoup de dossiers bien remplis
       (groups.some(function (g) { return docs.some(function (d) { return d.group === g.id; }); })
@@ -1396,6 +1486,8 @@
           // les boutons sont groupés : à 375 px le groupe passe à la ligne d'un bloc au lieu de
           // déborder de la boîte du dossier
           '<div class="adm-grp-acts">' +
+          // REFONTE UI : aller droit au dossier depuis la vue globale (onglet « Dossiers »)
+          '<button class="btn-mini ghost adm-ouvrir" type="button" data-id="' + g.id + '" title="Ouvrir ce dossier (messagerie et documents)">Ouvrir →</button>' +
           (gd.length ? '<button class="adm-fold" type="button" data-id="' + g.id + '" title="' + (replie ? 'Afficher les fichiers de ce dossier' : 'Masquer les fichiers de ce dossier') + '" aria-expanded="' + (replie ? 'false' : 'true') + '"><span class="adm-fold-n">' + gd.length + '</span><span class="adm-fold-ch">▾</span></button>' : '') +
           '<button class="adm-grp-edit" type="button" data-id="' + g.id + '" title="Modifier la composition du dossier">✏️</button>' +
           '<button class="adm-del" type="button" data-del="group" data-id="' + g.id + '" data-label="' + esc(g.label || '') + '" title="Supprimer ce dossier">🗑</button></div></div>' +
@@ -1480,6 +1572,13 @@
         majFoldAll();
       };
     }
+    document.querySelectorAll('.adm-ouvrir').forEach(function (b) {
+      b.onclick = function () {
+        selected = b.getAttribute('data-id'); channel = 'commun';
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        consommerNotifs(selected, 'commun');
+      };
+    });
     document.querySelectorAll('.adm-hist').forEach(function (b) {
       b.onclick = function () { openLoginsModal(b.getAttribute('data-id'), b.getAttribute('data-name')); };
     });

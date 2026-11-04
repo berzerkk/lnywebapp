@@ -342,7 +342,6 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Comprendre sans effort presque tout ce que vous lisez ou entendez": "Effortlessly understand almost everything you read or hear", "Restituer faits et arguments de façon cohérente": "Summarise facts and arguments coherently", "Vous exprimer avec précision et nuance, même sur des sujets complexes": "Express yourself with precision and nuance, even on complex subjects",
   /* ---- espace documents (page) ---- */
   "Votre espace": "Your document", "documents.": "portal.",
-  "Connectez-vous, ajoutez vos professeurs ou vos élèves, et partagez vos documents de formation en toute simplicité. Chaque dépôt déclenche une notification.": "Sign in, add your teachers or learners, and share your training documents with ease. Every upload triggers a notification.",
   /* ---- blog ---- */
   "Le journal Languages & Success": "The Languages & Success journal",
   "Apprendre,": "Learn,", "financer": "fund", ", réussir.": ", succeed.",
@@ -810,4 +809,24 @@ window.__lsI18N && window.__lsI18N.register('en', {
   "Connexion la plus récente": "Most recent sign-in",
   "Connexion la plus ancienne": "Oldest sign-in",
   "Création (récents d'abord)": "Created (newest first)",
+  /* ---- refonte de l'espace documents (04/11/2026) ---- */
+  "Mon compte": "My account",
+  "Tous mes dossiers": "All my folders",
+  "Visible par l'apprenant": "Visible to the learner",
+  "L'apprenant n'y a pas accès": "The learner has no access",
+  "À faire": "To do",
+  "Rechercher un dossier…": "Search for a folder…",
+  "Aucun dossier ne correspond.": "No folder matches.",
+  "Ouvrir ce dossier (messagerie et documents)": "Open this folder (messages and documents)",
+  "Documents": "Documents",
+  "Non lu": "Unread",
+  "Une messagerie pour échanger avec votre formateur, votre apprenant ou l'administration.": "A messaging space to talk with your trainer, your learner or the administration.",
+  "Tous les documents de la formation, à télécharger ou à envoyer.": "All the course documents, to download or send.",
+  "Les questionnaires à remplir et les documents à signer, signalés dans « À faire ».": "Questionnaires to fill in and documents to sign, flagged under \"To do\".",
+  "Connectez-vous avec l'adresse e-mail à laquelle vous avez reçu votre invitation.": "Sign in with the e-mail address at which you received your invitation.",
+  "Première connexion ?": "First sign-in?",
+  "Ouvrez le lien reçu par e-mail pour choisir votre mot de passe.": "Open the link you received by e-mail to choose your password.",
+  "Vos dossiers de formation, vos documents à signer et vos échanges avec votre formateur et l'administration, réunis au même endroit.": "Your course folders, the documents to sign and your conversations with your trainer and the administration, all in one place.",
+  "Aucune notification pour le moment.": "No notifications yet.",
+  "Tout est lu.": "All read.",
 });
